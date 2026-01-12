@@ -266,4 +266,41 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
       }
     }
   }
+
+  /* 2. Bodies (Planets, Black Holes) */
+  int n_bodies = 0;
+  const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
+
+  for (int i = 0; i < n_bodies; i++) {
+    const struct bhs_body *b = &bodies[i];
+
+    float sx, sy;
+    /* Project body center */
+    project_point(cam, b->pos.x, b->pos.y, b->pos.z, width, height, &sx, &sy);
+
+    /* Calculate screen radius based on distance */
+    float dx = b->pos.x - cam->x;
+    float dy = b->pos.y - cam->y;
+    float dz = b->pos.z - cam->z;
+    float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+    if (dist < 0.1f)
+      dist = 0.1f;
+
+    /* Project radius: size / dist * fov */
+    float s_radius = (b->radius / dist) * cam->fov;
+    if (s_radius < 2.0f)
+      s_radius = 2.0f; /* Minimum visual size */
+
+    struct bhs_ui_color color = {(float)b->color.x, (float)b->color.y,
+                                 (float)b->color.z, 1.0f};
+
+    /* Draw filled circle */
+    bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
+
+    /* Debug Label */
+    if (b->type == BHS_BODY_PLANET) {
+      bhs_ui_draw_text(ctx, "Planet", sx + s_radius + 5, sy, 12.0f,
+                       BHS_UI_COLOR_WHITE);
+    }
+  }
 }

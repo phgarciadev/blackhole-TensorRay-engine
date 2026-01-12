@@ -57,8 +57,31 @@ void bhs_scene_init_default(bhs_scene_t scene) {
   /*
    * [USER REQUEST] Start empty. No bodies.
    * "Quando a malha estiver perfeita, podemos introduzir um planeta ou astro."
+   * EDIT: User asked to add a planet now for physics testing.
    */
-  scene->n_bodies = 0;
+  scene->n_bodies = 2;
+
+  /* Corpo 0: Buraco Negro Central (Estático na origem) */
+  scene->bodies[0] = (struct bhs_body){
+      .pos = {.x = 0, .y = 0, .z = 0},
+      .vel = {.x = 0, .y = 0, .z = 0},
+      .mass = 10.0, /* M=10 */
+      .radius = 2.0,
+      .type = BHS_BODY_BLACKHOLE,
+      .spin = 0.0,
+      .color = {.x = 0, .y = 0, .z = 0} /* Preto */
+  };
+
+  /* Corpo 1: Planeta Orbitando (Circular aprox) */
+  /* v_circ = sqrt(GM/r) -> r=10, GM=10 -> v = 1.0 */
+  scene->bodies[1] = (struct bhs_body){
+      .pos = {.x = 10.0, .y = 0, .z = 0},
+      .vel = {.x = 0, .y = 1.0, .z = 0.3}, /* Ligeiramente inclinado */
+      .mass = 0.1,
+      .radius = 0.5,
+      .type = BHS_BODY_PLANET,
+      .color = {.x = 0.2, .y = 0.8, .z = 1.0} /* Azul ciano */
+  };
 }
 
 void bhs_scene_update(bhs_scene_t scene, double dt) {

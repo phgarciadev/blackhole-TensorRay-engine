@@ -25,11 +25,15 @@ struct bhs_physics_config {
 struct bhs_physics_params {
   float time;
   float mass;
-  float spin;         /* Parâmetro de spin a/M (0 = Schwarzschild, 1 = extremo) */
+  float spin; /* Parâmetro de spin a/M (0 = Schwarzschild, 1 = extremo) */
   float camera_dist;
   float camera_angle;
-  float camera_incl;  /* Inclinação da câmera (0 = polo, π/2 = equador) */
-  int render_mode;    /* 0 = Realista, 1 = Grid/Debug */
+  float camera_incl; /* Inclinação da câmera (0 = polo, π/2 = equador) */
+  int render_mode;   /* 0 = Realista, 1 = Grid/Debug */
+
+  /* Planeta */
+  float planet_pos[3]; /* Posição do planeta (x,y,z) */
+  float planet_radius; /* Raio do planeta */
 };
 
 typedef struct bhs_physics_impl *bhs_physics_t;

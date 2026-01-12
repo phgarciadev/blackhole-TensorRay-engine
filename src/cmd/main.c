@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     bhs_hud_draw(ui, &hud_state, w, h);
 
     /* Text info inferior (permanente) */
-    bhs_ui_draw_text(ui, "Status: Empty Universe (Waiting for Mass Injection)",
+    bhs_ui_draw_text(ui, "Status: Planet Injected (Newtonian Gravity Active)",
                      10, (float)h - 30, 16.0f, BHS_UI_COLOR_GRAY);
 
     /* Finaliza Frame */

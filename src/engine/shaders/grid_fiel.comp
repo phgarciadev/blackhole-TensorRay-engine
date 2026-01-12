@@ -12,6 +12,8 @@ layout(push_constant) uniform PushConstants {
     float time;
     vec2 resolution;
     float camera_pitch;  /* Ângulo de inclinação */
+    vec3 planet_pos;     /* Posição do planeta */
+    float planet_radius; /* Raio do planeta */
 } params;
 
 /* === CONFIGURAÇÃO MODULAR (ESTÉTICA) === */
@@ -23,14 +25,29 @@ const float GRID_SPACING = 0.5;
 const float GRID_THICKNESS = 0.012;
 
 /* === MÓDULO DE DEFORMAÇÃO === */
+/* === MÓDULO DE DEFORMAÇÃO === */
 float get_well_height(vec2 p) {
     float d = length(p);
-    /* Distorção central suave mas profunda */
+    /* Distorção central suave mas profunda (Black Hole) */
     float h = -4.5 / (d * 0.8 + 1.2);
     
+    /* Distorção do Planeta */
+    float d_planet = length(p - params.planet_pos.xy);
+    /* Massa relativa pequena, mas visível */
+    h -= 0.8 / (d_planet * 2.0 + 0.5);
+
     /* Decaimento para bordas infinitas */
     float falloff = exp(-d * 0.02);
     return h * falloff;
+}
+
+float intersect_sphere(vec3 ro, vec3 rd, vec3 center, float radius) {
+    vec3 oc = ro - center;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - radius * radius;
+    float h = b * b - c;
+    if (h < 0.0) return -1.0;
+    return -b - sqrt(h);
 }
 
 /* === MÓDULO DE RENDERIZAÇÃO DE MALHA === */
@@ -77,8 +94,23 @@ void main() {
     vec3 color = COLOR_SKY; 
     bool hit = false;
 
+    /* Check visual planet intersection first */
+    float t_planet = intersect_sphere(ro, rd, params.planet_pos, params.planet_radius);
+    
     /* Step adaptive para evitar erro de precisão no horizonte */
     for(int i=0; i<120; i++) {
+        /* Se houve interseção com planeta antes do grid (aproximado usando t), desenha planeta */
+        if (t_planet > 0.0 && t > t_planet) {
+             /* Cor do planeta: Vermelho avermelhado com shadow simples */
+             vec3 p_surf = ro + t_planet * rd;
+             vec3 normal = normalize(p_surf - params.planet_pos);
+             vec3 light = normalize(vec3(0.0, 0.0, 1.0)); /* Luz de cima */
+             float diffuse = max(dot(normal, light), 0.1);
+             color = vec3(0.8, 0.2, 0.2) * diffuse;
+             hit = true;
+             break;
+        }
+
         vec3 p = ro + t * rd;
         float h = get_well_height(p.xy);
         

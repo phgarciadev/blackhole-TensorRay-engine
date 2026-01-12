@@ -8,6 +8,8 @@
  */
 
 #include "physics.h"
+#include "body/body.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +27,9 @@ struct bhs_physics_impl {
   bhs_gpu_sampler_t sampler;
   uint32_t width;
   uint32_t height;
+
+  /* Simulação */
+  struct bhs_body planet;
 };
 
 /* ============================================================================
@@ -66,6 +71,15 @@ int bhs_physics_create(const struct bhs_physics_config *config,
   p->device = config->device;
   p->width = config->width;
   p->height = config->height;
+
+  /* Inicializa o planeta em órbita */
+  /* Posição (10, 0, 0), massa pequena, raio visual 0.5, cor vermelha */
+  p->planet = bhs_body_create_planet((struct bhs_vec3){12.0, 0.0, 0.0}, 0.01,
+                                     0.5, (struct bhs_vec3){1.0, 0.3, 0.3});
+
+  /* Velocidade orbital aprox v = sqrt(GM/r) */
+  /* Assumindo M=4.0 (do shader) => v = sqrt(4/12) = 0.577 */
+  p->planet.vel = (struct bhs_vec3){0.0, 0.58, 0.0};
 
   /* 1. Cria textura de saída (Storage Image) */
   struct bhs_gpu_texture_config tex_cfg = {
@@ -176,11 +190,37 @@ void bhs_physics_step(bhs_physics_t physics, bhs_gpu_cmd_buffer_t cmd,
     float _pad;
     float resolution[2];
     float camera_pitch;
+    float _pad2[3]; /* Align to 16 bytes for vec3 (Offset 16+4 -> 20. Need 12
+                       bytes pad -> 32) */
+    float planet_pos[3]; /* Offset 32 */
+    float planet_radius; /* Offset 44 */
   } push = {
       .time = params->time,
       .resolution = {(float)physics->width, (float)physics->height},
       .camera_pitch = params->camera_incl,
+      ._pad2 = {0},
+      .planet_pos = {(float)physics->planet.pos.x, (float)physics->planet.pos.y,
+                     (float)physics->planet.pos.z},
+      .planet_radius = (float)physics->planet.radius,
   };
+
+  /* Física no CPU: Gravidade Newtoniana simples (Central Mass M=4.0) */
+  struct bhs_vec3 center = {0, 0, 0};
+  struct bhs_vec3 diff = bhs_vec3_sub(center, physics->planet.pos);
+  double r = bhs_vec3_norm(diff);
+  if (r > 0.1) {
+    double M = 4.0;             /* Massa do buraco negro/sol central */
+    double force = M / (r * r); /* G=1 */
+    struct bhs_vec3 dir = bhs_vec3_normalize(diff);
+    struct bhs_vec3 acc = bhs_vec3_scale(dir, force);
+
+    /* Symplectic Euler: v += a*dt, x += v*dt */
+    /* dt fixo ou vindo de params? vamos usar fixo pequeno por enqto */
+    double dt = 0.05;
+    physics->planet.vel =
+        bhs_vec3_add(physics->planet.vel, bhs_vec3_scale(acc, dt));
+    bhs_body_integrate(&physics->planet, dt);
+  }
 
   /* Bind pipeline e recursos */
   bhs_gpu_cmd_set_pipeline(cmd, physics->pipeline);

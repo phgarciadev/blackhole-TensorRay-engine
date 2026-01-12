@@ -626,3 +626,63 @@ void bhs_ui_clear(bhs_ui_ctx_t ctx, struct bhs_ui_color color) {
       ctx, (struct bhs_ui_rect){0, 0, (float)ctx->width, (float)ctx->height},
       color);
 }
+
+void bhs_ui_draw_circle_fill(bhs_ui_ctx_t ctx, float cx, float cy, float radius,
+                             struct bhs_ui_color color) {
+  BHS_ASSERT(ctx != NULL);
+
+  if (radius < 0.5f)
+    return;
+
+  /* Validate batch texture */
+  if (ctx->current_batch.texture != ctx->white_texture) {
+    flush_batch(ctx);
+    ctx->current_batch.texture = ctx->white_texture;
+  }
+
+  int segments = 24;
+  /* Basic LoD */
+  if (radius < 5.0f)
+    segments = 12;
+  if (radius > 50.0f)
+    segments = 48;
+
+  if (ctx->vertex_count + segments * 3 > BHS_MAX_VERTICES)
+    return;
+
+  struct bhs_ui_vertex *v = (struct bhs_ui_vertex *)ctx->mapped_vertices;
+  uint32_t *idx = (uint32_t *)ctx->mapped_indices;
+
+  float step = 6.28318530718f / segments;
+
+  for (int i = 0; i < segments; i++) {
+    float theta1 = i * step;
+    float theta2 = (i + 1) * step;
+
+    float x1 = cx + cosf(theta1) * radius;
+    float y1 = cy + sinf(theta1) * radius;
+
+    float x2 = cx + cosf(theta2) * radius;
+    float y2 = cy + sinf(theta2) * radius;
+
+    uint32_t base = ctx->vertex_count;
+
+    /* Center */
+    v[base + 0] = (struct bhs_ui_vertex){
+        {cx, cy}, {0.5f, 0.5f}, {color.r, color.g, color.b, color.a}};
+    /* P1 */
+    v[base + 1] = (struct bhs_ui_vertex){
+        {x1, y1}, {0.5f, 0.5f}, {color.r, color.g, color.b, color.a}};
+    /* P2 */
+    v[base + 2] = (struct bhs_ui_vertex){
+        {x2, y2}, {0.5f, 0.5f}, {color.r, color.g, color.b, color.a}};
+
+    idx[ctx->index_count + 0] = base + 0;
+    idx[ctx->index_count + 1] = base + 1;
+    idx[ctx->index_count + 2] = base + 2;
+
+    ctx->vertex_count += 3;
+    ctx->index_count += 3;
+    ctx->current_batch.count += 3;
+  }
+}
