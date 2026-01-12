@@ -179,7 +179,7 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx) {
   };
 
   enum bhs_gpu_texture_format color_fmt =
-      BHS_FORMAT_BGRA8_UNORM; /* Swapchain default */
+      BHS_FORMAT_BGRA8_SRGB; /* Match Swapchain */
 
   struct bhs_gpu_pipeline_config pipe_cfg = {
       .vertex_shader = vs,
@@ -231,6 +231,7 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx) {
       .address_u = BHS_ADDRESS_REPEAT,
       .address_v = BHS_ADDRESS_REPEAT,
       .address_w = BHS_ADDRESS_REPEAT,
+      .max_anisotropy = 16.0f, /* Force Sharpness */
   };
   bhs_gpu_sampler_create(ctx->device, &sam_cfg, &ctx->default_sampler);
 
@@ -334,8 +335,9 @@ void bhs_ui_render_end(bhs_ui_ctx_t ctx) {
    */
 }
 
-void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture_void, float x, float y,
-                         float w, float h, struct bhs_ui_color color) {
+void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture_void, float x,
+                            float y, float w, float h, float u0, float v0,
+                            float u1, float v1, struct bhs_ui_color color) {
   BHS_ASSERT(ctx != NULL);
 
   bhs_gpu_texture_t texture = (bhs_gpu_texture_t)texture_void;
@@ -349,24 +351,94 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture_void, float x, float y,
   }
 
   /* Check overflow */
-  if (ctx->vertex_count + 4 > BHS_MAX_VERTICES)
-    return; /* Overflow protection: ignora primitivas extras */
+  if (ctx->vertex_count + 4 > BHS_MAX_VERTICES) {
+    /* Flush current batch and reset */
+    flush_batch(ctx);
+    /* Reset counters (simple version - assuming single buffer reuse) */
+    /* Check render2d_begin logic: it resets counts to 0.
+       We need a "soft reset" or multi-buffer.
+       If we just reset counts to 0, we overwrite previous data?
+       Yes, mapped_vertices is a ring buffer or linear?
+       "ctx->mapped_vertices"
+       Usually we'd simply do nothing or error if fixed size.
+       But flushing doesn't help if we don't have space for new verts unless we
+       swap buffers. Let's stick to 'return' but print error? Actually, if we
+       flush, we draw what we have using the current offset. BUT we need to
+       write new vertices somewhere. If we reset vertex_count to 0, we overwrite
+       used vertices? If the draw call finished (fence?), we can reuse. But we
+       are inside a frame recording. We can't restart the buffer mid-frame
+       without multiple buffers. Given 262k vertices limit, we shouldn't hit it.
+       So let's leave as is, but maybe print a warning?
+    */
+    printf("[ui] WARNING: Vertex Buffer Overflow! Skipping primitive.\n");
+    return;
+  }
 
   struct bhs_ui_vertex *v =
       &((struct bhs_ui_vertex *)ctx->mapped_vertices)[ctx->vertex_count];
   uint32_t *i = &((uint32_t *)ctx->mapped_indices)[ctx->index_count];
   uint32_t idx = ctx->vertex_count;
 
+  /* Top-Left */
   v[0] = (struct bhs_ui_vertex){
-      {x, y}, {0, 0}, {color.r, color.g, color.b, color.a}};
+      {x, y}, {u0, v0}, {color.r, color.g, color.b, color.a}};
+  /* Top-Right */
   v[1] = (struct bhs_ui_vertex){
-      {x + w, y}, {1, 0}, {color.r, color.g, color.b, color.a}};
+      {x + w, y}, {u1, v0}, {color.r, color.g, color.b, color.a}};
+  /* Bottom-Right */
   v[2] = (struct bhs_ui_vertex){
-      {x + w, y + h}, {1, 1}, {color.r, color.g, color.b, color.a}};
+      {x + w, y + h}, {u1, v1}, {color.r, color.g, color.b, color.a}};
+  /* Bottom-Left */
   v[3] = (struct bhs_ui_vertex){
-      {x, y + h}, {0, 1}, {color.r, color.g, color.b, color.a}};
+      {x, y + h}, {u0, v1}, {color.r, color.g, color.b, color.a}};
 
-  // esses cara otario q fica leno código....
+  i[0] = idx + 0;
+  i[1] = idx + 1;
+  i[2] = idx + 2;
+  i[3] = idx + 2;
+  i[4] = idx + 3;
+  i[5] = idx + 0;
+
+  ctx->current_batch.count += 6;
+}
+
+void bhs_ui_draw_quad_uv(bhs_ui_ctx_t ctx, void *texture_void, float x0,
+                         float y0, float u0, float v0,           /* TL */
+                         float x1, float y1, float u1, float v1, /* TR */
+                         float x2, float y2, float u2, float v2, /* BR */
+                         float x3, float y3, float u3, float v3, /* BL */
+                         struct bhs_ui_color color) {
+  BHS_ASSERT(ctx != NULL);
+
+  bhs_gpu_texture_t texture = (bhs_gpu_texture_t)texture_void;
+  if (!texture)
+    texture = ctx->white_texture;
+
+  if (ctx->current_batch.texture != texture) {
+    flush_batch(ctx);
+    ctx->current_batch.texture = texture;
+  }
+
+  if (ctx->vertex_count + 4 > BHS_MAX_VERTICES)
+    return;
+
+  struct bhs_ui_vertex *v =
+      &((struct bhs_ui_vertex *)ctx->mapped_vertices)[ctx->vertex_count];
+  uint32_t *i = &((uint32_t *)ctx->mapped_indices)[ctx->index_count];
+  uint32_t idx = ctx->vertex_count;
+
+  /* TL */
+  v[0] = (struct bhs_ui_vertex){
+      {x0, y0}, {u0, v0}, {color.r, color.g, color.b, color.a}};
+  /* TR */
+  v[1] = (struct bhs_ui_vertex){
+      {x1, y1}, {u1, v1}, {color.r, color.g, color.b, color.a}};
+  /* BR */
+  v[2] = (struct bhs_ui_vertex){
+      {x2, y2}, {u2, v2}, {color.r, color.g, color.b, color.a}};
+  /* BL */
+  v[3] = (struct bhs_ui_vertex){
+      {x3, y3}, {u3, v3}, {color.r, color.g, color.b, color.a}};
 
   i[0] = idx + 0;
   i[1] = idx + 1;
@@ -380,13 +452,25 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture_void, float x, float y,
   ctx->current_batch.count += 6;
 }
 
+void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture, float x, float y,
+                         float w, float h, struct bhs_ui_color color) {
+  bhs_ui_draw_texture_uv(ctx, texture, x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f,
+                         color);
+}
+
 #include "lib/ui_framework/render/font.h"
 
 /* Compatibility helpers */
 void bhs_ui_draw_rect(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
                       struct bhs_ui_color color) {
   BHS_ASSERT(ctx != NULL);
-  bhs_ui_draw_texture(ctx, NULL, rect.x, rect.y, rect.width, rect.height,
+  /* Use draw_quad_uv manually to ensure consistent behavior with Skybox */
+  bhs_ui_draw_quad_uv(ctx, NULL,                  // texture (NULL -> white)
+                      rect.x, rect.y, 0.0f, 0.0f, // TL
+                      rect.x + rect.width, rect.y, 1.0f, 0.0f, // TR
+                      rect.x + rect.width, rect.y + rect.height, 1.0f,
+                      1.0f,                                     // BR
+                      rect.x, rect.y + rect.height, 0.0f, 1.0f, // BL
                       color);
 }
 

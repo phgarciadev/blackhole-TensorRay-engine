@@ -14,7 +14,7 @@
  * @param height Altura da tela
  */
 void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
-                                 const bhs_camera_t *cam, int width,
-                                 int height);
+                                 const bhs_camera_t *cam, int width, int height,
+                                 void *bg_texture);
 
 #endif /* BHS_CMD_UI_RENDER_SPACETIME_RENDERER_H */

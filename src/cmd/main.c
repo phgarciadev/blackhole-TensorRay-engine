@@ -8,8 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cmd/ui/screens/hud.h"
 #include "cmd/ui/screens/view_spacetime.h"
 #include "engine/scene/scene.h"
+#include "hal/gpu/renderer.h"
+#include "lib/loader/image_loader.h"
 
 int main(int argc, char *argv[]) {
   (void)argc;
@@ -49,6 +52,40 @@ int main(int argc, char *argv[]) {
   bhs_camera_t cam;
   bhs_camera_init(&cam);
 
+  /* 3.1 Inicializa HUD */
+  bhs_hud_state_t hud_state;
+  bhs_hud_init(&hud_state);
+
+  /* 3.5 Carrega Textura do Espaço (Kernel-style: Fail fast) */
+  printf("Carregando texturas...\n");
+  bhs_image_t bg_img = bhs_image_load("assets/textures/space_bg.png");
+  bhs_gpu_texture_t bg_tex = NULL;
+
+  if (bg_img.data) {
+    struct bhs_gpu_texture_config tex_conf = {
+        .width = bg_img.width,
+        .height = bg_img.height,
+        .depth = 1,
+        .mip_levels = 1,
+        .array_layers = 1,
+        .format =
+            BHS_FORMAT_RGBA8_SRGB, /* Texture is sRGB, GPU must linearize */
+        .usage = BHS_TEXTURE_SAMPLED | BHS_TEXTURE_TRANSFER_DST,
+        .label = "Skybox"};
+
+    bhs_gpu_device_t dev = bhs_ui_get_gpu_device(ui);
+    if (bhs_gpu_texture_create(dev, &tex_conf, &bg_tex) == BHS_GPU_OK) {
+      bhs_gpu_texture_upload(bg_tex, 0, 0, bg_img.data,
+                             bg_img.width * bg_img.height * 4);
+      printf("Textura carregada: %dx%d\n", bg_img.width, bg_img.height);
+    } else {
+      fprintf(stderr, "Falha ao criar textura na GPU.\n");
+    }
+    bhs_image_free(bg_img); /* RAM free */
+  } else {
+    fprintf(stderr, "Aviso: Textura do espaco nao encontrada.\n");
+  }
+
   printf("Sistema online. Entrando no horizonte de eventos...\n");
 
   /* 4. Loop Principal */
@@ -75,19 +112,24 @@ int main(int argc, char *argv[]) {
     /* Atualiza Câmera (Input) */
     bhs_camera_update_view(&cam, ui, dt);
 
-    /* Limpa tela (Preto profundo) */
-    bhs_ui_clear(ui, (struct bhs_ui_color){0.05f, 0.05f, 0.08f, 1.0f});
+    /* Limpa tela (Preto absoluto para contraste máximo) */
+    bhs_ui_clear(ui, (struct bhs_ui_color){0.0f, 0.0f, 0.0f, 1.0f});
 
-    /* Desenha Malha Espacial */
+    /* Desenha Malha Espacial (Passamos a textura aqui) */
     int w, h;
     bhs_ui_get_size(ui, &w, &h);
-    bhs_view_spacetime_draw(ui, scene, &cam, w, h);
+
+    /* DEBUG: Print size every frame to stderr */
+    /* fprintf(stderr, "Size: %dx%d\n", w, h); */
+
+    bhs_view_spacetime_draw(ui, scene, &cam, w, h, bg_tex);
 
     /* Interface Adicional (HUD) */
-    bhs_ui_draw_text(ui, "FPS: 60 (Trust me)", 10, 10, 16.0f,
-                     BHS_UI_COLOR_WHITE);
-    bhs_ui_draw_text(ui, "Controls: WASD (Pan), Q/E (Zoom)", 10, 30, 16.0f,
-                     BHS_UI_COLOR_GRAY);
+    bhs_hud_draw(ui, &hud_state, w, h);
+
+    /* Text info inferior (permanente) */
+    bhs_ui_draw_text(ui, "Status: Empty Universe (Waiting for Mass Injection)",
+                     10, (float)h - 30, 16.0f, BHS_UI_COLOR_GRAY);
 
     /* Finaliza Frame */
     bhs_ui_end_frame(ui);
@@ -96,6 +138,8 @@ int main(int argc, char *argv[]) {
   printf("Desligando simulacao...\n");
 
   /* 4. Cleanup */
+  if (bg_tex)
+    bhs_gpu_texture_destroy(bg_tex);
   bhs_ui_destroy(ui);
   bhs_scene_destroy(scene);
 

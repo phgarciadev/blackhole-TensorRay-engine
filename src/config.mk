@@ -7,8 +7,23 @@
 # --- 1. System Detection ---
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
-    DEFAULT_PLATFORM := wayland
-    DEFAULT_RENDERER := vulkan
+    # 1. Detect GUI Protocol (Wayland vs X11)
+    ifneq ($(WAYLAND_DISPLAY),)
+        DEFAULT_PLATFORM := wayland
+    else ifeq ($(XDG_SESSION_TYPE),wayland)
+        DEFAULT_PLATFORM := wayland
+    else
+        DEFAULT_PLATFORM := x11
+    endif
+
+    # 2. Detect Renderer (Vulkan vs OpenGL)
+    # We prefer Vulkan if available. Check via pkg-config.
+    HAS_VULKAN := $(shell pkg-config --exists vulkan && echo 1 || echo 0)
+    ifeq ($(HAS_VULKAN),1)
+        DEFAULT_RENDERER := vulkan
+    else
+        DEFAULT_RENDERER := opengl
+    endif
 else ifeq ($(UNAME),Darwin)
     DEFAULT_PLATFORM := cocoa
     DEFAULT_RENDERER := metal
@@ -17,7 +32,7 @@ else
     DEFAULT_RENDERER := vulkan
 endif
 
-# User Overrides
+# Allow manual overrides (e.g., make RENDERER=opengl)
 PLATFORM ?= $(DEFAULT_PLATFORM)
 RENDERER ?= $(DEFAULT_RENDERER)
 

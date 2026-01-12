@@ -14,7 +14,9 @@ SRCS := main.c \
         ui/camera/camera.c \
         ui/camera/camera_controller.c \
         ui/render/spacetime_renderer.c \
-        ui/screens/view_spacetime.c
+        ui/render/spacetime_renderer.c \
+        ui/screens/view_spacetime.c \
+        ui/screens/hud.c
 
 # Scan for other sources matching pattern if needed
 # SRCS += $(wildcard ui/*.c) # Careful with duplicates

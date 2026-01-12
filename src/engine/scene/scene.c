@@ -54,39 +54,11 @@ void bhs_scene_init_default(bhs_scene_t scene) {
   /* 1. Cria Malha do Espaço-Tempo (50x50 unidades, 100 divisões) */
   scene->spacetime = bhs_spacetime_create(50.0, 100);
 
-  /* 2. Cria Gargantua (Buraco Negro Central) */
-  /* Massa 5.0, Spin 0.5 (moderado) */
-  if (scene->n_bodies < MAX_BODIES) {
-    scene->bodies[scene->n_bodies++] =
-        bhs_body_create_blackhole((struct bhs_vec3){0, 0, 0}, 5.0, 0.5);
-  }
-
-  /* 3. Cria Planeta Miller (Orbitando perigosamente perto) */
-  /* Usando velocidade inicial tosca por enquanto (v = sqrt(GM/r) aponta pra z?)
+  /*
+   * [USER REQUEST] Start empty. No bodies.
+   * "Quando a malha estiver perfeita, podemos introduzir um planeta ou astro."
    */
-  if (scene->n_bodies < MAX_BODIES) {
-    struct bhs_body miller =
-        bhs_body_create_planet((struct bhs_vec3){15.0, 0, 0}, /* x=15 */
-                               0.01, /* Massa pequena */
-                               0.5,  /* Raio */
-                               (struct bhs_vec3){0.2, 0.4, 1.0} /* Azulado */
-        );
-    /* Vel orbital circular approx: v = sqrt(M/r) = sqrt(5/15) = 0.577 */
-    miller.vel = (struct bhs_vec3){0, 0, 0.577};
-
-    scene->bodies[scene->n_bodies++] = miller;
-  }
-
-  /* 4. Cria Estrela distante (amarela) */
-  if (scene->n_bodies < MAX_BODIES) {
-    struct bhs_body star = bhs_body_create_planet(
-        (struct bhs_vec3){-20.0, 0, -10.0}, 1.0, /* Massa considerável */
-        1.5,                                     /* Grande */
-        (struct bhs_vec3){1.0, 0.9, 0.2}         /* Amarelo */
-    );
-    star.type = BHS_BODY_STAR;
-    scene->bodies[scene->n_bodies++] = star;
-  }
+  scene->n_bodies = 0;
 }
 
 void bhs_scene_update(bhs_scene_t scene, double dt) {

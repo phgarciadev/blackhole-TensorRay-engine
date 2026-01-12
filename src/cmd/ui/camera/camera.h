@@ -6,6 +6,8 @@
  */
 typedef struct bhs_camera {
   float x, y, z; /* Posição World (Y UP) */
+  float pitch;   /* Rotação X (radianos) */
+  float yaw;     /* Rotação Y (radianos) */
   float fov;     /* Field of View / Scale Factor */
 } bhs_camera_t;
 

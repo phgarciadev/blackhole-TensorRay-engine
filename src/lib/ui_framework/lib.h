@@ -310,6 +310,25 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx,
                          /* bhs_gpu_texture_t */ void *texture, float x,
                          float y, float w, float h, struct bhs_ui_color color);
 
+/**
+ * @brief Desenha textura com coordenadas UV controladas
+ * Permite scrolling, tiling e atlas.
+ */
+void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture, float x, float y,
+                            float w, float h, float u0, float v0, float u1,
+                            float v1, struct bhs_ui_color color);
+
+/**
+ * @brief Desenha um quad com UVs arbitrários para cada vértice (TL, TR, BR, BL)
+ * Essencial para distorções complexas (esferas, etc).
+ */
+void bhs_ui_draw_quad_uv(bhs_ui_ctx_t ctx, void *texture, float x0, float y0,
+                         float u0, float v0,                     /* TL */
+                         float x1, float y1, float u1, float v1, /* TR */
+                         float x2, float y2, float u2, float v2, /* BR */
+                         float x3, float y3, float u3, float v3, /* BL */
+                         struct bhs_ui_color color);
+
 /* ============================================================================
  * ÍCONES E SÍMBOLOS
  * ============================================================================

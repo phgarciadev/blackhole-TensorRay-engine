@@ -15,6 +15,7 @@ void bhs_camera_update_view(bhs_camera_t *cam, bhs_ui_ctx_t ctx, double dt);
 
 /* Proxy to renderer */
 void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
-                             const bhs_camera_t *cam, int width, int height);
+                             const bhs_camera_t *cam, int width, int height,
+                             void *bg_texture);
 
 #endif /* BHS_UX_UI_VIEW_SPACETIME_H */
