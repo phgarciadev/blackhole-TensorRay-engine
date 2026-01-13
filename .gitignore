@@ -11,6 +11,7 @@
 *.ilk
 *.map
 *.exp
+*.out
 
 # Precompiled Headers
 *.gch
@@ -30,11 +31,26 @@
 
 # Executables
 *.exe
-*.out
 *.app
 *.i*86
 *.x86_64
 *.hex
+blackhole_sim
+
+# Build Directories
+build/
+bin/
+target/
+
+# IDEs and Tools
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+compile_commands.json
+.cache/
 
 # Debug files
 *.dSYM/

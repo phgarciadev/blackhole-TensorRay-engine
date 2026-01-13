@@ -15,6 +15,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "lib/math/bhs_math.h"
+
 /* ============================================================================
  * ESTRUTURAS
  * ============================================================================
@@ -34,10 +36,10 @@
  * - Qualquer 4-vetor contravariante
  */
 struct bhs_vec4 {
-  double t;
-  double x;
-  double y;
-  double z;
+  real_t t;
+  real_t x;
+  real_t y;
+  real_t z;
 };
 
 /**
@@ -46,9 +48,9 @@ struct bhs_vec4 {
  * Usado quando só a parte espacial importa.
  */
 struct bhs_vec3 {
-  double x;
-  double y;
-  double z;
+  real_t x;
+  real_t y;
+  real_t z;
 };
 
 /* ============================================================================
@@ -59,8 +61,8 @@ struct bhs_vec3 {
 /**
  * bhs_vec4_make - Cria vetor 4D
  */
-static inline struct bhs_vec4 bhs_vec4_make(double t, double x, double y,
-                                            double z) {
+static inline struct bhs_vec4 bhs_vec4_make(real_t t, real_t x, real_t y,
+                                            real_t z) {
   return (struct bhs_vec4){.t = t, .x = x, .y = y, .z = z};
 }
 
@@ -74,7 +76,7 @@ static inline struct bhs_vec4 bhs_vec4_zero(void) {
 /**
  * bhs_vec3_make - Cria vetor 3D
  */
-static inline struct bhs_vec3 bhs_vec3_make(double x, double y, double z) {
+static inline struct bhs_vec3 bhs_vec3_make(real_t x, real_t y, real_t z) {
   return (struct bhs_vec3){.x = x, .y = y, .z = z};
 }
 
@@ -103,7 +105,7 @@ struct bhs_vec4 bhs_vec4_sub(struct bhs_vec4 a, struct bhs_vec4 b);
 /**
  * bhs_vec4_scale - Multiplicação por escalar
  */
-struct bhs_vec4 bhs_vec4_scale(struct bhs_vec4 v, double s);
+struct bhs_vec4 bhs_vec4_scale(struct bhs_vec4 v, real_t s);
 
 /**
  * bhs_vec4_neg - Negação (inverte sinal)
@@ -128,7 +130,7 @@ struct bhs_vec4 bhs_vec4_neg(struct bhs_vec4 v);
  * Para 4-vetor nulo (fótons):
  *   η_μν k^μ k^ν = 0
  */
-double bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b);
+real_t bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b);
 
 /**
  * bhs_vec4_norm2_minkowski - Norma ao quadrado (Minkowski)
@@ -140,14 +142,14 @@ double bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b);
  *   = 0 : null/lightlike (fótons)
  *   > 0 : spacelike (intervalo espacial)
  */
-double bhs_vec4_norm2_minkowski(struct bhs_vec4 v);
+real_t bhs_vec4_norm2_minkowski(struct bhs_vec4 v);
 
 /**
  * bhs_vec4_is_null - Verifica se é vetor nulo (fóton)
  *
  * Tolerância: |norm²| < epsilon
  */
-bool bhs_vec4_is_null(struct bhs_vec4 v, double epsilon);
+bool bhs_vec4_is_null(struct bhs_vec4 v, real_t epsilon);
 
 /**
  * bhs_vec4_is_timelike - Verifica se é timelike
@@ -177,12 +179,12 @@ struct bhs_vec3 bhs_vec3_sub(struct bhs_vec3 a, struct bhs_vec3 b);
 /**
  * bhs_vec3_scale - Multiplicação por escalar
  */
-struct bhs_vec3 bhs_vec3_scale(struct bhs_vec3 v, double s);
+struct bhs_vec3 bhs_vec3_scale(struct bhs_vec3 v, real_t s);
 
 /**
  * bhs_vec3_dot - Produto escalar euclidiano
  */
-double bhs_vec3_dot(struct bhs_vec3 a, struct bhs_vec3 b);
+real_t bhs_vec3_dot(struct bhs_vec3 a, struct bhs_vec3 b);
 
 /**
  * bhs_vec3_cross - Produto vetorial
@@ -192,12 +194,12 @@ struct bhs_vec3 bhs_vec3_cross(struct bhs_vec3 a, struct bhs_vec3 b);
 /**
  * bhs_vec3_norm - Norma euclidiana (magnitude)
  */
-double bhs_vec3_norm(struct bhs_vec3 v);
+real_t bhs_vec3_norm(struct bhs_vec3 v);
 
 /**
  * bhs_vec3_norm2 - Norma ao quadrado (evita sqrt)
  */
-double bhs_vec3_norm2(struct bhs_vec3 v);
+real_t bhs_vec3_norm2(struct bhs_vec3 v);
 
 /**
  * bhs_vec3_normalize - Retorna vetor unitário
@@ -221,7 +223,7 @@ static inline struct bhs_vec3 bhs_vec4_spatial(struct bhs_vec4 v) {
 /**
  * bhs_vec3_to_vec4 - Promove vec3 para vec4 com t dado
  */
-static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, double t) {
+static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, real_t t) {
   return (struct bhs_vec4){.t = t, .x = v.x, .y = v.y, .z = v.z};
 }
 
@@ -237,12 +239,12 @@ static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, double t) {
  * @theta: [out] ângulo polar (0 a π)
  * @phi: [out] ângulo azimutal (-π a π)
  */
-void bhs_vec3_to_spherical(struct bhs_vec3 v, double *r, double *theta,
-                           double *phi);
+void bhs_vec3_to_spherical(struct bhs_vec3 v, real_t *r, real_t *theta,
+                           real_t *phi);
 
 /**
  * bhs_vec3_from_spherical - Esféricas para cartesianas
  */
-struct bhs_vec3 bhs_vec3_from_spherical(double r, double theta, double phi);
+struct bhs_vec3 bhs_vec3_from_spherical(real_t r, real_t theta, real_t phi);
 
 #endif /* BHS_CORE_MATH_VEC4_H */

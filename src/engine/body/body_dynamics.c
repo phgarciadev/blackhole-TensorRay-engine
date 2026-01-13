@@ -14,7 +14,7 @@ void bhs_body_integrate(struct bhs_body *b, double dt) {
   if (!b)
     return;
 
-  b->pos.x += b->vel.x * dt;
-  b->pos.y += b->vel.y * dt;
-  b->pos.z += b->vel.z * dt;
+  b->state.pos.x += b->state.vel.x * dt;
+  b->state.pos.y += b->state.vel.y * dt;
+  b->state.pos.z += b->state.vel.z * dt;
 }

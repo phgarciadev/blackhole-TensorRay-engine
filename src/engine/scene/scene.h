@@ -63,4 +63,25 @@ bhs_spacetime_t bhs_scene_get_spacetime(bhs_scene_t scene);
  */
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count);
 
+/**
+ * bhs_scene_add_body - Adiciona um corpo na cena
+ * @type: Tipo do corpo
+ * @pos: Posição inicial
+ * @mass: Massa
+ * @radius: Raio visual
+ * @color: Cor
+ *
+ * Retorna true se adicionou, false se não couber mais (MAX_BODIES).
+ */
+bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
+			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
+			double radius, struct bhs_vec3 color);
+
+/**
+ * bhs_scene_remove_body - Remove um corpo da cena pelo índice
+ *
+ * Desloca o array para preencher o buraco.
+ */
+void bhs_scene_remove_body(bhs_scene_t scene, int index);
+
 #endif /* BHS_SIM_SCENE_H */

@@ -37,7 +37,7 @@ endif
 
 .PHONY: all hal engine lib cmd clean
 
-all: hal lib engine cmd
+all: hal lib engine cmd shaders
 	@echo ""
 	@echo "=== Event Horizon Build Complete ==="
 	@echo "Platform: $(PLATFORM)"
@@ -65,6 +65,28 @@ engine: lib
 cmd: hal lib engine
 	@echo ">>> Building Command Module (Executable)..."
 	$(MAKE) -C $(CMD_DIR)
+
+# --- Shaders (C -> SPIR-V) ---
+SHADER_SRC_DIR := src/assets/shaders
+SHADER_OUT_DIR := assets/shaders
+SHADER_SRCS := $(wildcard $(SHADER_SRC_DIR)/*.c)
+SHADER_OBJS := $(patsubst $(SHADER_SRC_DIR)/%.c,$(SHADER_OUT_DIR)/%.spv,$(SHADER_SRCS))
+
+# Flags para compilar C como SPIR-V
+# -target spirv64: Alvo Vulkan/SPIR-V 64-bit
+# -x cl: Força linguagem OpenCL C (C com extensions de GPU)
+# -cl-std=CL2.0: Padrão moderno
+# -Xclang -finclude-default-header: Inclui stdlib do OpenCL (get_global_id, etc)
+# -Wno-unused-value: Silencia warnings comuns em macros
+CLANG_SPIRV_FLAGS := -c -target spirv64 -x cl -cl-std=CL2.0 -Xclang -finclude-default-header -O3 -I src -D BHS_SHADER_COMPILER -D BHS_USE_FLOAT -Wno-unused-value
+
+shaders: $(SHADER_OBJS)
+	@echo ">>> Shaders Compiled."
+
+$(SHADER_OUT_DIR)/%.spv: $(SHADER_SRC_DIR)/%.c
+	@mkdir -p $(SHADER_OUT_DIR)
+	@echo "  SPIR-V  $<"
+	clang $(CLANG_SPIRV_FLAGS) $< -o $@
 
 # ============================================================================
 # UTILS

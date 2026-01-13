@@ -32,7 +32,7 @@ struct bhs_vec4 bhs_vec4_sub(struct bhs_vec4 a, struct bhs_vec4 b) {
   };
 }
 
-struct bhs_vec4 bhs_vec4_scale(struct bhs_vec4 v, double s) {
+struct bhs_vec4 bhs_vec4_scale(struct bhs_vec4 v, real_t s) {
   return (struct bhs_vec4){
       .t = v.t * s,
       .x = v.x * s,
@@ -55,7 +55,7 @@ struct bhs_vec4 bhs_vec4_neg(struct bhs_vec4 v) {
  * ============================================================================
  */
 
-double bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b) {
+real_t bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b) {
   /*
    * Métrica de Minkowski: η_μν = diag(-1, +1, +1, +1)
    *
@@ -65,13 +65,13 @@ double bhs_vec4_dot_minkowski(struct bhs_vec4 a, struct bhs_vec4 b) {
   return -a.t * b.t + a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-double bhs_vec4_norm2_minkowski(struct bhs_vec4 v) {
+real_t bhs_vec4_norm2_minkowski(struct bhs_vec4 v) {
   return bhs_vec4_dot_minkowski(v, v);
 }
 
-bool bhs_vec4_is_null(struct bhs_vec4 v, double epsilon) {
-  double norm2 = bhs_vec4_norm2_minkowski(v);
-  return fabs(norm2) < epsilon;
+bool bhs_vec4_is_null(struct bhs_vec4 v, real_t epsilon) {
+  real_t norm2 = bhs_vec4_norm2_minkowski(v);
+  return bhs_abs(norm2) < epsilon;
 }
 
 bool bhs_vec4_is_timelike(struct bhs_vec4 v) {
@@ -105,7 +105,7 @@ struct bhs_vec3 bhs_vec3_sub(struct bhs_vec3 a, struct bhs_vec3 b) {
   };
 }
 
-struct bhs_vec3 bhs_vec3_scale(struct bhs_vec3 v, double s) {
+struct bhs_vec3 bhs_vec3_scale(struct bhs_vec3 v, real_t s) {
   return (struct bhs_vec3){
       .x = v.x * s,
       .y = v.y * s,
@@ -113,7 +113,7 @@ struct bhs_vec3 bhs_vec3_scale(struct bhs_vec3 v, double s) {
   };
 }
 
-double bhs_vec3_dot(struct bhs_vec3 a, struct bhs_vec3 b) {
+real_t bhs_vec3_dot(struct bhs_vec3 a, struct bhs_vec3 b) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
@@ -134,18 +134,18 @@ struct bhs_vec3 bhs_vec3_cross(struct bhs_vec3 a, struct bhs_vec3 b) {
   };
 }
 
-double bhs_vec3_norm(struct bhs_vec3 v) { return sqrt(bhs_vec3_dot(v, v)); }
+real_t bhs_vec3_norm(struct bhs_vec3 v) { return bhs_sqrt(bhs_vec3_dot(v, v)); }
 
-double bhs_vec3_norm2(struct bhs_vec3 v) { return bhs_vec3_dot(v, v); }
+real_t bhs_vec3_norm2(struct bhs_vec3 v) { return bhs_vec3_dot(v, v); }
 
 struct bhs_vec3 bhs_vec3_normalize(struct bhs_vec3 v) {
-  double n = bhs_vec3_norm(v);
+  real_t n = bhs_vec3_norm(v);
 
   /* Evita divisão por zero - retorna zero ao invés de explodir */
   if (n < 1e-15)
     return bhs_vec3_zero();
 
-  double inv_n = 1.0 / n;
+  real_t inv_n = 1.0 / n;
   return bhs_vec3_scale(v, inv_n);
 }
 
@@ -154,8 +154,8 @@ struct bhs_vec3 bhs_vec3_normalize(struct bhs_vec3 v) {
  * ============================================================================
  */
 
-void bhs_vec3_to_spherical(struct bhs_vec3 v, double *r, double *theta,
-                           double *phi) {
+void bhs_vec3_to_spherical(struct bhs_vec3 v, real_t *r, real_t *theta,
+                           real_t *phi) {
   /*
    * Conversão cartesianas → esféricas:
    * r     = √(x² + y² + z²)
@@ -171,22 +171,22 @@ void bhs_vec3_to_spherical(struct bhs_vec3 v, double *r, double *theta,
     return;
   }
 
-  *theta = acos(v.z / *r);
-  *phi = atan2(v.y, v.x);
+  *theta = bhs_acos(v.z / *r);
+  *phi = bhs_atan2(v.y, v.x);
 }
 
-struct bhs_vec3 bhs_vec3_from_spherical(double r, double theta, double phi) {
+struct bhs_vec3 bhs_vec3_from_spherical(real_t r, real_t theta, real_t phi) {
   /*
    * Conversão esféricas → cartesianas:
    * x = r * sin(θ) * cos(φ)
    * y = r * sin(θ) * sin(φ)
    * z = r * cos(θ)
    */
-  double sin_theta = sin(theta);
+  real_t sin_theta = bhs_sin(theta);
 
   return (struct bhs_vec3){
-      .x = r * sin_theta * cos(phi),
-      .y = r * sin_theta * sin(phi),
-      .z = r * cos(theta),
+      .x = r * sin_theta * bhs_cos(phi),
+      .y = r * sin_theta * bhs_sin(phi),
+      .z = r * bhs_cos(theta),
   };
 }

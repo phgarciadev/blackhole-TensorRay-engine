@@ -16,6 +16,7 @@
 
 #include <stdbool.h>
 
+#include "lib/math/bhs_math.h"
 #include "lib/math/vec4.h"
 
 /* ============================================================================
@@ -29,14 +30,10 @@
  * Matriz 4x4 simétrica: g[μ][ν] = g[ν][μ]
  * Índices: 0=t, 1=x/r, 2=y/θ, 3=z/φ
  *
- * Para Schwarzschild em coordenadas esféricas:
- * g[0][0] = -(1 - rs/r)        (coef. de dt²)
- * g[1][1] = 1/(1 - rs/r)       (coef. de dr²)
- * g[2][2] = r²                 (coef. de dθ²)
- * g[3][3] = r² sin²θ           (coef. de dφ²)
+ * Alinhamento 16 bytes para compatibilidade com GPU (std140/std430)
  */
 struct bhs_metric {
-  double g[4][4];
+	BHS_ALIGN(16) real_t g[4][4];
 };
 
 /**
@@ -44,12 +41,9 @@ struct bhs_metric {
  *
  * Conexão de Levi-Civita, simétrica nos índices inferiores.
  * Γ[α][μ][ν] = Γ[α][ν][μ]
- *
- * Fórmula:
- * Γ^α_μν = (1/2) g^αβ (∂_μ g_βν + ∂_ν g_βμ - ∂_β g_μν)
  */
 struct bhs_christoffel {
-  double gamma[4][4][4];
+	BHS_ALIGN(16) real_t gamma[4][4][4];
 };
 
 /* ============================================================================
@@ -85,15 +79,15 @@ struct bhs_metric bhs_metric_minkowski(void);
  *
  * Útil pra métricas esféricas onde só a diagonal importa.
  */
-struct bhs_metric bhs_metric_diag(double g00, double g11, double g22,
-                                  double g33);
+struct bhs_metric bhs_metric_diag(real_t g00, real_t g11, real_t g22,
+				  real_t g33);
 
 /**
  * bhs_metric_is_symmetric - Verifica simetria
  *
  * Retorna true se g[μ][ν] = g[ν][μ] para todos μ, ν.
  */
-bool bhs_metric_is_symmetric(const struct bhs_metric *m, double tol);
+bool bhs_metric_is_symmetric(const struct bhs_metric *m, real_t tol);
 
 /**
  * bhs_metric_det - Determinante da métrica
@@ -104,7 +98,7 @@ bool bhs_metric_is_symmetric(const struct bhs_metric *m, double tol);
  * O determinante é usado para calcular elementos de volume:
  * dV = √|g| d⁴x
  */
-double bhs_metric_det(const struct bhs_metric *m);
+real_t bhs_metric_det(const struct bhs_metric *m);
 
 /**
  * bhs_metric_invert - Inverte a métrica
@@ -141,7 +135,7 @@ struct bhs_vec4 bhs_metric_lower(const struct bhs_metric *m, struct bhs_vec4 v);
  * Retorna: v^μ = g^μν v_ν
  */
 struct bhs_vec4 bhs_metric_raise(const struct bhs_metric *m_inv,
-                                 struct bhs_vec4 v);
+				 struct bhs_vec4 v);
 
 /**
  * bhs_metric_dot - Produto interno com métrica geral
@@ -150,14 +144,15 @@ struct bhs_vec4 bhs_metric_raise(const struct bhs_metric *m_inv,
  *
  * Retorna: g_μν a^μ b^ν
  */
-double bhs_metric_dot(const struct bhs_metric *m, struct bhs_vec4 a,
-                      struct bhs_vec4 b);
+real_t bhs_metric_dot(const struct bhs_metric *m, struct bhs_vec4 a,
+		      struct bhs_vec4 b);
 
 /* ============================================================================
  * SÍMBOLOS DE CHRISTOFFEL
  * ============================================================================
  */
 
+#ifndef BHS_SHADER_COMPILER
 /**
  * Ponteiro de função para métrica parametrizada
  *
@@ -166,8 +161,10 @@ double bhs_metric_dot(const struct bhs_metric *m, struct bhs_vec4 a,
  * @out: métrica calculada nesse ponto
  */
 typedef void (*bhs_metric_func)(struct bhs_vec4 coords, void *userdata,
-                                struct bhs_metric *out);
+				struct bhs_metric *out);
+#endif
 
+#ifndef BHS_SHADER_COMPILER
 /**
  * bhs_christoffel_compute - Calcula símbolos de Christoffel numericamente
  * @metric_fn: função que retorna a métrica em um ponto
@@ -183,8 +180,9 @@ typedef void (*bhs_metric_func)(struct bhs_vec4 coords, void *userdata,
  *  -1 se falhou (métrica singular)
  */
 int bhs_christoffel_compute(bhs_metric_func metric_fn, struct bhs_vec4 coords,
-                            void *userdata, double h,
-                            struct bhs_christoffel *out);
+			    void *userdata, real_t h,
+			    struct bhs_christoffel *out);
+#endif
 
 /**
  * bhs_christoffel_zero - Christoffel zerado (espaço plano)
@@ -202,6 +200,6 @@ struct bhs_christoffel bhs_christoffel_zero(void);
  * d²x^α/dλ² = -Γ^α_μν (dx^μ/dλ)(dx^ν/dλ)
  */
 struct bhs_vec4 bhs_geodesic_accel(const struct bhs_christoffel *chris,
-                                   struct bhs_vec4 vel);
+				   struct bhs_vec4 vel);
 
 #endif /* BHS_CORE_TENSOR_TENSOR_H */

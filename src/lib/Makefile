@@ -20,7 +20,9 @@ CORE_SRCS := math/vec4.c \
              tensor/tensor.c \
              spacetime/schwarzschild.c \
              spacetime/kerr.c \
-             loader/image_loader.c
+             loader/image_loader.c \
+             loader/image_gen.c \
+             ecs/ecs.c
 
 # Objects
 CORE_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(CORE_SRCS))

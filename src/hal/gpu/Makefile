@@ -12,10 +12,11 @@ OBJ_DIR := $(MODULE_DIR)/obj/$(RENDERER)
 # Arquivos fonte por backend
 ifeq ($(RENDERER),vulkan)
     SRCS := vulkan/vk_context.c \
-            vulkan/vk_buffer.c \
-            vulkan/vk_texture.c \
             vulkan/vk_swapchain.c \
             vulkan/vk_pipeline.c \
+            vulkan/vk_buffer.c \
+            vulkan/vk_texture.c \
+            vulkan/rhi_vulkan.c \
             vulkan/vk_sync.c
     PKG_DEPS := vulkan
     EXTRA_CFLAGS :=

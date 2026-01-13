@@ -16,7 +16,8 @@ SRCS := main.c \
         ui/render/spacetime_renderer.c \
         ui/render/spacetime_renderer.c \
         ui/screens/view_spacetime.c \
-        ui/screens/hud.c
+        ui/screens/hud.c \
+        debug/telemetry.c
 
 # Scan for other sources matching pattern if needed
 # SRCS += $(wildcard ui/*.c) # Careful with duplicates

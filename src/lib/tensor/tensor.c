@@ -36,8 +36,8 @@ struct bhs_metric bhs_metric_zero(void) {
 
 struct bhs_metric bhs_metric_minkowski(void) { return BHS_MINKOWSKI; }
 
-struct bhs_metric bhs_metric_diag(double g00, double g11, double g22,
-                                  double g33) {
+struct bhs_metric bhs_metric_diag(real_t g00, real_t g11, real_t g22,
+                                  real_t g33) {
   struct bhs_metric m = bhs_metric_zero();
   m.g[0][0] = g00;
   m.g[1][1] = g11;
@@ -46,17 +46,17 @@ struct bhs_metric bhs_metric_diag(double g00, double g11, double g22,
   return m;
 }
 
-bool bhs_metric_is_symmetric(const struct bhs_metric *m, double tol) {
+bool bhs_metric_is_symmetric(const struct bhs_metric *m, real_t tol) {
   for (int i = 0; i < 4; i++) {
     for (int j = i + 1; j < 4; j++) {
-      if (fabs(m->g[i][j] - m->g[j][i]) > tol)
+      if (bhs_abs(m->g[i][j] - m->g[j][i]) > tol)
         return false;
     }
   }
   return true;
 }
 
-double bhs_metric_det(const struct bhs_metric *m) {
+real_t bhs_metric_det(const struct bhs_metric *m) {
   /*
    * Determinante 4x4 por expansão de Laplace.
    * Isso é O(n!) mas n=4 então tanto faz.
@@ -64,28 +64,28 @@ double bhs_metric_det(const struct bhs_metric *m) {
    * Para métrica diagonal: det = g00 * g11 * g22 * g33
    * Mas implementamos o caso geral.
    */
-  const double (*g)[4] = m->g;
+  const real_t(*g)[4] = m->g;
 
   /* Subdeterminantes 3x3 pela primeira linha */
-  double det = 0.0;
+  real_t det = 0.0;
 
   /* Cofator de g[0][0] */
-  double c00 = g[1][1] * (g[2][2] * g[3][3] - g[2][3] * g[3][2]) -
+  real_t c00 = g[1][1] * (g[2][2] * g[3][3] - g[2][3] * g[3][2]) -
                g[1][2] * (g[2][1] * g[3][3] - g[2][3] * g[3][1]) +
                g[1][3] * (g[2][1] * g[3][2] - g[2][2] * g[3][1]);
 
   /* Cofator de g[0][1] */
-  double c01 = g[1][0] * (g[2][2] * g[3][3] - g[2][3] * g[3][2]) -
+  real_t c01 = g[1][0] * (g[2][2] * g[3][3] - g[2][3] * g[3][2]) -
                g[1][2] * (g[2][0] * g[3][3] - g[2][3] * g[3][0]) +
                g[1][3] * (g[2][0] * g[3][2] - g[2][2] * g[3][0]);
 
   /* Cofator de g[0][2] */
-  double c02 = g[1][0] * (g[2][1] * g[3][3] - g[2][3] * g[3][1]) -
+  real_t c02 = g[1][0] * (g[2][1] * g[3][3] - g[2][3] * g[3][1]) -
                g[1][1] * (g[2][0] * g[3][3] - g[2][3] * g[3][0]) +
                g[1][3] * (g[2][0] * g[3][1] - g[2][1] * g[3][0]);
 
   /* Cofator de g[0][3] */
-  double c03 = g[1][0] * (g[2][1] * g[3][2] - g[2][2] * g[3][1]) -
+  real_t c03 = g[1][0] * (g[2][1] * g[3][2] - g[2][2] * g[3][1]) -
                g[1][1] * (g[2][0] * g[3][2] - g[2][2] * g[3][0]) +
                g[1][2] * (g[2][0] * g[3][1] - g[2][1] * g[3][0]);
 
@@ -101,13 +101,13 @@ int bhs_metric_invert(const struct bhs_metric *m, struct bhs_metric *inv) {
    *
    * Para métricas diagonais é trivial, mas fazemos o caso geral.
    */
-  double det = bhs_metric_det(m);
+  real_t det = bhs_metric_det(m);
 
-  if (fabs(det) < 1e-15)
+  if (bhs_abs(det) < 1e-15)
     return -1; /* Matriz singular */
 
-  double inv_det = 1.0 / det;
-  const double (*g)[4] = m->g;
+  real_t inv_det = 1.0 / det;
+  const real_t(*g)[4] = m->g;
 
   /*
    * Matriz de cofatores (transposta já incluída).
@@ -194,7 +194,7 @@ struct bhs_vec4 bhs_metric_lower(const struct bhs_metric *m,
                                  struct bhs_vec4 v) {
   /* v_μ = g_μν v^ν */
   double components[4] = {v.t, v.x, v.y, v.z};
-  double result[4] = {0};
+  real_t result[4] = {0};
 
   for (int mu = 0; mu < 4; mu++) {
     for (int nu = 0; nu < 4; nu++) {
@@ -211,13 +211,13 @@ struct bhs_vec4 bhs_metric_raise(const struct bhs_metric *m_inv,
   return bhs_metric_lower(m_inv, v);
 }
 
-double bhs_metric_dot(const struct bhs_metric *m, struct bhs_vec4 a,
+real_t bhs_metric_dot(const struct bhs_metric *m, struct bhs_vec4 a,
                       struct bhs_vec4 b) {
   /* g_μν a^μ b^ν */
   double a_comp[4] = {a.t, a.x, a.y, a.z};
   double b_comp[4] = {b.t, b.x, b.y, b.z};
 
-  double result = 0.0;
+  real_t result = 0.0;
   for (int mu = 0; mu < 4; mu++) {
     for (int nu = 0; nu < 4; nu++) {
       result += m->g[mu][nu] * a_comp[mu] * b_comp[nu];
@@ -239,7 +239,7 @@ struct bhs_christoffel bhs_christoffel_zero(void) {
 }
 
 int bhs_christoffel_compute(bhs_metric_func metric_fn, struct bhs_vec4 coords,
-                            void *userdata, double h,
+                            void *userdata, real_t h,
                             struct bhs_christoffel *out) {
   /*
    * Γ^α_μν = (1/2) g^αβ (∂_μ g_βν + ∂_ν g_βμ - ∂_β g_μν)
@@ -263,11 +263,11 @@ int bhs_christoffel_compute(bhs_metric_func metric_fn, struct bhs_vec4 coords,
     return -1;
 
   /* 3. Derivadas parciais: dg[sigma][mu][nu] = ∂_sigma g_munu */
-  double dg[4][4][4]; /* dg[sigma][mu][nu] */
+  real_t dg[4][4][4]; /* dg[sigma][mu][nu] */
 
   for (int sigma = 0; sigma < 4; sigma++) {
     struct bhs_vec4 coords_plus, coords_minus;
-    double c_plus[4], c_minus[4];
+    real_t c_plus[4], c_minus[4];
 
     /* Copia coordenadas e perturba */
     for (int i = 0; i < 4; i++) {
@@ -286,7 +286,7 @@ int bhs_christoffel_compute(bhs_metric_func metric_fn, struct bhs_vec4 coords,
     metric_fn(coords_minus, userdata, &g_minus);
 
     /* Diferença central */
-    double inv_2h = 1.0 / (2.0 * h);
+    real_t inv_2h = 1.0 / (2.0 * h);
     for (int mu = 0; mu < 4; mu++) {
       for (int nu = 0; nu < 4; nu++) {
         dg[sigma][mu][nu] = (g_plus.g[mu][nu] - g_minus.g[mu][nu]) * inv_2h;
@@ -300,11 +300,11 @@ int bhs_christoffel_compute(bhs_metric_func metric_fn, struct bhs_vec4 coords,
   for (int alpha = 0; alpha < 4; alpha++) {
     for (int mu = 0; mu < 4; mu++) {
       for (int nu = mu; nu < 4; nu++) { /* Só metade, depois simetriza */
-        double sum = 0.0;
+        real_t sum = 0.0;
 
         for (int beta = 0; beta < 4; beta++) {
           /* (1/2) g^αβ (∂_μ g_βν + ∂_ν g_βμ - ∂_β g_μν) */
-          double term = dg[mu][beta][nu] + dg[nu][beta][mu] - dg[beta][mu][nu];
+          real_t term = dg[mu][beta][nu] + dg[nu][beta][mu] - dg[beta][mu][nu];
           sum += g_inv.g[alpha][beta] * term;
         }
 
@@ -326,10 +326,10 @@ struct bhs_vec4 bhs_geodesic_accel(const struct bhs_christoffel *chris,
    * Ou seja: a^α = -Γ^α_μν u^μ u^ν
    */
   double u[4] = {vel.t, vel.x, vel.y, vel.z};
-  double a[4] = {0};
+  real_t a[4] = {0};
 
   for (int alpha = 0; alpha < 4; alpha++) {
-    double sum = 0.0;
+    real_t sum = 0.0;
     for (int mu = 0; mu < 4; mu++) {
       for (int nu = 0; nu < 4; nu++) {
         sum += chris->gamma[alpha][mu][nu] * u[mu] * u[nu];

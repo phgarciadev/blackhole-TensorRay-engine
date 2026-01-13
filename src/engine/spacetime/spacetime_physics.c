@@ -27,12 +27,12 @@ void bhs_spacetime_update(bhs_spacetime_t st, const void *bodies_ptr,
     double potential = 0.0;
 
     for (int b = 0; b < n_bodies; b++) {
-      double M = bodies[b].mass;
+      double M = bodies[b].state.mass;
       if (M <= 0)
         continue;
 
-      double dx = x - bodies[b].pos.x;
-      double dz = z - bodies[b].pos.z;
+      double dx = x - bodies[b].state.pos.x;
+      double dz = z - bodies[b].state.pos.z;
       /* Ignora Y do corpo por enquanto, assume projeção no plano */
 
       double dist_sq = dx * dx + dz * dz;

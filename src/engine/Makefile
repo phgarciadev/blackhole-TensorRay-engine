@@ -12,9 +12,11 @@ SHADER_SRC_DIR := shaders
 SHADER_BIN_DIR := $(MODULE_DIR)/shaders
 
 # Arquivos fonte
-SRCS := physics.c \
+SRCS := engine.c \
+        world/world.c \
+        render_system/render_system.c \
         scene/scene.c \
-        body/body_factory.c \
+        systems/physics_system.c \
         body/body_dynamics.c \
         spacetime/spacetime_data.c \
         spacetime/spacetime_physics.c \
