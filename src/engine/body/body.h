@@ -4,10 +4,35 @@
  *
  * "Dados dominam. Se você conhece os dados, a lógica é óbvia."
  * - Torvalds (adaptado)
+ *
+ * ============================================================================
+ * ⚠️  DEPRECATED - NÃO USE PARA CÓDIGO NOVO ⚠️
+ * ============================================================================
+ *
+ * Este arquivo contém uma struct monolítica que viola princípios ECS
+ * e causa duplicação de dados com os componentes em components.h.
+ *
+ * Para código novo, use os componentes granulares:
+ *   - bhs_transform_component (posição, rotação)
+ *   - bhs_physics_component (velocidade, massa, forças)
+ *   - bhs_celestial_component (dados astrofísicos)
+ *   - bhs_collider_component (forma de colisão)
+ *   - bhs_kerr_metric_component (relatividade)
+ *
+ * Migração:
+ *   struct bhs_body  →  Entidade ECS + Componentes
+ *   bhs_body_integrate()  →  bhs_physics_system_update()
+ *   bhs_body_create_*()  →  bhs_ecs_create_entity() + add_components
+ *
+ * Este arquivo será REMOVIDO na próxima versão major.
  */
 
 #ifndef BHS_ENGINE_BODY_H
 #define BHS_ENGINE_BODY_H
+
+/*
+ * DEPRECATED: Este header será removido. Veja comentário no topo do arquivo.
+ */
 
 #include "lib/math/vec4.h"
 
@@ -23,9 +48,10 @@
 
 enum bhs_body_type {
 	BHS_BODY_PLANET,
+	BHS_BODY_MOON,       /* Satélite natural */
 	BHS_BODY_STAR,
 	BHS_BODY_BLACKHOLE,
-	/* Adicione outros conforme necessário (Lua, Asteroide...) */
+	BHS_BODY_ASTEROID,   /* Corpos menores */
 };
 
 enum bhs_matter_state {
@@ -110,14 +136,20 @@ struct bhs_planet_data {
  */
 struct bhs_star_data {
 	/* Essencial */
-	double luminosity; /* Potência total (W) */
-	double temp_effective; /* Temperatura efetiva (K) */
-	double age; /* Idade (anos) */
+	double luminosity;      /* Potência total (W) */
+	double temp_effective;  /* Temperatura efetiva (K) */
+	double age;             /* Idade (anos) */
+	double density;         /* Densidade média (kg/m³) */
 	
-	/* Físico / Evolutivo */
+	/* Composição */
+	double hydrogen_frac;   /* Fração de hidrogênio (0..1) */
+	double helium_frac;     /* Fração de hélio (0..1) */
+	double metals_frac;     /* Fração de metais (Z) */
+
+	/* Evolutivo */
 	enum bhs_star_stage stage;
-	double metallicity; /* Fração de metais (Z) */
-	char spectral_type[8]; /* ex: "G2V" */
+	double metallicity;     /* Metalicidade [Fe/H] */
+	char spectral_type[8];  /* ex: "G2V" */
 };
 
 /**
@@ -153,11 +185,15 @@ struct bhs_body {
 	} prop;
 
 	/* 
-   * Visual Cache (Separado da física conforme Regra Prática) 
-   * "Se não afeta força/estado, não entra no simulador físico"
-   * Mas precisamos desenhar, então fica aqui como 'metadata'.
-   */
+	 * Visual Cache (Separado da física conforme Regra Prática) 
+	 * "Se não afeta força/estado, não entra no simulador físico"
+	 * Mas precisamos desenhar, então fica aqui como 'metadata'.
+	 */
 	struct bhs_vec3 color;
+
+	/* Flags de Controle Físico */
+	bool is_fixed;    /* Se true, não se move (massa infinita efetiva) */
+	bool is_alive;    /* Se false, foi absorvido/destruído */
 };
 
 /* ============================================================================

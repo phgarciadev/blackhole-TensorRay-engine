@@ -22,7 +22,8 @@ CORE_SRCS := math/vec4.c \
              spacetime/kerr.c \
              loader/image_loader.c \
              loader/image_gen.c \
-             ecs/ecs.c
+             ecs/ecs.c \
+             ecs/events.c
 
 # Objects
 CORE_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(CORE_SRCS))

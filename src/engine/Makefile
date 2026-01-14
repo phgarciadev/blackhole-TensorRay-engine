@@ -17,6 +17,10 @@ SRCS := engine.c \
         render_system/render_system.c \
         scene/scene.c \
         systems/physics_system.c \
+        systems/gravity_system.c \
+        systems/celestial_system.c \
+        presets/presets.c \
+        integrator/integrator.c \
         body/body_dynamics.c \
         spacetime/spacetime_data.c \
         spacetime/spacetime_physics.c \

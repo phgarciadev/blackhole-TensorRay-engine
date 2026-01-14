@@ -204,23 +204,58 @@ int main(int argc, char *argv[])
 
 			struct bhs_vec3 vel = { 0, 0, 0 };
 
-			/* [AUTO-ORBIT] Calculate orbit if it's a planet */
-			/* Assume orbit around origin (0,0,0) where usually the Black Hole is */
-			/* [PHYSICS IDEALIZATION] Pure Gravity Mode */
-			/* Objects spawn at REST. They will fall if there is gravity. */
-			
+			/*
+			 * [AUTO-ORBIT] Calcula velocidade orbital automaticamente
+			 * Assume órbita circular ao redor da origem (0,0,0)
+			 * v = sqrt(G * M_central / r)
+			 */
 			if (hud_state.req_add_body_type == BHS_BODY_PLANET) {
-				/* Placeholder for future specific logic if needed */
+				/* Procura massa central (primeiro BH ou Star) */
+				int n_bodies;
+				const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
+				double central_mass = 0;
+				
+				for (int i = 0; i < n_bodies; i++) {
+					if (bodies[i].type == BHS_BODY_BLACKHOLE || 
+					    bodies[i].type == BHS_BODY_STAR) {
+						central_mass += bodies[i].state.mass;
+					}
+				}
+
+				if (central_mass > 0) {
+					/* Distância do centro */
+					double r = sqrt(pos.x * pos.x + pos.z * pos.z);
+					if (r > 0.1) {
+						/* v_orbital = sqrt(G*M/r), G=1 */
+						double v_orb = sqrt(central_mass / r);
+						
+						/* Direção tangencial (perpendicular ao raio) */
+						double dir_x = -pos.z / r;
+						double dir_z = pos.x / r;
+						
+						vel.x = dir_x * v_orb;
+						vel.z = dir_z * v_orb;
+						
+						printf("[SPAWN] Planeta em r=%.2f, v_orb=%.3f "
+						       "(central_mass=%.2f)\n", 
+						       r, v_orb, central_mass);
+					}
+				} else {
+					printf("[SPAWN] AVISO: Sem massa central. "
+					       "Planeta vai flutuar parado.\n");
+				}
 			} else if (hud_state.req_add_body_type ==
 				   BHS_BODY_STAR) {
 				mass = 2.0;
 				radius = 1.0;
 				col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
+				printf("[SPAWN] Estrela (mass=%.2f)\n", mass);
 			} else if (hud_state.req_add_body_type ==
 				   BHS_BODY_BLACKHOLE) {
 				mass = 10.0; /* A bit massive to be the center */
 				radius = 2.0;
 				col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
+				printf("[SPAWN] Buraco Negro (mass=%.2f)\n", mass);
 			}
 
 			bhs_scene_add_body(scene, hud_state.req_add_body_type,

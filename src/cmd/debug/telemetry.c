@@ -43,15 +43,25 @@ void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid)
 					 "SOLID" :
 					 "FLUID");
 			break;
+		case BHS_BODY_MOON:
+			snprintf(type_str, sizeof(type_str), "Moon");
+			snprintf(extra_str, sizeof(extra_str), "Dens=%.0f Alb=%.2f",
+				 b->prop.planet.density,
+				 b->prop.planet.albedo);
+			break;
 		case BHS_BODY_STAR:
 			snprintf(type_str, sizeof(type_str), "Star");
-			snprintf(extra_str, sizeof(extra_str), "Lum=%.1e Teff=%.0f",
+			snprintf(extra_str, sizeof(extra_str), "Lum=%.1e T=%.0fK",
 				 b->prop.star.luminosity, b->prop.star.temp_effective);
 			break;
 		case BHS_BODY_BLACKHOLE:
 			snprintf(type_str, sizeof(type_str), "BlackHole");
 			snprintf(extra_str, sizeof(extra_str), "Spin=%.2f Rh=%.2f",
 				 b->prop.bh.spin_factor, b->prop.bh.event_horizon_r);
+			break;
+		case BHS_BODY_ASTEROID:
+			snprintf(type_str, sizeof(type_str), "Asteroid");
+			snprintf(extra_str, sizeof(extra_str), "M=%.2e", b->state.mass);
 			break;
 		default:
 			snprintf(type_str, sizeof(type_str), "Unknown");

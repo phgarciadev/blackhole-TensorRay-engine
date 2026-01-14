@@ -65,15 +65,87 @@ void bhs_ecs_remove_component(bhs_world_handle world, bhs_entity_id entity,
 void *bhs_ecs_get_component(bhs_world_handle world, bhs_entity_id entity,
 			    bhs_component_type type);
 
-/* 
- * Iterator para Sistemas
- * Itera sobre todas as entidades que possuem a máscara de componentes especificada.
- * (Simplificação: Itera sobre tudo e checa bitmask, ou usa listas esparsas)
+/* ============================================================================
+ * QUERY SYSTEM (ITERAÇÃO OTIMIZADA)
+ * ============================================================================
+ *
+ * Problema do código antigo: iterar 10000 entidades pra achar 5 relevantes.
+ * Solução: bitmask de componentes + cache de entidades ativas.
+ */
+
+typedef uint32_t bhs_component_mask;
+
+/**
+ * Query para iteração eficiente sobre entidades.
+ * 
+ * Uso:
+ *   bhs_ecs_query q;
+ *   bhs_ecs_query_init(&q, world, (1 << BHS_COMP_TRANSFORM) | (1 << BHS_COMP_PHYSICS));
+ *   
+ *   bhs_entity_id e;
+ *   while (bhs_ecs_query_next(&q, &e)) {
+ *       // Processar entidade
+ *   }
  */
 typedef struct {
 	bhs_world_handle world;
-	uint32_t current_idx;
-	// ... filtering state
-} bhs_ecs_query_t;
+	bhs_component_mask required;	/* Bitmask de componentes necessários */
+	uint32_t current_idx;		/* Posição atual na iteração */
+	uint32_t count;			/* Total de entidades encontradas (cache) */
+	bhs_entity_id *cache;		/* Array de entidades matching (opcional) */
+	bool use_cache;			/* Se true, itera sobre cache */
+} bhs_ecs_query;
+
+/**
+ * bhs_ecs_query_init - Inicializa query com máscara de componentes
+ * @q: Ponteiro para query a inicializar
+ * @world: Mundo ECS
+ * @required: Bitmask de componentes necessários (1 << BHS_COMP_X | ...)
+ *
+ * Modos:
+ * - Sem cache: Itera todas entidades e filtra on-the-fly (baixa memória)
+ * - Com cache: Pre-computa lista de matches (mais rápido para muitas iterações)
+ */
+void bhs_ecs_query_init(bhs_ecs_query *q, bhs_world_handle world,
+			bhs_component_mask required);
+
+/**
+ * bhs_ecs_query_init_cached - Versão que pré-computa entidades
+ * 
+ * Mais rápido se você vai iterar múltiplas vezes ou precisa contar.
+ * Aloca memória, lembre de chamar bhs_ecs_query_destroy.
+ */
+void bhs_ecs_query_init_cached(bhs_ecs_query *q, bhs_world_handle world,
+			       bhs_component_mask required);
+
+/**
+ * bhs_ecs_query_next - Avança para próxima entidade matching
+ * @q: Query
+ * @out_entity: [out] ID da entidade encontrada
+ *
+ * Retorna: true se encontrou, false se acabou
+ */
+bool bhs_ecs_query_next(bhs_ecs_query *q, bhs_entity_id *out_entity);
+
+/**
+ * bhs_ecs_query_reset - Reinicia iteração do início
+ */
+void bhs_ecs_query_reset(bhs_ecs_query *q);
+
+/**
+ * bhs_ecs_query_destroy - Libera recursos da query (se usou cache)
+ */
+void bhs_ecs_query_destroy(bhs_ecs_query *q);
+
+/**
+ * bhs_ecs_entity_has_components - Verifica se entidade tem todos os componentes
+ * @world: Mundo ECS
+ * @entity: ID da entidade
+ * @mask: Bitmask de componentes a verificar
+ *
+ * Retorna: true se entidade possui TODOS os componentes da máscara
+ */
+bool bhs_ecs_entity_has_components(bhs_world_handle world, bhs_entity_id entity,
+				   bhs_component_mask mask);
 
 #endif /* BHS_LIB_ECS_H */

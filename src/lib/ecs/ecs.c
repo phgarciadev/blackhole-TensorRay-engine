@@ -138,3 +138,128 @@ void *bhs_ecs_get_component(bhs_world_handle world, bhs_entity_id entity,
 
 	return (char *)pool->data + (entity * pool->element_size);
 }
+
+/* ============================================================================
+ * QUERY SYSTEM
+ * ============================================================================
+ */
+
+/**
+ * Verifica se entidade possui todos os componentes da máscara.
+ * Função interna usada pelas queries.
+ */
+static bool entity_matches_mask(bhs_world_handle world, bhs_entity_id entity,
+				bhs_component_mask mask)
+{
+	for (uint32_t type = 0; type < MAX_COMPONENT_TYPES; type++) {
+		if (mask & (1u << type)) {
+			struct bhs_component_pool *pool = &world->components[type];
+			if (!pool->active || !pool->active[entity])
+				return false;
+		}
+	}
+	return true;
+}
+
+bool bhs_ecs_entity_has_components(bhs_world_handle world, bhs_entity_id entity,
+				   bhs_component_mask mask)
+{
+	if (!world || entity == BHS_ENTITY_INVALID || entity >= BHS_MAX_ENTITIES)
+		return false;
+	return entity_matches_mask(world, entity, mask);
+}
+
+void bhs_ecs_query_init(bhs_ecs_query *q, bhs_world_handle world,
+			bhs_component_mask required)
+{
+	if (!q)
+		return;
+
+	q->world = world;
+	q->required = required;
+	q->current_idx = 0;
+	q->count = 0;
+	q->cache = NULL;
+	q->use_cache = false;
+}
+
+void bhs_ecs_query_init_cached(bhs_ecs_query *q, bhs_world_handle world,
+			       bhs_component_mask required)
+{
+	if (!q || !world)
+		return;
+
+	q->world = world;
+	q->required = required;
+	q->current_idx = 0;
+	q->use_cache = true;
+
+	/* Primeira passada: contar entidades matching */
+	q->count = 0;
+	for (bhs_entity_id id = 1; id < world->next_entity_id; id++) {
+		if (entity_matches_mask(world, id, required))
+			q->count++;
+	}
+
+	if (q->count == 0) {
+		q->cache = NULL;
+		return;
+	}
+
+	/* Aloca e preenche cache */
+	q->cache = malloc(q->count * sizeof(bhs_entity_id));
+	if (!q->cache) {
+		fprintf(stderr, "[ECS] Falha ao alocar cache de query\n");
+		q->count = 0;
+		return;
+	}
+
+	uint32_t idx = 0;
+	for (bhs_entity_id id = 1; id < world->next_entity_id; id++) {
+		if (entity_matches_mask(world, id, required)) {
+			q->cache[idx++] = id;
+		}
+	}
+}
+
+bool bhs_ecs_query_next(bhs_ecs_query *q, bhs_entity_id *out_entity)
+{
+	if (!q || !q->world || !out_entity)
+		return false;
+
+	if (q->use_cache) {
+		/* Modo cache: itera sobre array pré-computado */
+		if (q->current_idx >= q->count)
+			return false;
+		*out_entity = q->cache[q->current_idx++];
+		return true;
+	}
+
+	/* Modo on-the-fly: itera e filtra */
+	while (q->current_idx < q->world->next_entity_id) {
+		bhs_entity_id id = q->current_idx++;
+		if (id == BHS_ENTITY_INVALID)
+			continue;
+		if (entity_matches_mask(q->world, id, q->required)) {
+			*out_entity = id;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void bhs_ecs_query_reset(bhs_ecs_query *q)
+{
+	if (q)
+		q->current_idx = 0;
+}
+
+void bhs_ecs_query_destroy(bhs_ecs_query *q)
+{
+	if (q && q->cache) {
+		free(q->cache);
+		q->cache = NULL;
+	}
+}
+
