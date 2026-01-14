@@ -4,6 +4,8 @@
  */
 
 #include "body.h"
+#include "body.h"
+#include "../planets/planet.h"
 #include <string.h>
 
 struct bhs_body bhs_body_create_planet_simple(struct bhs_vec3 pos, double mass,
@@ -97,5 +99,60 @@ struct bhs_body bhs_body_create_blackhole_simple(struct bhs_vec3 pos,
 
 	/* Visuals */
 	b.color = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
+	return b;
+}
+
+struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc, 
+					  struct bhs_vec3 pos)
+{
+	struct bhs_body b = { 0 };
+	
+	/* Universal State */
+	b.state.pos = pos;
+	b.state.mass = desc->mass;
+	b.state.radius = desc->radius;
+	b.state.acc = (struct bhs_vec3){ 0, 0, 0 };
+	b.state.vel = (struct bhs_vec3){ 0, 0, 0 };
+	
+	/* Rotação */
+	b.state.rot_axis = (struct bhs_vec3){ 
+		sin(desc->axis_tilt), 0.0, cos(desc->axis_tilt) 
+	};
+	/* Normalize axis roughly if needed, simplified here */
+	
+	if (desc->rotation_period != 0.0) {
+		b.state.rot_speed = (2.0 * 3.14159) / desc->rotation_period;
+	} else {
+		b.state.rot_speed = 0.0;
+	}
+
+	b.state.shape = BHS_SHAPE_SPHERE;
+	
+	/* Type Mapping */
+	switch (desc->type) {
+	case BHS_STAR_MAIN_SEQ:
+		b.type = BHS_BODY_STAR;
+		b.prop.star.luminosity = 3.828e26; /* Default */
+		b.prop.star.temp_effective = desc->mean_temperature;
+		break;
+	case BHS_BLACK_HOLE:
+		b.type = BHS_BODY_BLACKHOLE;
+		b.prop.bh.spin_factor = 0.9; 
+		break;
+	default:
+		b.type = BHS_BODY_PLANET;
+		b.prop.planet.density = desc->density;
+		b.prop.planet.axis_tilt = desc->axis_tilt;
+		b.prop.planet.albedo = desc->albedo;
+		b.prop.planet.has_atmosphere = desc->has_atmosphere;
+		b.prop.planet.surface_pressure = desc->surface_pressure;
+		b.prop.planet.temperature = desc->mean_temperature;
+		break;
+	}
+
+	b.color = desc->base_color;
+	b.is_alive = true;
+	b.is_fixed = (b.type == BHS_BODY_STAR && pos.x == 0 && pos.y == 0);
+
 	return b;
 }

@@ -25,7 +25,18 @@ SRCS := engine.c \
         spacetime/spacetime_data.c \
         spacetime/spacetime_physics.c \
         disk/disk.c \
-        geodesic/geodesic.c
+        geodesic/geodesic.c \
+        planets/sun.c \
+        planets/mercury.c \
+        planets/venus.c \
+        planets/earth.c \
+        planets/mars.c \
+        planets/jupiter.c \
+        planets/saturn.c \
+        planets/uranus.c \
+        planets/neptune.c \
+        planets/dwarf_planets.c \
+        planets/blackhole.c
 
 # (Assuming these files exist, based on previous structure analysis)
 OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(SRCS))

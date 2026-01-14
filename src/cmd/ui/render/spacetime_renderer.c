@@ -333,10 +333,16 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (tex_sphere) {
 				float diameter = s_radius * 2.0f;
 				/* DEBUG: Force NULL (White Texture) to verify Draw Call */
-				bhs_ui_draw_texture(ctx, NULL /*tex_sphere*/,
+				bhs_ui_draw_texture(ctx, tex_sphere,
 						    sx - s_radius,
 						    sy - s_radius, diameter,
 						    diameter, color);
+					
+					/* DEBUG LOG (Limit frequency) */
+					static int dbg_count = 0;
+					if (dbg_count++ % 120 == 0) {
+						printf("[RENDER] Drawing Planet with Tex: %p\n", (void*)tex_sphere);
+					}
 			} else {
 				/* Fallback if texture failed */
 				bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius,

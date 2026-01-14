@@ -116,12 +116,15 @@ int main(int argc, char *argv[])
 				.label = "Sphere Impostor"
 			};
 			bhs_gpu_device_t dev = bhs_ui_get_gpu_device(ui);
-			if (bhs_gpu_texture_create(dev, &conf, &sphere_tex) ==
-			    BHS_GPU_OK) {
-				bhs_gpu_texture_upload(sphere_tex, 0, 0,
+			int ret_create = bhs_gpu_texture_create(dev, &conf, &sphere_tex);
+			if (ret_create == BHS_GPU_OK) {
+				int ret_upload = bhs_gpu_texture_upload(sphere_tex, 0, 0,
 						       sphere_img.data,
 						       size * size * 4);
-				printf("Esfera 3D gerada: %dx%d\n", size, size);
+				printf("[MAIN] Esfera 3D gerada: %dx%d | Ptr: %p | Create: %d | Upload: %d\n", 
+				       size, size, (void*)sphere_tex, ret_create, ret_upload);
+			} else {
+				printf("[MAIN] FALHA ao criar texture esfera: %d\n", ret_create);
 			}
 			bhs_image_free(sphere_img);
 		}

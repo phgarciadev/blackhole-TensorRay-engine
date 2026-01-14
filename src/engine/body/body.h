@@ -36,6 +36,8 @@
 
 #include "lib/math/vec4.h"
 
+struct bhs_planet_desc; /* Forward declaracao */
+
 /* ============================================================================
  * ENUMS & CONSTANTES
  * ============================================================================
@@ -216,5 +218,11 @@ struct bhs_body bhs_body_create_star_simple(struct bhs_vec3 pos, double mass,
 					    struct bhs_vec3 color);
 struct bhs_body bhs_body_create_blackhole_simple(struct bhs_vec3 pos,
 						 double mass, double radius);
+
+/**
+ * @brief Cria um corpo a partir do descritor detalhado (New System)
+ */
+struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc, 
+					  struct bhs_vec3 pos);
 
 #endif /* BHS_ENGINE_BODY_H */
