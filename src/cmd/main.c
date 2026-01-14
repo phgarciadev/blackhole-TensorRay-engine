@@ -7,13 +7,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cmd/ui/screens/hud.h"
 #include "cmd/ui/screens/view_spacetime.h"
 #include "engine/scene/scene.h"
 #include "hal/gpu/renderer.h"
 #include "lib/loader/image_loader.h"
+#include "lib/loader/image_loader.h"
 #include "cmd/debug/telemetry.h"
+#include "engine/planets/planet.h"
+#include "engine/body/body.h"
 
 int main(int argc, char *argv[])
 {
@@ -190,34 +194,70 @@ int main(int argc, char *argv[])
 		}
 
 		/* 2. Handle Object Injection */
-		if (hud_state.req_add_body_type != -1) {
+		if (hud_state.req_add_body_type != -1 || hud_state.req_add_registry_entry) {
 			/* Add slightly in front of camera */
 			float spawn_dist = 20.0f;
 			struct bhs_vec3 pos = {
 				.x = cam.x + sinf(cam.yaw) * spawn_dist,
-				.y = 0.0f, /* Flattened to accretion disk plane by default */
+				.y = 0.0f,
 				.z = cam.z + cosf(cam.yaw) * spawn_dist
 			};
-			struct bhs_vec3 col = { (float)rand() / RAND_MAX,
-						(float)rand() / RAND_MAX,
-						(float)rand() / RAND_MAX };
-
-			double mass = 0.1;
-			double radius = 0.5;
-
 			struct bhs_vec3 vel = { 0, 0, 0 };
 
-			/*
-			 * [AUTO-ORBIT] Calcula velocidade orbital automaticamente
-			 * Assume órbita circular ao redor da origem (0,0,0)
-			 * v = sqrt(G * M_central / r)
-			 */
-			if (hud_state.req_add_body_type == BHS_BODY_PLANET) {
-				/* Procura massa central (primeiro BH ou Star) */
+			struct bhs_body new_body;
+			
+			/* Case A: From Registry (New System) */
+			if (hud_state.req_add_registry_entry) {
+				const struct bhs_planet_desc desc = hud_state.req_add_registry_entry->getter();
+				/* Scale down for simulation consistency if coming from raw SI getter? 
+				 * presets.c does scaling. 
+				 * We should probably apply the same scaling here: 
+				 * 1e29 kg -> 1.0 mass
+				 * 1e7 m -> 1.0 radius
+				 */
+				#define MAIN_MASS_SCALE (1.0 / 1e29)
+				#define MAIN_RADIUS_SCALE (3.0 / 6.9634e8)
+				
+				new_body = bhs_body_create_from_desc(&desc, pos);
+				new_body.state.mass *= MAIN_MASS_SCALE;
+				new_body.state.radius *= MAIN_RADIUS_SCALE;
+				
+				/* Minimum simulation stability size, but allow small visual size */
+				if (new_body.state.mass < 1e-10) new_body.state.mass = 1e-10;
+
+				printf("[SPAWN] Registry: %s (M=%.2e, R=%.2f)\n", 
+					desc.name, new_body.state.mass, new_body.state.radius);
+
+				hud_state.req_add_registry_entry = NULL;
+			} 
+			/* Case B: Legacy Hardcoded (Fallback) */
+			else { 
+				struct bhs_vec3 col = { (float)rand() / RAND_MAX,
+							(float)rand() / RAND_MAX,
+							(float)rand() / RAND_MAX };
+				double mass = 0.1;
+				double radius = 0.5;
+
+				if (hud_state.req_add_body_type == BHS_BODY_STAR) {
+					mass = 2.0;
+					radius = 1.0;
+					col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
+				} else if (hud_state.req_add_body_type == BHS_BODY_BLACKHOLE) {
+					mass = 10.0;
+					radius = 2.0;
+					col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
+				}
+				
+				new_body = bhs_body_create_planet_simple(pos, mass, radius, col);
+				new_body.type = hud_state.req_add_body_type;
+			}
+
+			/* Auto-Orbit Logic (Shared) */
+			if (new_body.type == BHS_BODY_PLANET) {
+				/* Find central mass */
 				int n_bodies;
 				const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
 				double central_mass = 0;
-				
 				for (int i = 0; i < n_bodies; i++) {
 					if (bodies[i].type == BHS_BODY_BLACKHOLE || 
 					    bodies[i].type == BHS_BODY_STAR) {
@@ -226,43 +266,26 @@ int main(int argc, char *argv[])
 				}
 
 				if (central_mass > 0) {
-					/* Distância do centro */
 					double r = sqrt(pos.x * pos.x + pos.z * pos.z);
 					if (r > 0.1) {
-						/* v_orbital = sqrt(G*M/r), G=1 */
 						double v_orb = sqrt(central_mass / r);
-						
-						/* Direção tangencial (perpendicular ao raio) */
 						double dir_x = -pos.z / r;
 						double dir_z = pos.x / r;
-						
 						vel.x = dir_x * v_orb;
 						vel.z = dir_z * v_orb;
-						
-						printf("[SPAWN] Planeta em r=%.2f, v_orb=%.3f "
-						       "(central_mass=%.2f)\n", 
-						       r, v_orb, central_mass);
 					}
-				} else {
-					printf("[SPAWN] AVISO: Sem massa central. "
-					       "Planeta vai flutuar parado.\n");
 				}
-			} else if (hud_state.req_add_body_type ==
-				   BHS_BODY_STAR) {
-				mass = 2.0;
-				radius = 1.0;
-				col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
-				printf("[SPAWN] Estrela (mass=%.2f)\n", mass);
-			} else if (hud_state.req_add_body_type ==
-				   BHS_BODY_BLACKHOLE) {
-				mass = 10.0; /* A bit massive to be the center */
-				radius = 2.0;
-				col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
-				printf("[SPAWN] Buraco Negro (mass=%.2f)\n", mass);
+			}
+			new_body.state.vel = vel;
+			
+			/* Ensure defaults if missing */
+			if (new_body.name[0] == '\0') {
+				if (new_body.type == BHS_BODY_PLANET) strncpy(new_body.name, "Planet", 31);
+				else if (new_body.type == BHS_BODY_STAR) strncpy(new_body.name, "Star", 31);
+				else if (new_body.type == BHS_BODY_BLACKHOLE) strncpy(new_body.name, "Black Hole", 31);
 			}
 
-			bhs_scene_add_body(scene, hud_state.req_add_body_type,
-					   pos, vel, mass, radius, col);
+			bhs_scene_add_body_struct(scene, new_body);
 
 			hud_state.req_add_body_type = -1;
 		}

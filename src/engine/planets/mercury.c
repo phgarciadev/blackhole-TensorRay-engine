@@ -50,3 +50,5 @@ struct bhs_planet_desc bhs_mercury_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Mercurio", bhs_mercury_get_desc);

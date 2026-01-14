@@ -44,3 +44,5 @@ struct bhs_planet_desc bhs_uranus_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Urano", bhs_uranus_get_desc);

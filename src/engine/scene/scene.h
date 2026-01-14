@@ -64,6 +64,11 @@ bhs_spacetime_t bhs_scene_get_spacetime(bhs_scene_t scene);
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count);
 
 /**
+ * bhs_scene_add_body_struct - Adds a full body struct to the scene.
+ */
+bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
+
+/**
  * bhs_scene_add_body - Adiciona um corpo na cena
  * @type: Tipo do corpo
  * @pos: Posição inicial

@@ -13,8 +13,24 @@
 /* Softening para evitar singularidade */
 #define SOFTENING_SQ  (0.25 * 0.25)  /* 0.5 unidades de simulação */
 
+/*
+ * Limiar de massa para considerar correções relativísticas.
+ * Corpos com GM > 1.0 são considerados "muito massivos" (buracos negros, estrelas)
+ * e recebem correção 1PN para seus satélites.
+ */
+#define RELATIVISTIC_MASS_THRESHOLD 1.0
+
+/*
+ * Velocidade da luz em unidades de simulação.
+ * Com G=1 e M☉=20, as velocidades orbitais são ~0.6 (v_orb = sqrt(M/r))
+ * A velocidade da luz deve ser muito maior para que correções 1PN sejam pequenas.
+ * Usando c = 100 (arbitrário mas razoável para visualização).
+ * Para realismo físico completo, c deveria ser ~5000 para escala do sistema solar.
+ */
+#define C_SIM 100.0
+
 /* ============================================================================
- * CÁLCULO DE ACELERAÇÕES
+ * CÁLCULO DE ACELERAÇÕES (COM CORREÇÃO 1PN)
  * ============================================================================
  */
 
@@ -57,6 +73,7 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 			double inv_dist3 = 1.0 / (soft_dist * soft_dist * soft_dist);
 
 			/*
+			 * ================ GRAVIDADE NEWTONIANA ================
 			 * F_ij = G * m_i * m_j / r³ * r_vec
 			 * a_i = F_ij / m_i = G * m_j / r³ * r_vec = GM_j / r³ * r_vec
 			 * a_j = -F_ij / m_j = -GM_i / r³ * r_vec
@@ -71,6 +88,18 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 					.z = factor_i * dz
 				};
 				bhs_kahan_vec3_add(&acc_kahan[i], a_i);
+
+				/*
+				 * ================ CORREÇÃO 1PN ================
+				 * Aplica correção relativística se j é muito massivo
+				 * (buraco negro ou estrela) e i está numa órbita relativística.
+				 */
+				if (bj->gm > RELATIVISTIC_MASS_THRESHOLD) {
+					struct bhs_vec3 rel_pos = { dx, dy, dz };
+					struct bhs_vec3 a_1pn = bhs_compute_1pn_correction(
+						bj->gm, rel_pos, bi->vel, C_SIM);
+					bhs_kahan_vec3_add(&acc_kahan[i], a_1pn);
+				}
 			}
 
 			/* Aceleração de j devido a i (ação e reação) */
@@ -82,6 +111,14 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 					.z = -factor_j * dz
 				};
 				bhs_kahan_vec3_add(&acc_kahan[j], a_j);
+
+				/* Correção 1PN para j se i é muito massivo */
+				if (bi->gm > RELATIVISTIC_MASS_THRESHOLD) {
+					struct bhs_vec3 rel_pos = { -dx, -dy, -dz };
+					struct bhs_vec3 a_1pn = bhs_compute_1pn_correction(
+						bi->gm, rel_pos, bj->vel, C_SIM);
+					bhs_kahan_vec3_add(&acc_kahan[j], a_1pn);
+				}
 			}
 		}
 	}
@@ -303,6 +340,75 @@ void bhs_integrator_rk4(struct bhs_system_state *state, double dt)
 		state->bodies[i].vel.x += dt6 * (k1_vel[i].x + 2*k2_vel[i].x + 2*k3_vel[i].x + k4_vel[i].x);
 		state->bodies[i].vel.y += dt6 * (k1_vel[i].y + 2*k2_vel[i].y + 2*k3_vel[i].y + k4_vel[i].y);
 		state->bodies[i].vel.z += dt6 * (k1_vel[i].z + 2*k2_vel[i].z + 2*k3_vel[i].z + k4_vel[i].z);
+	}
+
+	state->time += dt;
+}
+
+/* ============================================================================
+ * LEAPFROG / STÖRMER-VERLET (SIMPLÉTICO)
+ * ============================================================================
+ *
+ * O Leapfrog é um integrador SIMPLÉTICO - preserva a estrutura hamiltoniana
+ * do sistema e, portanto, conserva energia por tempo indefinido (exceto
+ * erros de arredondamento).
+ *
+ * Algoritmo (Kick-Drift-Kick variant):
+ *   1. v(t + dt/2) = v(t) + a(t) * dt/2        [KICK]
+ *   2. x(t + dt) = x(t) + v(t + dt/2) * dt     [DRIFT]
+ *   3. Calcula a(t + dt)
+ *   4. v(t + dt) = v(t + dt/2) + a(t + dt) * dt/2  [KICK]
+ *
+ * Vantagens:
+ *   - Conserva energia (erro limitado, não acumula)
+ *   - Reversível no tempo
+ *   - O(dt²) - segunda ordem mas MUITO estável
+ *
+ * Usado em: GADGET, REBOUND, GROMACS, e maioria dos códigos N-body profissionais.
+ *
+ * Referência: Hockney & Eastwood (1988), "Computer Simulation Using Particles"
+ */
+
+void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt)
+{
+	int n = state->n_bodies;
+	if (n == 0) return;
+
+	struct bhs_vec3 acc[BHS_MAX_BODIES];
+
+	/* ===== KICK 1: v(t + dt/2) = v(t) + a(t) * dt/2 ===== */
+	bhs_compute_accelerations(state, acc);
+
+	double half_dt = 0.5 * dt;
+	for (int i = 0; i < n; i++) {
+		if (state->bodies[i].is_fixed || !state->bodies[i].is_alive)
+			continue;
+
+		state->bodies[i].vel.x += acc[i].x * half_dt;
+		state->bodies[i].vel.y += acc[i].y * half_dt;
+		state->bodies[i].vel.z += acc[i].z * half_dt;
+	}
+
+	/* ===== DRIFT: x(t + dt) = x(t) + v(t + dt/2) * dt ===== */
+	for (int i = 0; i < n; i++) {
+		if (state->bodies[i].is_fixed || !state->bodies[i].is_alive)
+			continue;
+
+		state->bodies[i].pos.x += state->bodies[i].vel.x * dt;
+		state->bodies[i].pos.y += state->bodies[i].vel.y * dt;
+		state->bodies[i].pos.z += state->bodies[i].vel.z * dt;
+	}
+
+	/* ===== KICK 2: v(t + dt) = v(t + dt/2) + a(t + dt) * dt/2 ===== */
+	bhs_compute_accelerations(state, acc);
+
+	for (int i = 0; i < n; i++) {
+		if (state->bodies[i].is_fixed || !state->bodies[i].is_alive)
+			continue;
+
+		state->bodies[i].vel.x += acc[i].x * half_dt;
+		state->bodies[i].vel.y += acc[i].y * half_dt;
+		state->bodies[i].vel.z += acc[i].z * half_dt;
 	}
 
 	state->time += dt;

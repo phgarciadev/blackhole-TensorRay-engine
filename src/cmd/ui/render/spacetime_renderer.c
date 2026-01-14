@@ -320,9 +320,30 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			dist = 0.1f;
 
 		/* Project radius: size / dist * fov */
-		float s_radius = (b->state.radius / dist) * cam->fov;
+		
+		/* 
+		 * [VISUAL SCALE - PROPORTIONAL]
+		 * 
+		 * Raios físicos (unidades de simulação):
+		 *   Sol:     3.00
+		 *   Júpiter: 0.30
+		 *   Saturno: 0.25
+		 *   Terra:   0.027
+		 *   Mercúrio: 0.011
+		 * 
+		 * Para que TUDO seja visível mas mantenha proporções REAIS,
+		 * aplicamos magnificação UNIFORME a todos os corpos.
+		 * 
+		 * Fator 30x: Sol fica ~90, Júpiter ~9, Terra ~0.8
+		 * Isso preserva: Sol > Júpiter > Saturno > Terra > Mercúrio
+		 */
+		float visual_radius = b->state.radius * 30.0f;
+
+		float s_radius = (visual_radius / dist) * cam->fov;
+		
+		/* Mínimo visual de 2 pixels para que pontos não desapareçam */
 		if (s_radius < 2.0f)
-			s_radius = 2.0f; /* Minimum visual size */
+			s_radius = 2.0f;
 
 		struct bhs_ui_color color = { (float)b->color.x,
 					      (float)b->color.y,
@@ -330,7 +351,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 		if (b->type == BHS_BODY_PLANET) {
 			/* [IMPOSTRO 3D] Draw using generated sphere texture */
-			if (tex_sphere) {
+			/* FIX: Temporarily force fallback to circle for debugging/fixing visibility */
+			if (tex_sphere && false) {
 				float diameter = s_radius * 2.0f;
 				/* DEBUG: Force NULL (White Texture) to verify Draw Call */
 				bhs_ui_draw_texture(ctx, tex_sphere,
@@ -350,7 +372,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			}
 
 			/* Debug Label */
-			bhs_ui_draw_text(ctx, "Planet", sx + s_radius + 5, sy,
+			const char *label = (b->name[0] != '\0') ? b->name : "Planet";
+			bhs_ui_draw_text(ctx, label, sx + s_radius + 5, sy,
 					 12.0f, BHS_UI_COLOR_WHITE);
 		} else {
 			/* Black Hole / Other: Keep standard circle */

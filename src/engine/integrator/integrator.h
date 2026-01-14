@@ -172,6 +172,27 @@ struct bhs_system_derivative {
 void bhs_integrator_rk4(struct bhs_system_state *state, double dt);
 
 /**
+ * bhs_integrator_leapfrog - Störmer-Verlet simplético
+ * @state: Estado atual do sistema (modificado in-place)
+ * @dt: Timestep
+ *
+ * Integrador SIMPLÉTICO - conserva energia por tempo indefinido.
+ * Usado em GADGET, REBOUND, e maioria dos códigos N-body profissionais.
+ *
+ * Vantagens sobre RK4:
+ *   - Energia não deriva (erro limitado)
+ *   - Reversível no tempo
+ *   - Mais estável para órbitas de longo prazo
+ *
+ * Desvantagem:
+ *   - O(dt²) vs O(dt⁴) do RK4 por passo
+ *   - Precisa de dt menor para mesma precisão LOCAL
+ *
+ * RECOMENDADO para simulações gravitacionais.
+ */
+void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt);
+
+/**
  * bhs_integrator_rkf45 - Runge-Kutta-Fehlberg adaptativo
  * @state: Estado atual do sistema
  * @dt: Timestep sugerido (será ajustado)

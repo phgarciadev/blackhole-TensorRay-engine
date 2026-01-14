@@ -196,6 +196,9 @@ struct bhs_body {
 	/* Flags de Controle Físico */
 	bool is_fixed;    /* Se true, não se move (massa infinita efetiva) */
 	bool is_alive;    /* Se false, foi absorvido/destruído */
+	
+	/* Metadata */
+	char name[32];
 };
 
 /* ============================================================================

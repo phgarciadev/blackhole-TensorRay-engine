@@ -57,9 +57,6 @@ void bhs_scene_init_default(bhs_scene_t scene)
 		scene->spacetime = NULL;
 	}
 
-	/* 1. Cria Malha do Espaço-Tempo (50x50 unidades, 100 divisões) */
-	scene->spacetime = bhs_spacetime_create(50.0, 100);
-
 	/*
 	 * Modos de inicialização:
 	 * - Sem env var: vazio (usuário cria corpos manualmente)
@@ -67,6 +64,28 @@ void bhs_scene_init_default(bhs_scene_t scene)
 	 * - BHS_DEBUG_SCENE=2: Sistema Solar real (Sol + Terra + Lua)
 	 */
 	const char *debug_env = getenv("BHS_DEBUG_SCENE");
+	
+	/*
+	 * Tamanho da malha depende do modo:
+	 * - Modo 1 (simples): 100x100 unidades (planetas a ~25 unidades)
+	 * - Modo 2 (solar): 600x600 unidades (cobre até Saturno ~480 AU)
+	 * - Padrão: 100x100 unidades
+	 */
+	double grid_size = 100.0;
+	int grid_divisions = 80;
+	
+	if (debug_env && debug_env[0] == '2') {
+		grid_size = 600.0;  /* Cobre até Saturno (479 AU) */
+		grid_divisions = 120;
+		printf("[SCENE] Modo SOLAR: Malha %gx%g unidades, %d divisões\n", 
+		       grid_size, grid_size, grid_divisions);
+	} else if (debug_env && debug_env[0] == '1') {
+		grid_size = 100.0;
+		grid_divisions = 80;
+	}
+	
+	scene->spacetime = bhs_spacetime_create(grid_size, grid_divisions);
+	
 	if (debug_env && debug_env[0] == '2') {
 		/* Sistema Solar com dados reais */
 		printf("[SCENE] Modo SOLAR ativado. Criando Sol-Terra-Lua...\n");
@@ -120,7 +139,7 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
 	 * MOTOR DE FÍSICA N-BODY - NÍVEL CIENTÍFICO (NASA-GRADE)
 	 * =========================================================================
 	 *
-	 * Integrador: RK4 (Runge-Kutta 4ª ordem) via módulo integrator.c
+	 * Integrador: Leapfrog (Störmer-Verlet simplético) via módulo integrator.c
 	 * Precisão: Kahan summation para acumulação sem erro
 	 * Constantes: IAU 2015 / CODATA 2018
 	 * Validação: Conservação de E, p, L a cada frame
@@ -141,8 +160,8 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
 		rk_state.n_bodies = scene->n_bodies;
 		rk_state.time = 0;
 
-		printf("[RK4] Inicializando integrador científico...\n");
-		printf("[RK4] Constantes: G=%.2f (unidades naturais)\n", G_SIM);
+		printf("[LEAPFROG] Inicializando integrador simplético...\n");
+		printf("[LEAPFROG] Constantes: G=%.2f (unidades naturais)\n", G_SIM);
 
 		for (int i = 0; i < scene->n_bodies; i++) {
 			struct bhs_body *b = &scene->bodies[i];
@@ -153,16 +172,16 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
 			rk_state.bodies[i].is_fixed = b->is_fixed;
 			rk_state.bodies[i].is_alive = b->is_alive;
 
-			printf("[RK4] Corpo %d: M=%.4e kg, GM=%.4e m³/s²\n",
+			printf("[LEAPFROG] Corpo %d: M=%.4e, GM=%.4e\n",
 			       i, b->state.mass, rk_state.bodies[i].gm);
 		}
 
 		bhs_compute_invariants(&rk_state, &initial_inv);
-		printf("[RK4] Invariantes iniciais:\n");
-		printf("[RK4]   Energia: %.10e J\n", initial_inv.energy);
-		printf("[RK4]   Momento: (%.4e, %.4e, %.4e) kg·m/s\n",
+		printf("[LEAPFROG] Invariantes iniciais:\n");
+		printf("[LEAPFROG]   Energia: %.10e\n", initial_inv.energy);
+		printf("[LEAPFROG]   Momento: (%.4e, %.4e, %.4e)\n",
 		       initial_inv.momentum.x, initial_inv.momentum.y, initial_inv.momentum.z);
-		printf("[RK4]   L_angular: (%.4e, %.4e, %.4e) kg·m²/s\n",
+		printf("[LEAPFROG]   L_angular: (%.4e, %.4e, %.4e)\n",
 		       initial_inv.angular_momentum.x, initial_inv.angular_momentum.y,
 		       initial_inv.angular_momentum.z);
 
@@ -244,8 +263,8 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
 	scene->n_bodies = write_idx;
 	rk_state.n_bodies = write_idx;
 
-	/* ===== INTEGRAÇÃO RK4 (4ª ORDEM) ===== */
-	bhs_integrator_rk4(&rk_state, dt);
+	/* ===== INTEGRAÇÃO LEAPFROG (SIMPLÉTICA) ===== */
+	bhs_integrator_leapfrog(&rk_state, dt);
 	sim_time += dt;
 
 	/* ===== COPIA ESTADO DE VOLTA PARA SCENE ===== */
@@ -275,12 +294,12 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
 		                    current.angular_momentum.y * current.angular_momentum.y +
 		                    current.angular_momentum.z * current.angular_momentum.z);
 
-		printf("[RK4] t=%.2fs | E=%.6e | dE=%.6f%% | |p|=%.4e | |L|=%.4e\n",
+		printf("[LEAPFROG] t=%.2fs | E=%.6e | dE=%.6f%% | |p|=%.4e | |L|=%.4e\n",
 		       sim_time, current.energy, E_rel, p_mag, L_mag);
 
 		/* Alerta se drift > 0.1% */
 		if (E_rel > 0.1) {
-			printf("[RK4] AVISO: Drift acima de 0.1%%! Considere reduzir dt.\n");
+			printf("[LEAPFROG] AVISO: Drift acima de 0.1%%! Considere reduzir dt.\n");
 		}
 	}
 
@@ -304,6 +323,18 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 	}
 	*count = scene->n_bodies;
 	return scene->bodies;
+}
+
+bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
+{
+	if (!scene || scene->n_bodies >= MAX_BODIES)
+		return false;
+
+	scene->bodies[scene->n_bodies] = b;
+	/* Ensure alive */
+	scene->bodies[scene->n_bodies].is_alive = true;
+	scene->n_bodies++;
+	return true;
 }
 
 bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,

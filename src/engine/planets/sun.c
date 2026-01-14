@@ -59,3 +59,5 @@ struct bhs_planet_desc bhs_sun_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Sol", bhs_sun_get_desc);

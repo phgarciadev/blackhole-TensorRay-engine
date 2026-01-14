@@ -95,4 +95,34 @@ struct bhs_planet_desc bhs_pluto_get_desc(void);
 struct bhs_planet_desc bhs_ceres_get_desc(void);
 struct bhs_planet_desc bhs_blackhole_get_desc(void);
 
+/* ============================================================================
+ * REGISTRY SYSTEM (Auto-discovery)
+ * ============================================================================
+ */
+
+typedef struct bhs_planet_desc (*bhs_planet_getter_t)(void);
+
+struct bhs_planet_registry_entry {
+	const char *name;
+	bhs_planet_getter_t getter;
+	struct bhs_planet_registry_entry *next;
+};
+
+/**
+ * @brief Register a planet module automatically at startup.
+ */
+void bhs_planet_register(const char *name, bhs_planet_getter_t getter);
+
+/**
+ * @brief Iterate over registered planets.
+ * Returns NULL when no more planets are available.
+ */
+const struct bhs_planet_registry_entry *bhs_planet_registry_get_head(void);
+
+#define BHS_REGISTER_PLANET(name_str, getter_func) \
+	__attribute__((constructor)) \
+	static void _register_planet_##getter_func(void) { \
+		bhs_planet_register(name_str, getter_func); \
+	}
+
 #endif /* BHS_ENGINE_PLANETS_PLANET_H */

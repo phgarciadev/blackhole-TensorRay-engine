@@ -13,6 +13,7 @@ struct bhs_body bhs_body_create_planet_simple(struct bhs_vec3 pos, double mass,
 					      struct bhs_vec3 color)
 {
 	struct bhs_body b = { 0 };
+	strncpy(b.name, "Planet", sizeof(b.name) - 1);
 	
 	/* Universal State */
 	b.state.pos = pos;
@@ -50,6 +51,7 @@ struct bhs_body bhs_body_create_star_simple(struct bhs_vec3 pos, double mass,
 					    struct bhs_vec3 color)
 {
 	struct bhs_body b = { 0 };
+	strncpy(b.name, "Star", sizeof(b.name) - 1);
 
 	/* Universal State */
 	b.state.pos = pos;
@@ -106,6 +108,8 @@ struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc,
 					  struct bhs_vec3 pos)
 {
 	struct bhs_body b = { 0 };
+
+	strncpy(b.name, desc->name, sizeof(b.name) - 1);
 	
 	/* Universal State */
 	b.state.pos = pos;

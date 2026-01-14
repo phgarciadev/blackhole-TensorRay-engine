@@ -51,3 +51,5 @@ struct bhs_planet_desc bhs_blackhole_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Gargantua (BN)", bhs_blackhole_get_desc);

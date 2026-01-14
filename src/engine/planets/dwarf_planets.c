@@ -99,3 +99,6 @@ struct bhs_planet_desc bhs_ceres_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Plutao", bhs_pluto_get_desc);
+BHS_REGISTER_PLANET("Ceres", bhs_ceres_get_desc);

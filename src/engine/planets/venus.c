@@ -54,3 +54,5 @@ struct bhs_planet_desc bhs_venus_get_desc(void)
 	
 	return d;
 }
+
+BHS_REGISTER_PLANET("Venus", bhs_venus_get_desc);
