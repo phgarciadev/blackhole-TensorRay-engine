@@ -13,6 +13,6 @@
  * @param world Mundo ECS
  * @param dt Delta time em segundos
  */
-void bhs_physics_system_update(bhs_world_handle world, real_t dt);
+void bhs_physics_system_update(bhs_world_handle world, double dt);
 
 #endif /* BHS_ENGINE_SYSTEMS_PHYSICS_H */

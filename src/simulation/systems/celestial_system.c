@@ -6,7 +6,8 @@
  * Eu escuto e transformo o grito em supernova."
  */
 
-#include "engine/systems/celestial_system.h"
+#include "src/simulation/systems/celestial_system.h"
+#include "src/simulation/components/sim_components.h"
 #include "engine/components/components.h"
 #include "engine/ecs/events.h"
 #include <stdio.h>
@@ -55,9 +56,9 @@ static void on_collision(bhs_world_handle world,
 		       victim, blackhole);
 
 		/* Transfere massa pro buraco negro (se vítima tem física) */
-		bhs_physics_component *ph_victim = bhs_ecs_get_component(
+		bhs_physics_t *ph_victim = bhs_ecs_get_component(
 			world, victim, BHS_COMP_PHYSICS);
-		bhs_physics_component *ph_bh = bhs_ecs_get_component(
+		bhs_physics_t *ph_bh = bhs_ecs_get_component(
 			world, blackhole, BHS_COMP_PHYSICS);
 
 		if (ph_victim && ph_bh) {
@@ -87,9 +88,9 @@ static void on_collision(bhs_world_handle world,
 		 * Podemos criar um remanescente (buraco negro ou anã branca)
 		 * baseado na massa total.
 		 */
-		bhs_physics_component *ph_a = bhs_ecs_get_component(
+		bhs_physics_t *ph_a = bhs_ecs_get_component(
 			world, ev->entity_a, BHS_COMP_PHYSICS);
-		bhs_physics_component *ph_b = bhs_ecs_get_component(
+		bhs_physics_t *ph_b = bhs_ecs_get_component(
 			world, ev->entity_b, BHS_COMP_PHYSICS);
 
 		real_t total_mass = 0;

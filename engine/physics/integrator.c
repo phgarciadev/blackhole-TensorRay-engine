@@ -5,7 +5,7 @@
  * "RK4: Quatro avaliações pra fazer o que Euler faz mal com uma."
  */
 
-#include "engine/integrator/integrator.h"
+#include "engine/physics/integrator.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>

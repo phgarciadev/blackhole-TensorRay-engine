@@ -3,6 +3,7 @@
  * @brief Orquestrador da View (Cola: Scene + Camera + Renderer)
  */
 
+#include "src/simulation/planets/planet.h"
 #include "view_spacetime.h"
 #include "src/ui/camera/camera_controller.h"
 #include "src/ui/render/spacetime_renderer.h"

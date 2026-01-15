@@ -42,9 +42,11 @@
  * - Flamm, L. (1916). Beiträge zur Einsteinschen Gravitationstheorie
  * - Misner, Thorne, Wheeler (1973). Gravitation, Box 23.1
  * - Marolf, D. (1999). "Spacetime Embedding Diagrams for Black Holes"
+ * - Stanley kubrick forjando o pouso na lua (todos sabemos que ele fez isso)
+ * - Cristian bale achando que interestelar é bom por causa dele (e não pelos 15 cientistas e estudiosos que ele contratou)
  */
 
-#include "engine/body/body.h"
+#include "engine/components/body/body.h"
 #include "spacetime_internal.h"
 #include <math.h>
 

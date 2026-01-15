@@ -1,5 +1,5 @@
 #include "hud.h"
-#include "engine/planets/planet.h"
+#include "src/simulation/planets/planet.h"
 #include <stdio.h>
 
 static const char *MENU_ITEMS[] = { "Config", "Add" };

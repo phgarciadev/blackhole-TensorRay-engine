@@ -16,8 +16,8 @@
 #include "engine/assets/image_loader.h"
 #include "engine/assets/image_loader.h"
 #include "src/debug/telemetry.h"
-#include "engine/planets/planet.h"
-#include "engine/body/body.h"
+#include "src/simulation/planets/planet.h"
+#include "engine/components/body/body.h"
 
 /* --- Helper: Projection for Picking (Duplicated from Renderer for simplicity) --- */
 static void project_point(const bhs_camera_t *c, float x, float y,
@@ -64,7 +64,10 @@ int main(int argc, char *argv[])
 				"colapsou.\n");
 		return 1;
 	}
-	bhs_scene_init_default(scene);
+    
+    // Initialize Game Content
+    #include "src/simulation/simulation_init.h"
+	bhs_simulation_init(scene);
 
 	/* 2. Cria Contexto UI (Janela + GPU) */
 	struct bhs_ui_config config = {

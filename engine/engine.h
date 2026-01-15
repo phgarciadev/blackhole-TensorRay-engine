@@ -1,40 +1,72 @@
 /**
- * @file lib.h
- * @brief Engine Library - Física de alto nível
+ * @file engine.h
+ * @brief Black Hole Gravity Engine - Public API
  *
- * "Onde a teoria vira prática. Ou tela preta."
+ * This is the ONLY header that the Application (src/) should include.
+ * It strictly hides the implementation details (ECS, Physics, Algorithms).
  *
- * Este header agrupa os motores de simulação:
- * - Geodésicas (trajetórias de luz e matéria)
- * - Disco de acreção (cores, temperatura, Doppler)
- *
- * Depende de: lib/core.h
- *
- * Uso típico:
- *   #include "engine/engine.h"
- *
- *   struct bhs_geodesic ray;
- *   bhs_geodesic_propagate(&ray, &bh, &config);
+ * Principios:
+ * - Opaque definition (void*)
+ * - Simple Life-cycle (Init, Update, Shutdown)
+ * - Data-Oriented input (Scene loading)
  */
 
-#ifndef BHS_ENGINE_LIB_H
-#define BHS_ENGINE_LIB_H
+#ifndef BHS_ENGINE_H
+#define BHS_ENGINE_H
 
-/* Dependência: Core */
 #include "math/core.h"
+#include <stdbool.h>
 
 /* ============================================================================
- * GEODÉSICAS
+ * ENGINE LIFECYCLE
  * ============================================================================
  */
 
-#include "engine/geodesic/geodesic.h"
+/**
+ * bhs_engine_init - Inicializa subsistemas (Memory, ECS, Physics)
+ * 
+ * Deve ser chamado antes de qualquer outra funcao da engine.
+ */
+void bhs_engine_init(void);
+
+/**
+ * bhs_engine_shutdown - Libera todos os recursos
+ */
+void bhs_engine_shutdown(void);
+
+/**
+ * bhs_engine_update - Avanca a simulacao
+ * @dt: Delta time em segundos (step fixo recomendado para fisica)
+ *
+ * Executa:
+ * 1. Physics System (Integrator)
+ * 2. Spacetime System (Metric Updates)
+ * 3. Script/Game Logic Systems
+ */
+void bhs_engine_update(double dt);
 
 /* ============================================================================
- * DISCO DE ACREÇÃO
+ * SCENE MANAGEMENT
  * ============================================================================
  */
 
-#include "engine/disk/disk.h"
+/**
+ * bhs_scene_load - Carrega uma cena (planetas, config)
+ * @path: Caminho para o arquivo ou string de definicao
+ *
+ * Por enquanto, hardcoded ou script simples.
+ * Futuro: JSON/Binary serialization.
+ */
+void bhs_scene_load(const char *path);
 
-#endif /* BHS_ENGINE_LIB_H */
+/* ============================================================================
+ * ECS EXPOSURE (Optional/Advanced)
+ * ============================================================================
+ * A aplicacao pode precisar criar entidades manualmente.
+ * Expomos handles opacos.
+ */
+
+// TODO: Decidir se expomos ECS diretamente aqui ou se mantemos encapsulado.
+// Por enquanto, encapsulado. Use bhs_scene_load.
+
+#endif /* BHS_ENGINE_H */

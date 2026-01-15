@@ -5,7 +5,7 @@
 
 #include "spacetime_renderer.h"
 #include <math.h>
-#include "engine/spacetime/spacetime.h"
+#include "engine/physics/spacetime/spacetime.h"
 
 /* Helper: Projeta world -> screen */
 /* Helper: Projeta world -> screen */

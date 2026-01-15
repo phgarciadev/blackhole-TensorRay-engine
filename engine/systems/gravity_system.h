@@ -16,8 +16,7 @@
 #include "engine/ecs/ecs.h"
 #include "math/vec4.h"
 
-/* Constante gravitacional em unidades naturais (G = 1 neste sistema) */
-#define BHS_G 1.0
+#include "engine/physics/physics_defs.h"
 
 /**
  * bhs_gravity_system_central - Aplica gravidade de campo central
@@ -32,7 +31,7 @@
  */
 void bhs_gravity_system_central(bhs_world_handle world,
 				struct bhs_vec3 center,
-				real_t central_mass);
+				double central_mass);
 
 /**
  * bhs_gravity_system_nbody - Aplica gravidade N-Body

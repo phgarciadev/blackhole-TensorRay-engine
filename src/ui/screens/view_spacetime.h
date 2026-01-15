@@ -4,6 +4,7 @@
 #include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
 #include "framework/ui/lib.h"
+#include "framework/rhi/renderer.h"
 
 /* === View === */
 

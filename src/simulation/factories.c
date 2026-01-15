@@ -3,9 +3,8 @@
  * @brief Fábrica de Corpos Celestes (Updated for Kernel Style)
  */
 
-#include "body.h"
-#include "body.h"
-#include "../planets/planet.h"
+#include "engine/components/body/body.h"
+#include "src/simulation/planets/planet.h"
 #include <string.h>
 
 struct bhs_body bhs_body_create_planet_simple(struct bhs_vec3 pos, double mass,

@@ -11,7 +11,7 @@
 #ifndef BHS_ENGINE_PRESETS_H
 #define BHS_ENGINE_PRESETS_H
 
-#include "engine/body/body.h"
+#include "engine/components/body/body.h"
 #include "engine/scene/scene.h"
 #include "math/units.h"
 
