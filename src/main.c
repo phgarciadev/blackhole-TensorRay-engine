@@ -9,11 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/ui/screens/hud.h"
-#include "src/ui/screens/view_spacetime.h"
-#include "engine/scene/scene.h"
+#include "src/system/application.h"
+#include "framework/log.h"
 #include "framework/rhi/renderer.h"
-#include "engine/assets/image_loader.h"
+#include "src/ui/screens/view_spacetime.h"
+#include "src/ui/camera/camera.h"
 #include "engine/assets/image_loader.h"
 #include "src/debug/telemetry.h"
 #include "src/simulation/planets/planet.h"
@@ -54,118 +54,25 @@ int main(int argc, char *argv[])
 
 	setbuf(stdout, NULL);
 
-	printf("=== Black Hole Simulator ===\n");
-	printf("Inicializando universo...\n");
-
-	/* 1. Cria a Cena (Física) */
-	bhs_scene_t scene = bhs_scene_create();
-	if (!scene) {
-		fprintf(stderr, "Erro fatal: Falha ao criar cena. Universo "
-				"colapsou.\n");
-		return 1;
-	}
+	/* 
+     * REFACTORED CASCADE INIT 
+     */
+    bhs_app_t app = {0};
+    if (!bhs_app_init(&app)) {
+        return 1;
+    }
     
-    // Initialize Game Content
-    #include "src/simulation/simulation_init.h"
-	bhs_simulation_init(scene);
+    // Alias for convenience in loop
+    bhs_ui_ctx_t ui = app.ui;
+    bhs_scene_t scene = app.scene;
+    bhs_gpu_texture_t bg_tex = app.bg_tex;
+    bhs_gpu_texture_t sphere_tex = app.sphere_tex;
 
-	/* 2. Cria Contexto UI (Janela + GPU) */
-	struct bhs_ui_config config = {
-		.title = "Black Hole Simulator - Spacetime View",
-		.width = 1280,
-		.height = 720,
-		.resizable = true,
-		.vsync = true,
-		.debug = true /* Ativa validação pra gente ver as cacas */
-	};
-
-	bhs_ui_ctx_t ui = NULL;
-	int ret = bhs_ui_create(&config, &ui);
-	if (ret != BHS_UI_OK) {
-		fprintf(stderr,
-			"Erro fatal: Falha ao criar UI (%d). Sem placa de "
-			"video?\n",
-			ret);
-		bhs_scene_destroy(scene);
-		return 1;
-	}
-
-	/* 3. Inicializa Camera */
+	/* 3. Inicializa Camera (Local state needed for loop) */
 	bhs_camera_t cam;
 	bhs_camera_init(&cam);
 
-	/* 3.1 Inicializa HUD */
-	bhs_hud_state_t hud_state;
-	bhs_hud_init(&hud_state);
-
-	/* 3.5 Carrega Textura do Espaço (Kernel-style: Fail fast) */
-	printf("Carregando texturas...\n");
-	bhs_image_t bg_img = bhs_image_load("assets/textures/space_bg.png");
-	bhs_gpu_texture_t bg_tex = NULL;
-
-	if (bg_img.data) {
-		struct bhs_gpu_texture_config tex_conf = {
-			.width = bg_img.width,
-			.height = bg_img.height,
-			.depth = 1,
-			.mip_levels = 1,
-			.array_layers = 1,
-			.format =
-				BHS_FORMAT_RGBA8_SRGB, /* Texture is sRGB, GPU must linearize */
-			.usage = BHS_TEXTURE_SAMPLED | BHS_TEXTURE_TRANSFER_DST,
-			.label = "Skybox"
-		};
-
-		bhs_gpu_device_t dev = bhs_ui_get_gpu_device(ui);
-		if (bhs_gpu_texture_create(dev, &tex_conf, &bg_tex) ==
-		    BHS_GPU_OK) {
-			bhs_gpu_texture_upload(bg_tex, 0, 0, bg_img.data,
-					       bg_img.width * bg_img.height *
-						       4);
-			printf("Textura carregada: %dx%d\n", bg_img.width,
-			       bg_img.height);
-		} else {
-			fprintf(stderr, "Falha ao criar textura na GPU.\n");
-		}
-		bhs_image_free(bg_img); /* RAM free */
-	} else {
-		fprintf(stderr, "Aviso: Textura do espaco nao encontrada.\n");
-	}
-
-	/* 3.6 Gera Textura de Esfera Procedural (3D Impostor) */
-	bhs_gpu_texture_t sphere_tex = NULL;
-	{
-		int size = 64;
-		bhs_image_t sphere_img = bhs_image_gen_sphere(size);
-		if (sphere_img.data) {
-			struct bhs_gpu_texture_config conf = {
-				.width = size,
-				.height = size,
-				.depth = 1,
-				.mip_levels = 1,
-				.array_layers = 1,
-				.format =
-					BHS_FORMAT_RGBA8_UNORM, /* Linear for masks */
-				.usage = BHS_TEXTURE_SAMPLED |
-					 BHS_TEXTURE_TRANSFER_DST,
-				.label = "Sphere Impostor"
-			};
-			bhs_gpu_device_t dev = bhs_ui_get_gpu_device(ui);
-			int ret_create = bhs_gpu_texture_create(dev, &conf, &sphere_tex);
-			if (ret_create == BHS_GPU_OK) {
-				int ret_upload = bhs_gpu_texture_upload(sphere_tex, 0, 0,
-						       sphere_img.data,
-						       size * size * 4);
-				printf("[MAIN] Esfera 3D gerada: %dx%d | Ptr: %p | Create: %d | Upload: %d\n", 
-				       size, size, (void*)sphere_tex, ret_create, ret_upload);
-			} else {
-				printf("[MAIN] FALHA ao criar texture esfera: %d\n", ret_create);
-			}
-			bhs_image_free(sphere_img);
-		}
-	}
-
-	printf("Sistema online. Entrando no horizonte de eventos...\n");
+    BHS_LOG_INFO("Loop Start");
 
 	/* 4. Loop Principal */
 	/* Time */
@@ -190,17 +97,17 @@ int main(int argc, char *argv[])
 		bhs_ui_get_size(ui, &win_w, &win_h);
 
 		/* 1. Handle Object Deletion */
-		if (hud_state.req_delete_body) {
-			if (hud_state.selected_body_index != -1) {
+		if (app.hud_state.req_delete_body) {
+			if (app.hud_state.selected_body_index != -1) {
 				bhs_scene_remove_body(
-					scene, hud_state.selected_body_index);
-				hud_state.selected_body_index = -1;
+					scene, app.hud_state.selected_body_index);
+				app.hud_state.selected_body_index = -1;
 			}
-			hud_state.req_delete_body = false;
+			app.hud_state.req_delete_body = false;
 		}
 
 		/* 2. Handle Object Injection */
-		if (hud_state.req_add_body_type != -1 || hud_state.req_add_registry_entry) {
+		if (app.hud_state.req_add_body_type != -1 || app.hud_state.req_add_registry_entry) {
 			/* Add slightly in front of camera */
 			float spawn_dist = 20.0f;
 			struct bhs_vec3 pos = {
@@ -213,8 +120,8 @@ int main(int argc, char *argv[])
 			struct bhs_body new_body;
 			
 			/* Case A: From Registry (New System) */
-			if (hud_state.req_add_registry_entry) {
-				const struct bhs_planet_desc desc = hud_state.req_add_registry_entry->getter();
+			if (app.hud_state.req_add_registry_entry) {
+				const struct bhs_planet_desc desc = app.hud_state.req_add_registry_entry->getter();
 				/* Scale down for simulation consistency if coming from raw SI getter? 
 				 * presets.c does scaling. 
 				 * We should probably apply the same scaling here: 
@@ -234,7 +141,7 @@ int main(int argc, char *argv[])
 				printf("[SPAWN] Registry: %s (M=%.2e, R=%.2f)\n", 
 					desc.name, new_body.state.mass, new_body.state.radius);
 
-				hud_state.req_add_registry_entry = NULL;
+				app.hud_state.req_add_registry_entry = NULL;
 			} 
 			/* Case B: Legacy Hardcoded (Fallback) */
 			else { 
@@ -244,18 +151,18 @@ int main(int argc, char *argv[])
 				double mass = 0.1;
 				double radius = 0.5;
 
-				if (hud_state.req_add_body_type == BHS_BODY_STAR) {
+				if (app.hud_state.req_add_body_type == BHS_BODY_STAR) {
 					mass = 2.0;
 					radius = 1.0;
 					col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
-				} else if (hud_state.req_add_body_type == BHS_BODY_BLACKHOLE) {
+				} else if (app.hud_state.req_add_body_type == BHS_BODY_BLACKHOLE) {
 					mass = 10.0;
 					radius = 2.0;
 					col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
 				}
 				
 				new_body = bhs_body_create_planet_simple(pos, mass, radius, col);
-				new_body.type = hud_state.req_add_body_type;
+				new_body.type = app.hud_state.req_add_body_type;
 			}
 
 			/* Auto-Orbit Logic (Shared) */
@@ -293,7 +200,7 @@ int main(int argc, char *argv[])
 
 			bhs_scene_add_body_struct(scene, new_body);
 
-			hud_state.req_add_body_type = -1;
+			app.hud_state.req_add_body_type = -1;
 		}
 
 		/* 3. Handle Picking (Selection) */
@@ -305,7 +212,7 @@ int main(int argc, char *argv[])
 			bhs_ui_mouse_pos(ui, &mx, &my);
 
 			/* 3.0 Check UI Block */
-			if (bhs_hud_is_mouse_over(&hud_state, mx, my, win_w,
+			if (bhs_hud_is_mouse_over(&app.hud_state, mx, my, win_w,
 						  win_h)) {
 				/* Click was on UI, ignore picking */
 				goto skip_picking;
@@ -339,20 +246,20 @@ int main(int argc, char *argv[])
 			}
 
 			/* Update Selection Loop */
-			hud_state.selected_body_index = best_idx;
+			app.hud_state.selected_body_index = best_idx;
 		}
 skip_picking:
 
 		/* 4. Update Cache for HUD */
-		if (hud_state.selected_body_index != -1) {
+		if (app.hud_state.selected_body_index != -1) {
 			int n;
 			const struct bhs_body *b =
 				bhs_scene_get_bodies(scene, &n);
-			if (hud_state.selected_body_index < n) {
-				hud_state.selected_body_cache =
-					b[hud_state.selected_body_index];
+			if (app.hud_state.selected_body_index < n) {
+				app.hud_state.selected_body_cache =
+					b[app.hud_state.selected_body_index];
 			} else {
-				hud_state.selected_body_index =
+				app.hud_state.selected_body_index =
 					-1; /* Body sumiu */
 			}
 		}
@@ -376,11 +283,11 @@ skip_picking:
 		/* Desenha Malha Espacial (Passamos a textura aqui) */
 		bhs_view_assets_t assets = { .bg_texture = bg_tex,
 					     .sphere_texture = sphere_tex,
-					     .show_grid = hud_state.show_grid };
+					     .show_grid = app.hud_state.show_grid };
 		bhs_view_spacetime_draw(ui, scene, &cam, win_w, win_h, &assets);
 
 		/* Interface Adicional (HUD) */
-		bhs_hud_draw(ui, &hud_state, win_w, win_h);
+		bhs_hud_draw(ui, &app.hud_state, win_w, win_h);
 
 		/* Text info inferior (permanente) */
 		bhs_ui_draw_text(
@@ -398,17 +305,14 @@ skip_picking:
 		total_time += dt;
 		if (frame_count % 30 == 0) {
 			bhs_telemetry_print_scene(scene, total_time,
-						  hud_state.show_grid);
+						  app.hud_state.show_grid);
 		}
 	}
 
 	printf("Desligando simulacao...\n");
 
 	/* 4. Cleanup */
-	if (bg_tex)
-		bhs_gpu_texture_destroy(bg_tex);
-	bhs_ui_destroy(ui);
-	bhs_scene_destroy(scene);
+    bhs_app_shutdown(&app);
 
 	return 0;
 }

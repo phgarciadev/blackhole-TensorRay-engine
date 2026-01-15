@@ -4,6 +4,7 @@
  */
 
 #include "engine/ecs/ecs.h"
+#include "framework/log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +31,10 @@ struct bhs_world_t {
 bhs_world_handle bhs_ecs_create_world(void)
 {
 	bhs_world_handle w = calloc(1, sizeof(struct bhs_world_t));
-	w->next_entity_id = 1; // 0 is Invalid
+	if (w) {
+		w->next_entity_id = 1; // 0 is Invalid
+		BHS_LOG_ECS_DEBUG("World created at %p", (void*)w);
+	}
 	return w;
 }
 
@@ -45,12 +49,13 @@ void bhs_ecs_destroy_world(bhs_world_handle world)
 			free(world->components[i].active);
 	}
 	free(world);
+	BHS_LOG_ECS_DEBUG("World destroyed");
 }
 
 bhs_entity_id bhs_ecs_create_entity(bhs_world_handle world)
 {
 	if (world->next_entity_id >= BHS_MAX_ENTITIES) {
-		fprintf(stderr, "[ECS] Max entities reached!\n");
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Max entities reached! (%d)", BHS_MAX_ENTITIES);
 		return BHS_ENTITY_INVALID;
 	}
 	return world->next_entity_id++;
@@ -78,8 +83,20 @@ static void ensure_pool(bhs_world_handle world, bhs_component_type type,
 		return;
 
 	if (world->components[type].data == NULL) {
+		/* 
+		 * MEMORY STRATEGY: Monolithic SoA (Structure of Arrays).
+		 * We allocate a single contiguous block for ALL potential entities.
+		 * This ensures O(1) access and cache coherence when iterating.
+		 * 
+		 * Current: malloc(MAX * size)
+		 * Future: Page-based Generic Pool if MAX gets too big.
+		 */
+		size_t total_bytes = BHS_MAX_ENTITIES * size;
+		BHS_LOG_DEBUG_CH(BHS_LOG_CHANNEL_ECS, "Pool Allocated: Type=%d, ElementSize=%zu, Total=%zu bytes", 
+			type, size, total_bytes);
+
 		world->components[type].element_size = size;
-		world->components[type].data = calloc(BHS_MAX_ENTITIES, size);
+		world->components[type].data = calloc(1, total_bytes);
 		world->components[type].active =
 			calloc(BHS_MAX_ENTITIES, sizeof(bool));
 	}
@@ -98,8 +115,8 @@ void *bhs_ecs_add_component(bhs_world_handle world, bhs_entity_id entity,
 
 	// Check consistency (optional DEBUG)
 	if (pool->element_size != size) {
-		fprintf(stderr, "[ECS] Component size mismatch for type %d\n",
-			type);
+		BHS_LOG_FATAL_CH(BHS_LOG_CHANNEL_ECS, "Component size mismatch Type %d! Expected %zu, Got %zu",
+			type, pool->element_size, size);
 		return NULL;
 	}
 
@@ -209,7 +226,7 @@ void bhs_ecs_query_init_cached(bhs_ecs_query *q, bhs_world_handle world,
 	/* Aloca e preenche cache */
 	q->cache = malloc(q->count * sizeof(bhs_entity_id));
 	if (!q->cache) {
-		fprintf(stderr, "[ECS] Falha ao alocar cache de query\n");
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to allocate query cache size %d", q->count);
 		q->count = 0;
 		return;
 	}
@@ -262,4 +279,3 @@ void bhs_ecs_query_destroy(bhs_ecs_query *q)
 		q->cache = NULL;
 	}
 }
-

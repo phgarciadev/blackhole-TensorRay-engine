@@ -293,18 +293,10 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		float visual_y = b->state.pos.y;
 		float visual_z = b->state.pos.z;
 
-		if (b->type == BHS_BODY_PLANET &&
-		    bodies[0].type == BHS_BODY_BLACKHOLE) {
-			/* Assume body 0 is central mass */
-			double dx = b->state.pos.x - bodies[0].state.pos.x;
-			double dz = b->state.pos.z - bodies[0].state.pos.z;
-			double r = sqrt(dx * dx + dz * dz);
-			if (r > 1.0) {
-				/* Match Grid Metric: -5.0 * (M/r) */
-				visual_y = -5.0f * (float)(bodies[0].state.mass / r);
-				if (visual_y < -50.0f)
-					visual_y = -50.0f;
-			}
+		if (b->type == BHS_BODY_PLANET) {
+            /* Use Engine API to get the correct visual depth (metric embedding) */
+            visual_y = bhs_spacetime_get_depth_at_point(scene ? bhs_scene_get_spacetime(scene) : NULL, 
+                                                        visual_x, visual_z);
 		}
 
 		/* Project body center */

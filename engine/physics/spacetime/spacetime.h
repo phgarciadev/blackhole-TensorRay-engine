@@ -59,15 +59,15 @@ void bhs_spacetime_update(bhs_spacetime_t st,
                           const void *bodies, /* struct bhs_body* */
                           int n_bodies);
 
-/**
- * bhs_spacetime_get_render_data - Obtém dados para desenhar
- *
- * Retorna arrays de vértices para o renderer (Vulkan/Metal agnóstico).
- * O renderer chama isso pra copiar pro Vertex Buffer.
- */
 void bhs_spacetime_get_render_data(bhs_spacetime_t st,
                                    float **vertices, /* Out: x,y,z, r,g,b */
                                    int *count);
+
+/**
+ * bhs_spacetime_get_depth_at_point - Retorna a profundidade visual (y) num ponto (x,z)
+ * Útil para alinhar objetos visuais com a malha.
+ */
+float bhs_spacetime_get_depth_at_point(bhs_spacetime_t st, float x, float z);
 
 /**
  * bhs_spacetime_get_divisions - Retorna número de divisões do grid

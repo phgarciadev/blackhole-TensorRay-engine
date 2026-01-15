@@ -290,3 +290,54 @@ void bhs_spacetime_update(bhs_spacetime_t st, const void *bodies_ptr,
 		redshift_color(total_depth, &v[3], &v[4], &v[5]);
 	}
 }
+
+float bhs_spacetime_get_depth_at_point(bhs_spacetime_t st, float x, float z) {
+    if (!st || !st->vertex_data) return 0.0f;
+
+    /*
+     * Bilinear Interpolation from the Grid.
+     * Maps physical coordinates (x, z) to grid indices.
+     */
+    float half_size = st->size * 0.5f;
+    float dx = x + half_size; // 0..size
+    float dz = z + half_size; // 0..size
+    
+    if (dx < 0 || dx >= st->size || dz < 0 || dz >= st->size) return 0.0f;
+
+    float cell_size = st->size / st->divisions;
+    
+    // Normalized coords
+    float fx = dx / cell_size;
+    float fz = dz / cell_size;
+    
+    int ix = (int)fx;
+    int iz = (int)fz;
+    
+    if (ix < 0 || ix >= st->divisions || iz < 0 || iz >= st->divisions) return 0.0f;
+    
+    // Grid structure: (Map 2D -> 1D array)
+    // Vertices stored as (x,y,z, r,g,b)
+    int stride = 6;
+    int cols = st->divisions + 1;
+    
+    // Indices for 4 neighbors
+    int i00 = (iz * cols + ix) * stride;
+    int i10 = (iz * cols + (ix + 1)) * stride;
+    int i01 = ((iz + 1) * cols + ix) * stride;
+    int i11 = ((iz + 1) * cols + (ix + 1)) * stride;
+    
+    // Y values (Depth)
+    float y00 = st->vertex_data[i00 + 1];
+    float y10 = st->vertex_data[i10 + 1];
+    float y01 = st->vertex_data[i01 + 1];
+    float y11 = st->vertex_data[i11 + 1];
+    
+    float u = fx - ix;
+    float v = fz - iz;
+    
+    // Interpolate
+    float y0 = y00 * (1.0f - u) + y10 * u;
+    float y1 = y01 * (1.0f - u) + y11 * u;
+    
+    return y0 * (1.0f - v) + y1 * v;
+}
