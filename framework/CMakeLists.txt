@@ -1,4 +1,4 @@
-# framework/CMakeLists.txt
+ # framework/CMakeLists.txt
 
 add_library(bhs_framework STATIC)
 
@@ -21,13 +21,15 @@ find_package(Vulkan REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-cursor xkbcommon)
 
-target_link_libraries(bhs_framework PUBLIC 
-    bhs_math
-    Vulkan::Vulkan
-    ${WAYLAND_LIBRARIES}
+target_link_libraries(bhs_framework 
+    PUBLIC 
+        bhs_math
+    PRIVATE
+        Vulkan::Vulkan
+        ${WAYLAND_LIBRARIES}
 )
 
-target_include_directories(bhs_framework PUBLIC ${WAYLAND_INCLUDE_DIRS})
+target_include_directories(bhs_framework PRIVATE ${WAYLAND_INCLUDE_DIRS})
 
 add_library(BHS::Framework ALIAS bhs_framework)
 
