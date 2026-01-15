@@ -5,11 +5,13 @@
 
 #include "framework/ui/layout.h"
 #include "framework/ui/internal.h"
+#include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 void bhs_layout_begin(bhs_ui_ctx_t ctx, bhs_layout_dir_t dir,
                       const struct bhs_layout_style *style) {
-  BHS_ASSERT(ctx != NULL);
+  assert(ctx != NULL);
 
   struct bhs_layout_ctx *lctx = &ctx->layout;
 
@@ -55,7 +57,7 @@ void bhs_layout_begin(bhs_ui_ctx_t ctx, bhs_layout_dir_t dir,
 }
 
 void bhs_layout_end(bhs_ui_ctx_t ctx) {
-  BHS_ASSERT(ctx != NULL);
+  assert(ctx != NULL);
   struct bhs_layout_ctx *lctx = &ctx->layout;
 
   if (lctx->stack_ptr >= 0) {

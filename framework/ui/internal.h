@@ -14,7 +14,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "math/core.h"
 #include "framework/ui/lib.h"
 #include "framework/platform/platform.h"
 #include "framework/rhi/renderer.h"
