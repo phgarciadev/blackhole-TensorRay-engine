@@ -1,113 +1,240 @@
-# 🏗️ Arquitetura do Projeto
+# Arquitetura do Projeto - Layered Architecture
 
-Leia isso antes de meter a mão no código. Sério. Não seja aquele dev que sai commitando sem entender onde tá pisando.
-
----
-
-## Princípio Fundamental
-
-> **Interface comum, implementações específicas.**
-
-Tipo o kernel Linux com drivers. A aplicação conversa com uma API abstrata, e cada plataforma implementa do seu jeito usando APIs nativas. O código de alto nível nem sabe se tá rodando em Mac, Linux ou Windows.
+Este projeto usa uma **Arquitetura em Camadas** estritamente desacoplada.
+As camadas ficam na **raiz do projeto**, não dentro de src/.
+Se você mexer na camada errada, a culpa é sua. Tá avisado.
 
 ---
 
-## Estrutura UX (Interface Gráfica) 
+## Diagrama de Dependências
 
 ```
-Roda um ls ai kkkkkkk
+┌─────────────────────────────────────────────────────────┐
+│                    SRC (src/)                           │
+│              Entry point, UI específica                 │
+│                  → blackhole_sim                        │
+└──────────────────────────┬──────────────────────────────┘
+                           │ depends on
+           ┌───────────────┴───────────────┐
+           │                               │
+           ▼                               ▼
+┌──────────────────────┐     ┌──────────────────────────┐
+│   ENGINE (engine/)   │     │  FRAMEWORK (framework/)  │
+│   libbhs_engine.a    │     │   libbhs_framework.a     │
+│                      │     │                          │
+│  • ECS               │     │  • Platform (Wayland,    │
+│  • Physics           │     │    X11, Cocoa, Win32)    │
+│  • Geodesics         │     │  • RHI (Vulkan, Metal,   │
+│  • Bodies            │────▶│    OpenGL, DirectX)      │
+│  • Scene             │     │  • UI Framework          │
+└───────────┬──────────┘     └────────────┬─────────────┘
+            │                              │
+            │         depends on           │
+            └──────────────┬───────────────┘
+                           │
+                           ▼
+           ┌───────────────────────────────┐
+           │       MATH (math/)            │
+           │       libbhs_math.a           │
+           │                               │
+           │  • vec4.h/c (vetores 4D)      │
+           │  • tensor/ (métricas)         │
+           │  • spacetime/ (Kerr, Schwarz) │
+           │  • core.h (unified include)   │
+           │                               │
+           │  ZERO dependências externas   │
+           │  (só <math.h>, <stdint.h>)    │
+           └───────────────────────────────┘
 ```
 
 ---
 
-## Como Funciona
+## Estrutura de Diretórios
 
-### O `lib.h` do módulo (core.h, engine.h, etc) é o CHEFE
-
-Define **O QUE** existe, não **COMO** funciona:
-
-```c
-/* platform/platform.h diz: */
-int bhs_window_create(...);   /* "Preciso disso!" */
-void bhs_window_destroy(...); /* "E disso também!" */
 ```
-
-### O backend é o FUNCIONÁRIO
-
-Implementa **COMO** fazer, usando APIs nativas:
-
-```c
-/* cocoa.mm responde: */
-int bhs_window_create(...) {
-    /* Usa NSWindow, faz macumba com AppKit... */
-    return BHS_PLATFORM_OK;
-}
-
-/* win32.cpp responde: */
-int bhs_window_create(...) {
-    /* Usa CreateWindowEx, RegisterClass, a zona do Windows... */
-    return BHS_PLATFORM_OK;
-}
+blackholegravity/
+├── math/                       # Camada 1: Matemática pura
+│   ├── Makefile               → libbhs_math.a
+│   ├── bhs_math.h             # Tipos base (real_t)
+│   ├── vec4.h/c               # Vetores 4D
+│   ├── core.h                 # Include unificado
+│   ├── tensor/                # Tensores métricos
+│   │   └── tensor.h/c
+│   └── spacetime/             # Métricas de espaço-tempo
+│       ├── kerr.h/c
+│       └── schwarzschild.h/c
+│
+├── framework/                  # Camada 2: HAL + RHI + UI
+│   ├── Makefile               → libbhs_framework.a
+│   ├── platform/              # Abstração de OS
+│   │   ├── platform.h         # API pública
+│   │   ├── wayland/           # Backend Linux moderno
+│   │   ├── x11/               # Backend Linux legado
+│   │   ├── cocoa/             # Backend macOS
+│   │   └── win32/             # Backend Windows
+│   ├── rhi/                   # Render Hardware Interface
+│   │   ├── renderer.h         # API pública
+│   │   ├── vulkan/            # Backend Vulkan
+│   │   ├── metal/             # Backend Metal
+│   │   ├── opengl/            # Backend OpenGL
+│   │   └── dx/                # Backend DirectX
+│   └── ui/                    # UI Framework
+│       ├── lib.h              # API pública
+│       ├── context.c          # Gerenciamento de contexto
+│       ├── widgets.c          # Botões, sliders, etc
+│       ├── render/            # Renderização 2D
+│       └── window/            # Gerenciamento de janela
+│
+├── engine/                     # Camada 3: Simulação
+│   ├── Makefile               → libbhs_engine.a
+│   ├── engine.h               # API pública
+│   ├── ecs/                   # Entity Component System
+│   ├── assets/                # Carregamento de recursos
+│   ├── body/                  # Corpos celestes
+│   ├── geodesic/              # Trajetórias de luz
+│   ├── scene/                 # Gerenciamento de cena
+│   ├── systems/               # Sistemas ECS
+│   └── planets/               # Dados de planetas
+│
+├── src/                        # Camada 4: Aplicação (Entry Point)
+│   ├── Makefile               → blackhole_sim
+│   ├── main.c                 # Entry point
+│   ├── ui/                    # UI específica do app
+│   │   ├── camera/            # Controle de câmera
+│   │   ├── render/            # Renderização espacial
+│   │   └── screens/           # Telas (HUD, etc)
+│   └── debug/                 # Ferramentas de debug
+│
+├── build/                      # Artefatos de build
+│   ├── math/libbhs_math.a
+│   ├── framework/libbhs_framework.a
+│   ├── engine/libbhs_engine.a
+│   └── blackhole_sim
+│
+└── Makefile                    # Build system principal
 ```
-
-### Internamente, cada um faz o que quiser
-
-Dentro do `.c`/`.cpp`/`.mm`, o backend pode ter:
-- Structs auxiliares (ex: `BHSView`, `BHSWindowDelegate`)
-- Funções helper privadas (ex: `bhs_cocoa_push_event()`)
-- Estado global se necessário (mas evite, pelo amor)
-
-**Nada disso é exposto publicamente.** A aplicação só enxerga o que `lib.h` define.
 
 ---
 
 ## Regras de Ouro
 
-1. **Backends NÃO adicionam API pública** - Só implementam o que `lib.h` manda
-2. **`lib.h` usa handles opacos** - `typedef struct impl *bhs_xxx_t`
-3. **Erros são códigos negativos** - `0 = sucesso`, `< 0 = erro`
-4. **Documentar invariantes** - O que DEVE ser verdade antes/depois
+### 1. Hierarquia de Dependências
 
----
-
-## No Build
-
-Compila só o backend necessário:
-
-```makefile
-# Linux com X11
-PLATFORM_SRC = src/ux/platform/x11/x11.c
-RENDERER_SRC = src/ux/renderer/vulkan/vulkan.c
-
-# macOS
-PLATFORM_SRC = src/ux/platform/cocoa/cocoa.mm
-RENDERER_SRC = src/ux/renderer/metal/metal.mm
-
-# Windows
-PLATFORM_SRC = src/ux/platform/win32/win32.cpp
-RENDERER_SRC = src/ux/renderer/dx/directx.cpp
+```
+src/ → engine/ → framework/ → math/
+src/ → framework/ → math/
+src/ → math/
+engine/ → framework/ → math/
+engine/ → math/
+framework/ → math/
 ```
 
-A aplicação nem percebe a diferença. Linka com a mesma API, roda em qualquer lugar.
+**PROIBIDO**: Dependências circulares ou inversas.
+
+### 2. Cada Camada Gera uma Biblioteca
+
+| Camada | Output | Responsabilidade |
+|--------|--------|------------------|
+| math/ | `libbhs_math.a` | Computação pura (ZERO deps externas) |
+| framework/ | `libbhs_framework.a` | Hardware abstraction (não sabe de física) |
+| engine/ | `libbhs_engine.a` | Lógica de simulação |
+| src/ | `blackhole_sim` | Glue code, entry point |
+
+### 3. Includes Padronizados
+
+Use includes relativos à raiz do projeto:
+
+```c
+/* CORRETO */
+#include "math/vec4.h"
+#include "framework/rhi/renderer.h"
+#include "engine/scene/scene.h"
+#include "src/ui/camera/camera.h"
+
+/* ERRADO (caminhos relativos feios) */
+#include "../../math/vec4.h"
+#include "../framework/rhi/renderer.h"
+```
 
 ---
 
-## Analogia Final
+## Build
 
-Pensa num restaurante:
-- **`lib.h`** = O cardápio (o que o cliente pode pedir)
-- **Backend** = A cozinha (como o prato é feito)
-- **Aplicação** = O cliente (só vê o cardápio, não a cozinha)
+```bash
+# Build completo
+make all
 
-O cliente pede "bhs_window_create". A cozinha (cocoa.mm) faz usando NSWindow. Outra cozinha (win32.cpp) faz usando CreateWindowEx. O cliente recebe a janela e nem sabe como foi feita.
+# Build por camada
+make math       # Só matemática
+make framework  # Só framework (depende de math)
+make engine     # Só engine (depende de math, framework)
+make src        # Só app (depende de tudo)
+
+# Limpar
+make clean
+
+# Info
+make info
+```
 
 ---
 
-## Leitura Obrigatória
+## Constraints por Camada
 
-Antes de contribuir, leia nessa ordem:
-1. Este arquivo (`arquitetura.md`) - Você está aqui
-2. `escrevendo-codigo.md` - Regras de estilo e código
-3. `lib.h` dos módulos que vai mexer - Entenda a interface
+### math/ - ZERO deps externas
+```c
+/* math/ SÓ pode incluir: */
+#include <math.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-Agora sim, pode codar. Boa sorte, você vai precisar.
+/* PROIBIDO em math/: */
+#include "framework/..."  // NÃO!
+#include "engine/..."     // NÃO!
+#include <vulkan.h>       // NÃO!
+```
+
+### framework/ - Não sabe de física
+```c
+/* framework/ pode incluir: */
+#include "math/..."
+
+/* framework/ NÃO sabe o que é: */
+// Black hole, planet, geodesic, spacetime, Kerr metric...
+// Só sabe: triangles, buffers, windows, events
+```
+
+### engine/ - O cérebro
+```c
+/* engine/ pode incluir: */
+#include "math/..."
+#include "framework/..."
+
+/* engine/ contém toda a lógica de: */
+// ECS, physics, bodies, geodesics, scene management
+```
+
+### src/ - Glue code
+```c
+/* src/ pode incluir TUDO: */
+#include "math/..."
+#include "framework/..."
+#include "engine/..."
+#include "src/..."  // UI específica
+
+/* src/ é responsável por: */
+// main(), inicialização, loop principal, UI específica
+```
+
+---
+
+## Para Contribuidores
+
+Antes de contribuir, leia:
+
+1. Este arquivo (`docs/arquitetura.md`)
+2. `.gemini/escrevendo-codigo.md` - Regras de estilo
+3. O `lib.h` ou header principal do módulo que vai mexer
+
+**Se você criar dependência circular, o build quebra. E a culpa é sua.**

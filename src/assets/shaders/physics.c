@@ -5,7 +5,7 @@
  * Compila para SPIR-V compute shader.
  */
 
-#include "lib/shader/bhs_shader_std.h"
+#include "engine/shader/bhs_shader_std.h"
 
 /* 
  * Estrutura de Corpo Celeste
