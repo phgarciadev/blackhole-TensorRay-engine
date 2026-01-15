@@ -30,3 +30,7 @@ target_link_libraries(bhs_framework PUBLIC
 target_include_directories(bhs_framework PUBLIC ${WAYLAND_INCLUDE_DIRS})
 
 add_library(BHS::Framework ALIAS bhs_framework)
+
+if(BHS_ENABLE_TESTING)
+    add_subdirectory(tests)
+endif()

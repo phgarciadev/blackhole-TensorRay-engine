@@ -29,12 +29,16 @@ static void test_platform_init(void)
 	BHS_TEST_SECTION("Platform Init/Shutdown");
 
 	/* Inicializa */
-	bhs_platform_t platform = bhs_platform_create();
-	BHS_TEST_ASSERT_NOT_NULL(platform, "bhs_platform_create() retornou válido");
+	bhs_platform_t platform = NULL;
+	int res = bhs_platform_init(&platform);
+	BHS_TEST_ASSERT_EQ(res, BHS_PLATFORM_OK, "bhs_platform_init() retornou OK");
+	BHS_TEST_ASSERT_NOT_NULL(platform, "Platform handle válido");
 
 	/* Shutdown */
-	bhs_platform_destroy(platform);
-	BHS_TEST_ASSERT(1, "bhs_platform_destroy() executou sem crash");
+	if (platform) {
+		bhs_platform_shutdown(platform);
+		BHS_TEST_ASSERT(1, "bhs_platform_shutdown() executou sem crash");
+	}
 }
 
 /**
@@ -45,7 +49,8 @@ static void test_window_lifecycle(void)
 	BHS_TEST_SECTION("Window Lifecycle");
 
 	/* Setup */
-	bhs_platform_t platform = bhs_platform_create();
+	bhs_platform_t platform = NULL;
+	bhs_platform_init(&platform);
 	BHS_TEST_ASSERT_NOT_NULL(platform, "Platform criada");
 
 	/* Cria janela */
@@ -53,50 +58,57 @@ static void test_window_lifecycle(void)
 		.title = "Test Window",
 		.width = 800,
 		.height = 600,
-		.resizable = false,
-		.fullscreen = false,
+		.x = BHS_WINDOW_POS_CENTERED,
+		.y = BHS_WINDOW_POS_CENTERED,
+		.flags = BHS_WINDOW_RESIZABLE,
 	};
 
-	bhs_window_t window = bhs_window_create(platform, &cfg);
-	BHS_TEST_ASSERT_NOT_NULL(window, "bhs_window_create() retornou válido");
+	bhs_window_t window = NULL;
+	int res = bhs_window_create(platform, &cfg, &window);
+	
+	BHS_TEST_ASSERT_EQ(res, BHS_PLATFORM_OK, "bhs_window_create() retornou OK");
+	BHS_TEST_ASSERT_NOT_NULL(window, "Window handle válido");
 
 	/* Verifica dimensões */
-	int w, h;
-	bhs_window_get_size(window, &w, &h);
-	BHS_TEST_ASSERT_EQ(w, 800, "Largura da janela = 800");
-	BHS_TEST_ASSERT_EQ(h, 600, "Altura da janela = 600");
+	if (window) {
+		int w, h;
+		bhs_window_get_size(window, &w, &h);
+		BHS_TEST_ASSERT_EQ(w, 800, "Largura da janela = 800");
+		BHS_TEST_ASSERT_EQ(h, 600, "Altura da janela = 600");
 
-	/* Destrói */
-	bhs_window_destroy(window);
-	BHS_TEST_ASSERT(1, "bhs_window_destroy() executou sem crash");
+		/* Destrói */
+		bhs_window_destroy(window);
+		BHS_TEST_ASSERT(1, "bhs_window_destroy() executou sem crash");
+	}
 
-	bhs_platform_destroy(platform);
+	bhs_platform_shutdown(platform);
 }
 
 /**
- * test_multiple_init_shutdown - Testa ciclos repetidos
- *
- * Se houver leak de memória, valgrind vai pegar aqui.
+ * test_multiple_cycles - Testa ciclos repetidos
  */
 static void test_multiple_cycles(void)
 {
 	BHS_TEST_SECTION("Multiple Init/Shutdown Cycles");
 
 	for (int i = 0; i < 5; i++) {
-		bhs_platform_t platform = bhs_platform_create();
+		bhs_platform_t platform = NULL;
+		bhs_platform_init(&platform);
 		BHS_TEST_ASSERT_NOT_NULL(platform, "Ciclo: platform criada");
 
 		struct bhs_window_config cfg = {
 			.title = "Cycle Test",
 			.width = 320,
 			.height = 240,
+			.flags = 0,
 		};
 
-		bhs_window_t win = bhs_window_create(platform, &cfg);
+		bhs_window_t win = NULL;
+		bhs_window_create(platform, &cfg, &win);
 		BHS_TEST_ASSERT_NOT_NULL(win, "Ciclo: janela criada");
 
 		bhs_window_destroy(win);
-		bhs_platform_destroy(platform);
+		bhs_platform_shutdown(platform);
 	}
 
 	BHS_TEST_ASSERT(1, "5 ciclos completos sem leak/crash");

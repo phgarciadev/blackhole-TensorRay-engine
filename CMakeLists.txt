@@ -52,6 +52,9 @@ include(ShaderCompiler)
 
 # Opções de Build
 option(BHS_ENABLE_TESTING "Habilitar testes unitários" ON)
+if(BHS_ENABLE_TESTING)
+    enable_testing()
+endif()
 option(BHS_ENABLE_SANITIZERS "Habilitar Address/Undefined Sanitizers" OFF)
 
 # Configurar Sanitizers se solicitado
@@ -80,7 +83,6 @@ add_subdirectory(src)
 # ==============================================================================
 
 if(BHS_ENABLE_TESTING)
-    enable_testing()
     add_subdirectory(tests)
 endif()
 

@@ -54,7 +54,7 @@ Se você mexer na camada errada, a culpa é sua. Tá avisado.
 ```
 blackholegravity/
 ├── math/                       # Camada 1: Matemática pura
-│   ├── Makefile               → libbhs_math.a
+│   ├── CMakeLists.txt         → libbhs_math.a
 │   ├── bhs_math.h             # Tipos base (real_t)
 │   ├── vec4.h/c               # Vetores 4D
 │   ├── core.h                 # Include unificado
@@ -65,7 +65,7 @@ blackholegravity/
 │       └── schwarzschild.h/c
 │
 ├── framework/                  # Camada 2: HAL + RHI + UI
-│   ├── Makefile               → libbhs_framework.a
+│   ├── CMakeLists.txt         → libbhs_framework.a
 │   ├── platform/              # Abstração de OS
 │   │   ├── platform.h         # API pública
 │   │   ├── wayland/           # Backend Linux moderno
@@ -86,7 +86,7 @@ blackholegravity/
 │       └── window/            # Gerenciamento de janela
 │
 ├── engine/                     # Camada 3: Simulação
-│   ├── Makefile               → libbhs_engine.a
+│   ├── CMakeLists.txt         → libbhs_engine.a
 │   ├── engine.h               # API pública
 │   ├── ecs/                   # Entity Component System
 │   ├── assets/                # Carregamento de recursos
@@ -97,7 +97,7 @@ blackholegravity/
 │   └── planets/               # Dados de planetas
 │
 ├── src/                        # Camada 4: Aplicação (Entry Point)
-│   ├── Makefile               → blackhole_sim
+│   ├── CMakeLists.txt         → blackhole_sim
 │   ├── main.c                 # Entry point
 │   ├── ui/                    # UI específica do app
 │   │   ├── camera/            # Controle de câmera
@@ -105,13 +105,13 @@ blackholegravity/
 │   │   └── screens/           # Telas (HUD, etc)
 │   └── debug/                 # Ferramentas de debug
 │
-├── build/                      # Artefatos de build
-│   ├── math/libbhs_math.a
-│   ├── framework/libbhs_framework.a
-│   ├── engine/libbhs_engine.a
-│   └── blackhole_sim
+├── build/                      # Artefatos de build (CMake)
+│   ├── lib/libbhs_math.a
+│   ├── lib/libbhs_framework.a
+│   ├── lib/libbhs_engine.a
+│   └── bin/blackhole_sim
 │
-└── Makefile                    # Build system principal
+└── CMakeLists.txt              # Configuração principal do CMake
 ```
 
 ---
@@ -158,23 +158,22 @@ Use includes relativos à raiz do projeto:
 
 ---
 
-## Build
+## Build System (CMake)
 
 ```bash
-# Build completo
-make all
+# Configurar (gera arquivos de build na pasta 'build')
+# Requer CMake 3.16+
+cmake -B build -S .
 
-# Build por camada
-make math       # Só matemática
-make framework  # Só framework (depende de math)
-make engine     # Só engine (depende de math, framework)
-make src        # Só app (depende de tudo)
+# Compilar tudo
+cmake --build build
 
-# Limpar
-make clean
+# Rodar Testes
+cd build && ctest
 
-# Info
-make info
+# Opções de Configuração:
+# -DBHS_ENABLE_TESTING=ON/OFF (Padrão: ON)
+# -DBHS_ENABLE_SANITIZERS=ON/OFF (Padrão: OFF - Requer Clang/GCC recente)
 ```
 
 ---

@@ -228,7 +228,7 @@ void bhs_window_get_size(bhs_window_t window, int32_t *width, int32_t *height) {
     *height = window->height;
 }
 
-bool bhs_window_poll_event(bhs_window_t window, struct bhs_event *event) {
+bool bhs_window_next_event(bhs_window_t window, struct bhs_event *event) {
   return bhs_wl_pop_event(window, event);
 }
 
