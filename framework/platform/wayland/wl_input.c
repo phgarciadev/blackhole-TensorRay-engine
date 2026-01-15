@@ -404,6 +404,8 @@ static void relative_pointer_motion(void *data,
   (void)time_lo;
   (void)dx_unaccel;
   (void)dy_unaccel;
+  (void)dx;
+  (void)dy;
 
   struct bhs_window_impl *win = data;
   if (!win)

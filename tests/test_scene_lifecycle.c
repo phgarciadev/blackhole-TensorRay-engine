@@ -4,7 +4,7 @@
  * para garantir estabilidade e ausência de leaks.
  */
 
-#include "sim/scene/scene.h"
+#include "engine/scene/scene.h"
 #include <stdio.h>
 #include <time.h>
 

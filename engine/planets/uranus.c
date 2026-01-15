@@ -8,6 +8,7 @@
 
 static struct bhs_vec3 uranus_surface_color(struct bhs_vec3 p)
 {
+	(void)p;
 	/* Ciano pálido suave, quase sem features visíveis */
 	return (struct bhs_vec3){ 0.5, 0.8, 0.9 };
 }
@@ -45,4 +46,4 @@ struct bhs_planet_desc bhs_uranus_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Urano", bhs_uranus_get_desc);
+BHS_REGISTER_PLANET("Urano", bhs_uranus_get_desc)

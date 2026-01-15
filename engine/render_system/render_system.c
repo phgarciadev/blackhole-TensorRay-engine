@@ -7,5 +7,6 @@
 
 void bhs_render_system_update(bhs_world_handle world)
 {
+	(void)world;
 	// TODO: Iterate transforms -> Submit to RHI
 }

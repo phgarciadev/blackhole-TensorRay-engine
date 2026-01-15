@@ -57,8 +57,9 @@ typedef enum {
 	BHS_LOG_CHANNEL_ECS = (1 << 5),
 	BHS_LOG_CHANNEL_SCENE = (1 << 6),
 	BHS_LOG_CHANNEL_ASSETS = (1 << 7),
-	BHS_LOG_CHANNEL_ALL = 0xFFFFFFFF,
 } bhs_log_channel;
+
+#define BHS_LOG_CHANNEL_ALL 0xFFFFFFFFU
 
 /* ============================================================================
  * CORES ANSI

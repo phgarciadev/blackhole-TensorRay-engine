@@ -11,6 +11,8 @@
 #include "image_loader.h"
 #include <stdio.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_LINEAR /* Não precisamos de HDR/Linear por enquanto */
 #define STBI_NO_HDR
@@ -18,6 +20,7 @@
                          PNG) */
 /* Se precisar de JPG depois, remove STBI_ONLY_PNG ou adiciona STBI_ONLY_JPEG */
 #include "stb_image.h"
+#pragma GCC diagnostic pop
 
 bhs_image_t bhs_image_load(const char *path) {
   bhs_image_t img = {0};

@@ -55,4 +55,4 @@ struct bhs_planet_desc bhs_neptune_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Netuno", bhs_neptune_get_desc);
+BHS_REGISTER_PLANET("Netuno", bhs_neptune_get_desc)

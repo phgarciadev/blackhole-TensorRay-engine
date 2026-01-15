@@ -3,7 +3,7 @@
  * @brief Implementação de Widgets UI
  */
 
-#include "framework/assert.h"
+#include "framework/bhs_assert.h"
 #include "framework/ui/internal.h"
 #include "framework/ui/layout.h"
 #include <string.h>

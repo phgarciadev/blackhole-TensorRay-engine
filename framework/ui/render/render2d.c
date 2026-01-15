@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "framework/assert.h"
+#include "framework/bhs_assert.h"
 #include "framework/ui/internal.h"
 
 /* ============================================================================

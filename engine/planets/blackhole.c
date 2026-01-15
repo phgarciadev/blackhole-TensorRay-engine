@@ -8,6 +8,7 @@
 
 static struct bhs_vec3 blackhole_surface_color(struct bhs_vec3 p)
 {
+	(void)p;
 	/* Horizonte de Eventos: Preto absoluto */
 	return (struct bhs_vec3){ 0.0, 0.0, 0.0 };
 }
@@ -52,4 +53,4 @@ struct bhs_planet_desc bhs_blackhole_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Gargantua (BN)", bhs_blackhole_get_desc);
+BHS_REGISTER_PLANET("Gargantua (BN)", bhs_blackhole_get_desc)

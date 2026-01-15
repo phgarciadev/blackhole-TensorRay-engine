@@ -61,4 +61,4 @@ struct bhs_planet_desc bhs_jupiter_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Jupiter", bhs_jupiter_get_desc);
+BHS_REGISTER_PLANET("Jupiter", bhs_jupiter_get_desc)

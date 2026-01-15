@@ -19,6 +19,34 @@
 #include "engine/planets/planet.h"
 #include "engine/body/body.h"
 
+/* --- Helper: Projection for Picking (Duplicated from Renderer for simplicity) --- */
+static void project_point(const bhs_camera_t *c, float x, float y,
+			float z, float sw, float sh, float *ox,
+			float *oy)
+{
+	float dx = x - c->x;
+	float dy = y - c->y;
+	float dz = z - c->z;
+
+	float cos_yaw = cosf(c->yaw);
+	float sin_yaw = sinf(c->yaw);
+	float x1 = dx * cos_yaw - dz * sin_yaw;
+	float z1 = dx * sin_yaw + dz * cos_yaw;
+	float y1 = dy;
+
+	float cos_pitch = cosf(c->pitch);
+	float sin_pitch = sinf(c->pitch);
+	float y2 = y1 * cos_pitch - z1 * sin_pitch;
+	float z2 = y1 * sin_pitch + z1 * cos_pitch;
+	float x2 = x1;
+
+	if (z2 < 0.1f)
+		z2 = 0.1f;
+	float factor = c->fov / z2;
+	*ox = x2 * factor + sw * 0.5f;
+	*oy = (sh * 0.5f) - (y2 * factor);
+}
+
 int main(int argc, char *argv[])
 {
 	(void)argc;
@@ -142,32 +170,7 @@ int main(int argc, char *argv[])
 
 	/* Loop */
 	/* --- Helper: Projection for Picking (Duplicated from Renderer for simplicity) --- */
-	auto void project_point(const bhs_camera_t *c, float x, float y,
-				float z, float sw, float sh, float *ox,
-				float *oy)
-	{
-		float dx = x - c->x;
-		float dy = y - c->y;
-		float dz = z - c->z;
 
-		float cos_yaw = cosf(c->yaw);
-		float sin_yaw = sinf(c->yaw);
-		float x1 = dx * cos_yaw - dz * sin_yaw;
-		float z1 = dx * sin_yaw + dz * cos_yaw;
-		float y1 = dy;
-
-		float cos_pitch = cosf(c->pitch);
-		float sin_pitch = sinf(c->pitch);
-		float y2 = y1 * cos_pitch - z1 * sin_pitch;
-		float z2 = y1 * sin_pitch + z1 * cos_pitch;
-		float x2 = x1;
-
-		if (z2 < 0.1f)
-			z2 = 0.1f;
-		float factor = c->fov / z2;
-		*ox = x2 * factor + sw * 0.5f;
-		*oy = (sh * 0.5f) - (y2 * factor);
-	};
 
 	/* Loop */
 	while (!bhs_ui_should_close(ui)) {

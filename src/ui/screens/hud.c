@@ -22,6 +22,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		  int window_h)
 {
+	(void)window_h;
 	/* 1. VS Code Top Bar Background (#1e1e1e) */
 	struct bhs_ui_rect bar_rect = {
 		.x = 0, .y = 0, .width = (float)window_w, .height = 30.0f
@@ -271,6 +272,7 @@ static bool is_inside(int mx, int my, float x, float y, float w, float h)
 bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
 			   int win_w, int win_h)
 {
+	(void)win_h;
 	/* 1. Top Bar (Always there) */
 	/* Rect: 0, 0, width, 30 */
 	if (is_inside(mx, my, 0, 0, (float)win_w, 30.0f))

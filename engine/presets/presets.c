@@ -158,6 +158,8 @@ struct bhs_body bhs_preset_earth(struct bhs_vec3 sun_pos) {
 }
 
 struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth_vel) {
+	(void)earth_pos;
+	(void)earth_vel;
 	// Moon is special, relative to Earth
 	// Implementing Moon via module would require specific handling, 
 	// for now we can approximate or skip or custom impl.

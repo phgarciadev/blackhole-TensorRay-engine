@@ -12,5 +12,6 @@ void bhs_engine_init()
 
 void bhs_engine_update(real_t dt)
 {
+	(void)dt;
 	// TODO: Update Systems
 }

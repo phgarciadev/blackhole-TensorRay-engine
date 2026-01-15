@@ -63,20 +63,7 @@ void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
 	float sin_y = sinf(cam->yaw);
 	float cos_y = cosf(cam->yaw);
 
-	auto void move_forward(float s)
-	{
-		cam->x += sin_y * s;
-		cam->z += cos_y * s;
-	};
 
-	auto void move_right(float s)
-	{
-		/* Right vector is (cos(yaw), -sin(yaw)) or similar?
-       Right = Yaw - 90 deg */
-		/* R = (cos, -sin) */
-		cam->x += cos_y * s;
-		cam->z -= sin_y * s;
-	};
 
 	/* W/S - Forward/Back (Standard FPS: Forward moves INTO scene) */
 	if (bhs_ui_key_down(ctx, BHS_KEY_W)) {

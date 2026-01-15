@@ -55,4 +55,4 @@ struct bhs_planet_desc bhs_saturn_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Saturno", bhs_saturn_get_desc);
+BHS_REGISTER_PLANET("Saturno", bhs_saturn_get_desc)

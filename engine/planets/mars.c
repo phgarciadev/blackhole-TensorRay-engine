@@ -52,4 +52,4 @@ struct bhs_planet_desc bhs_mars_get_desc(void)
 	return d;
 }
 
-BHS_REGISTER_PLANET("Marte", bhs_mars_get_desc);
+BHS_REGISTER_PLANET("Marte", bhs_mars_get_desc)
