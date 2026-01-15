@@ -73,10 +73,16 @@ UI_SRCS := ui/context.c \
            ui/window/window.c
 
 # ============================================================================
+# CORE SOURCES (Always compiled)
+# ============================================================================
+
+CORE_SRCS := log.c
+
+# ============================================================================
 # COMBINE ALL
 # ============================================================================
 
-SRCS := $(PLATFORM_SRCS) $(RHI_SRCS) $(UI_SRCS)
+SRCS := $(CORE_SRCS) $(PLATFORM_SRCS) $(RHI_SRCS) $(UI_SRCS)
 
 # Objects (handling multiple extensions)
 OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(filter %.c,$(SRCS)))
