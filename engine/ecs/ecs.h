@@ -148,4 +148,25 @@ void bhs_ecs_query_destroy(bhs_ecs_query *q);
 bool bhs_ecs_entity_has_components(bhs_world_handle world, bhs_entity_id entity,
 				   bhs_component_mask mask);
 
+/* ============================================================================
+ * SERIALIZATION (PERSISTENCE)
+ * ============================================================================
+ */
+
+/**
+ * bhs_ecs_save_world - Salva todo o estado do mundo em arquivo binário.
+ * @world: Mundo a salvar
+ * @filename: Caminho do arquivo
+ * Retorna true se sucesso.
+ */
+bool bhs_ecs_save_world(bhs_world_handle world, const char *filename);
+
+/**
+ * bhs_ecs_load_world - Carrega estado do mundo (sobrescreve atual).
+ * @world: Mundo a carregar
+ * @filename: Caminho do arquivo
+ * Retorna true se sucesso.
+ */
+bool bhs_ecs_load_world(bhs_world_handle world, const char *filename);
+
 #endif /* BHS_LIB_ECS_H */

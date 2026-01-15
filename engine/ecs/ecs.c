@@ -279,3 +279,167 @@ void bhs_ecs_query_destroy(bhs_ecs_query *q)
 		q->cache = NULL;
 	}
 }
+
+/* ============================================================================
+ * SERIALIZATION
+ * ============================================================================
+ */
+
+#define BHS_SAVE_MAGIC 0x42485331 /* "BHS1" */
+
+struct bhs_save_header {
+	uint32_t magic;
+	uint32_t version;
+	uint32_t num_entities;
+	uint32_t num_component_types;
+};
+
+struct bhs_save_chunk_header {
+	uint32_t type_id;
+	uint32_t element_size;
+	uint32_t count;
+};
+
+bool bhs_ecs_save_world(bhs_world_handle world, const char *filename)
+{
+	if (!world || !filename) return false;
+
+	FILE *f = fopen(filename, "wb");
+	if (!f) {
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to open file for save: %s", filename);
+		return false;
+	}
+
+	/* 1. Write Header */
+	struct bhs_save_header hdr = {
+		.magic = BHS_SAVE_MAGIC,
+		.version = 1,
+		.num_entities = world->next_entity_id,
+		.num_component_types = MAX_COMPONENT_TYPES
+	};
+	fwrite(&hdr, sizeof(hdr), 1, f);
+
+	/* 2. Write Component Chunks */
+	for (uint32_t type = 0; type < MAX_COMPONENT_TYPES; type++) {
+		struct bhs_component_pool *pool = &world->components[type];
+		
+		/* Skip empty pools */
+		if (!pool->data || !pool->active) continue;
+
+		/* Count active entities */
+		uint32_t active_count = 0;
+		for (uint32_t id = 1; id < world->next_entity_id; id++) {
+			if (pool->active[id]) active_count++;
+		}
+
+		if (active_count == 0) continue;
+
+		/* Write Chunk Header */
+		struct bhs_save_chunk_header chunk = {
+			.type_id = type,
+			.element_size = (uint32_t)pool->element_size,
+			.count = active_count
+		};
+		fwrite(&chunk, sizeof(chunk), 1, f);
+
+		/* Write DataTuples: {EntityID, Data} */
+		for (uint32_t id = 1; id < world->next_entity_id; id++) {
+			if (pool->active[id]) {
+				fwrite(&id, sizeof(uint32_t), 1, f);
+				void *ptr = (char*)pool->data + (id * pool->element_size);
+				fwrite(ptr, pool->element_size, 1, f);
+			}
+		}
+		
+		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "Saved Component Type %d: %d entities", type, active_count);
+	}
+
+	/* Mark end of file with TypeID = -1? Or just EOF loop. */
+	/* We rely on file size, simpler. */
+	
+	fclose(f);
+	BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "World saved to %s (Entities: %d)", filename, hdr.num_entities);
+	return true;
+}
+
+bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
+{
+	if (!world || !filename) return false;
+
+	FILE *f = fopen(filename, "rb");
+	if (!f) {
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to open file for load: %s", filename);
+		return false;
+	}
+
+	/* 1. Read Header */
+	struct bhs_save_header hdr;
+	if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
+		fclose(f);
+		return false;
+	}
+
+	if (hdr.magic != BHS_SAVE_MAGIC) {
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Invalid save file magic: %x", hdr.magic);
+		fclose(f);
+		return false;
+	}
+
+	/* 2. Reset World State (Partial - we keep the pools allocated but clear active flags) */
+	/* CAUTION: This assumes we want to OVERWRITE. */
+	
+	/* Reset Entities */
+	world->next_entity_id = hdr.num_entities;
+	
+	/* Clear all current active flags */
+	for (int i = 0; i < MAX_COMPONENT_TYPES; i++) {
+		if (world->components[i].active) {
+			memset(world->components[i].active, 0, BHS_MAX_ENTITIES * sizeof(bool));
+		}
+	}
+
+	/* 3. Read Chunks */
+	struct bhs_save_chunk_header chunk;
+	while (fread(&chunk, sizeof(chunk), 1, f) == 1) {
+		if (chunk.type_id >= MAX_COMPONENT_TYPES) {
+			BHS_LOG_WARN_CH(BHS_LOG_CHANNEL_ECS, "Unknown component type in save: %d", chunk.type_id);
+			/* Skip data */
+			fseek(f, chunk.count * (sizeof(uint32_t) + chunk.element_size), SEEK_CUR);
+			continue;
+		}
+
+		/* Ensure pool exists */
+		ensure_pool(world, chunk.type_id, chunk.element_size);
+		struct bhs_component_pool *pool = &world->components[chunk.type_id];
+
+		/* Verify size compatibility */
+		if (pool->element_size != chunk.element_size) {
+			BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Component size mismatch! Disk=%d, Memory=%zu. Skipping.", chunk.element_size, pool->element_size);
+			fseek(f, chunk.count * (sizeof(uint32_t) + chunk.element_size), SEEK_CUR);
+			continue;
+		}
+
+		/* Read Entities */
+		for (uint32_t i = 0; i < chunk.count; i++) {
+			uint32_t entity_id;
+			if (fread(&entity_id, sizeof(uint32_t), 1, f) != 1) break;
+
+			if (entity_id >= BHS_MAX_ENTITIES) {
+				/* skip data */
+				fseek(f, chunk.element_size, SEEK_CUR);
+				continue;
+			}
+
+			void *dest = (char*)pool->data + (entity_id * chunk.element_size);
+			if (fread(dest, chunk.element_size, 1, f) != 1) break;
+
+			pool->active[entity_id] = true;
+		}
+		
+		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "Loaded Component Type %d: %d entities", chunk.type_id, chunk.count);
+	}
+
+	fclose(f);
+	BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "World loaded successfully.");
+	return true;
+}

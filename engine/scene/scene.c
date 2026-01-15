@@ -58,6 +58,10 @@ bhs_scene_t bhs_scene_create(void)
     // Create spacetime grid
     scene->spacetime = bhs_spacetime_create(100.0, 80);
     g_spacetime_cache = scene->spacetime;
+    
+    // Connect to Engine World
+    extern bhs_world_handle bhs_engine_get_world_internal(void);
+    scene->world = bhs_engine_get_world_internal();
 
 	return scene;
 }
@@ -98,16 +102,19 @@ bhs_spacetime_t bhs_scene_get_spacetime(bhs_scene_t scene)
 	return scene ? scene->spacetime : NULL;
 }
 
+bhs_world_handle bhs_scene_get_world(bhs_scene_t scene)
+{
+    return scene ? scene->world : NULL;
+}
+
 // LEGACY ADAPTER: Reconstruct bhs_body structs from ECS components
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 {
-    // We need access to the world. 
-    // For this refactor, I will add `bhs_engine_get_world()` to engine.h/engine.c
-    // But for now, I'll rely on the fact that I need to edit engine.c anyway.
-    extern bhs_world_handle bhs_engine_get_world_internal(void);
-    bhs_world_handle world = bhs_engine_get_world_internal();
-    if (!world) { *count = 0; return NULL; }
-    (void)scene; // Mark unused
+    if (!scene || !scene->world) {
+        *count = 0; 
+        return NULL; 
+    }
+    bhs_world_handle world = scene->world;
 
     bhs_ecs_query q;
     // Query movable things

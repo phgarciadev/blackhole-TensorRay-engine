@@ -15,6 +15,6 @@
  * @param scene Cena contendo os corpos
  * @param time Tempo total de simulação
  */
-void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid);
+void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid, double phys_ms, double render_ms);
 
 #endif /* BHS_CMD_DEBUG_TELEMETRY_H */

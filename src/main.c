@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <time.h>
 #include "src/system/application.h"
 #include "framework/log.h"
 #include "framework/rhi/renderer.h"
@@ -47,6 +48,13 @@ static void project_point(const bhs_camera_t *c, float x, float y,
 	*oy = (sh * 0.5f) - (y2 * factor);
 }
 
+static double get_time_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
+}
+
 int main(int argc, char *argv[])
 {
 	(void)argc;
@@ -77,20 +85,29 @@ int main(int argc, char *argv[])
 	/* 4. Loop Principal */
 	/* Time */
 	double dt = 0.016; /* 60 FPS fixo */
-
-	/* Loop */
-	/* --- Helper: Projection for Picking (Duplicated from Renderer for simplicity) --- */
-
+    double phys_ms = 0.0;
+    double render_ms = 0.0;
 
 	/* Loop */
 	while (!bhs_ui_should_close(ui)) {
 		/* UI Framework handles polling inside begin_frame or internal loop
-     * mechanisms */
+         * mechanisms */
 
 		/* Inicia Frame */
 		if (bhs_ui_begin_frame(ui) != BHS_UI_OK) {
 			continue; /* Frame perdido, vida que segue */
 		}
+
+        /* --- GLOBAL INPUTS (Persistence) --- */
+        /* Use 'S' for Save, 'L' for Load since F-keys are missing in lib.h */
+        if (bhs_ui_key_pressed(ui, BHS_KEY_S)) {
+            BHS_LOG_INFO("Saving World...");
+            bhs_ecs_save_world(bhs_scene_get_world(scene), "saves/quicksave.bhs");
+        }
+        if (bhs_ui_key_pressed(ui, BHS_KEY_L)) {
+            BHS_LOG_INFO("Loading World...");
+            bhs_ecs_load_world(bhs_scene_get_world(scene), "saves/quicksave.bhs");
+        }
 
 		/* --- INTERACTION LOGIC START --- */
 		int win_w, win_h;
@@ -270,7 +287,9 @@ skip_picking:
 		bhs_ui_begin_drawing(ui);
 
 		/* Atualiza Física (dt fixo 60fps por enquanto) */
+        double t0 = get_time_ms();
 		bhs_scene_update(scene, dt);
+        phys_ms = get_time_ms() - t0;
 
 		/* Atualiza Câmera (Input) */
 		bhs_camera_update_view(&cam, ui, dt);
@@ -280,11 +299,12 @@ skip_picking:
 			     (struct bhs_ui_color){ 0.0f, 0.0f, 0.0f, 1.0f });
 
 		/* Desenha Malha Espacial (Passamos a textura aqui) */
-		/* Desenha Malha Espacial (Passamos a textura aqui) */
+        t0 = get_time_ms();
 		bhs_view_assets_t assets = { .bg_texture = bg_tex,
 					     .sphere_texture = sphere_tex,
 					     .show_grid = app.hud_state.show_grid };
 		bhs_view_spacetime_draw(ui, scene, &cam, win_w, win_h, &assets);
+        render_ms = get_time_ms() - t0;
 
 		/* Interface Adicional (HUD) */
 		bhs_hud_draw(ui, &app.hud_state, win_w, win_h);
@@ -292,7 +312,7 @@ skip_picking:
 		/* Text info inferior (permanente) */
 		bhs_ui_draw_text(
 			ui,
-			"Status: Interactive Mode (Click objects to select)",
+			"Status: Interactive Mode (Click objects to select) | F5 QuickSave | F9 QuickLoad",
 			10, (float)win_h - 30, 16.0f, BHS_UI_COLOR_GRAY);
 
 		/* Finaliza Frame */
@@ -305,7 +325,7 @@ skip_picking:
 		total_time += dt;
 		if (frame_count % 30 == 0) {
 			bhs_telemetry_print_scene(scene, total_time,
-						  app.hud_state.show_grid);
+						  app.hud_state.show_grid, phys_ms, render_ms);
 		}
 	}
 

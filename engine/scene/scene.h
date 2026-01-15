@@ -5,6 +5,8 @@
 typedef struct bhs_scene_impl *bhs_scene_t;
 
 #include "engine/components/body/body.h"
+#include "math/bhs_math.h"
+#include "engine/ecs/ecs.h"
 #include "engine/engine.h"
 #include "engine/physics/spacetime/spacetime.h"
 
@@ -13,7 +15,9 @@ bhs_scene_t bhs_scene_create(void);
 void bhs_scene_destroy(bhs_scene_t scene);
 void bhs_scene_init_default(bhs_scene_t scene);
 void bhs_scene_update(bhs_scene_t scene, double dt);
+/* Accessors */
 bhs_spacetime_t bhs_scene_get_spacetime(bhs_scene_t scene);
+bhs_world_handle bhs_scene_get_world(bhs_scene_t scene);
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count);
 bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
 bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
