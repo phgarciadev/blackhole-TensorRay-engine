@@ -80,3 +80,36 @@ void bhs_scene_load(const char *path)
     };
     bhs_ecs_add_component(g_engine.world, earth, BHS_COMP_PHYSICS, sizeof(p), &p);
 }
+
+/* ============================================================================
+ * FACTORY API (Stabilization)
+ * ============================================================================
+ */
+bhs_entity_id bhs_entity_create_massive_body(struct bhs_vec3 pos, struct bhs_vec3 vel,
+                                             double mass, double radius, 
+                                             struct bhs_vec3 color, int type)
+{
+    (void)color;
+    if (!g_engine.is_initialized) return 0;
+    
+    bhs_world_handle world = g_engine.world;
+    bhs_entity_id e = bhs_ecs_create_entity(world);
+
+    /* 1. Transform */
+    bhs_transform_t t = {
+        .position = pos,
+        .scale = {radius, radius, radius}, 
+        .rotation = {0, 0, 0, 1}
+    };
+    bhs_ecs_add_component(world, e, BHS_COMP_TRANSFORM, sizeof(t), &t);
+
+    /* 2. Physics */
+    bhs_physics_t p = {
+        .mass = mass,
+        .velocity = vel,
+        .is_static = (type == 3) // 3 = BHS_BODY_BLACKHOLE
+    };
+    bhs_ecs_add_component(world, e, BHS_COMP_PHYSICS, sizeof(p), &p);
+     
+    return e;
+}

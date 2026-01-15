@@ -46,7 +46,7 @@
  * - Cristian bale achando que interestelar é bom por causa dele (e não pelos 15 cientistas e estudiosos que ele contratou)
  */
 
-#include "engine/components/body/body.h"
+#include "engine/scene/scene.h"
 #include "spacetime_internal.h"
 #include <math.h>
 

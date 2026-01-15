@@ -3,7 +3,7 @@
  * @brief Fábrica de Corpos Celestes (Updated for Kernel Style)
  */
 
-#include "engine/components/body/body.h"
+#include "engine/scene/scene.h"
 #include "src/simulation/planets/planet.h"
 #include <string.h>
 

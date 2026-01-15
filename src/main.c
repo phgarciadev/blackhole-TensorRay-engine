@@ -18,7 +18,7 @@
 #include "engine/assets/image_loader.h"
 #include "src/debug/telemetry.h"
 #include "src/simulation/planets/planet.h"
-#include "engine/components/body/body.h"
+#include "engine/scene/scene.h"
 
 /* --- Helper: Projection for Picking (Duplicated from Renderer for simplicity) --- */
 static void project_point(const bhs_camera_t *c, float x, float y,

@@ -6,7 +6,7 @@
 #include "engine/scene/scene.h"
 #include "engine/ecs/ecs.h"
 #include "engine/components/components.h"
-#include "engine/components/body/body.h"
+#include "engine/scene/scene.h"
 #include "engine/physics/spacetime/spacetime.h" // Pending verification of path
 #include "src/simulation/components/sim_components.h" // Game components
 
