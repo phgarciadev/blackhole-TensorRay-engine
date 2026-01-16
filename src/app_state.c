@@ -11,8 +11,8 @@
 #include "app_state.h"
 #include "simulation/scenario_mgr.h"
 
-#include "framework/log.h"
-#include "framework/rhi/renderer.h"
+#include "gui-framework/log.h"
+#include "gui-framework/rhi/renderer.h"
 #include "engine/assets/image_loader.h"
 
 #include "src/input/input_layer.h"
@@ -67,8 +67,8 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		goto err_scene;
 	}
 
-	/* 2. Framework/UI (Window + Vulkan) */
-	BHS_LOG_INFO("Inicializando Framework/UI...");
+	/* 2. gui-framework/UI (Window + Vulkan) */
+	BHS_LOG_INFO("Inicializando gui-framework/UI...");
 	struct bhs_ui_config config = {
 		.title = title ? title : "BlackHole TensorRay",
 		.width = width > 0 ? width : 1280,

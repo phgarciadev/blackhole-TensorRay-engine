@@ -23,8 +23,8 @@
 
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
-#include "framework/ui/lib.h"
-#include "framework/log.h"
+#include "gui-framework/ui/lib.h"
+#include "gui-framework/log.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -259,12 +259,32 @@ static void handle_object_interaction(struct app_state *app)
 		int best_idx = -1;
 		float best_dist = 10000.0f;
 
+#include "engine/physics/spacetime/spacetime.h"
+
 		for (int i = 0; i < n_bodies; i++) {
 			float sx, sy;
+            
+            /* [FIX] Use Visual Depth for Picking (Match Renderer) */
+            float visual_x = (float)bodies[i].state.pos.x;
+            float visual_z = (float)bodies[i].state.pos.z;
+            float visual_y = (float)bodies[i].state.pos.y;
+
+            if (bodies[i].type == BHS_BODY_PLANET) {
+                 /* We need to get the depth from spacetime. 
+                  * Since we don't have spacetime handy here, we can query it from scene 
+                  * or duplicate the logic? Scene has it.
+                  */
+                 bhs_spacetime_t st = bhs_scene_get_spacetime(app->scene);
+                 if (st) {
+                     visual_y = bhs_spacetime_get_depth_at_point(st, visual_x, visual_z);
+                     visual_y *= 8.0f; /* MATCH RENDERER SCALE */
+                 }
+            }
+
 			project_point(&app->camera,
-				      (float)bodies[i].state.pos.x,
-				      (float)bodies[i].state.pos.y,
-				      (float)bodies[i].state.pos.z,
+				      visual_x,
+				      visual_y,
+				      visual_z,
 				      (float)win_w, (float)win_h,
 				      &sx, &sy);
 

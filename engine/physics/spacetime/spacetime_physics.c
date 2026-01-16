@@ -54,39 +54,40 @@
  * ============================================================================
  * CONSTANTES DE ESCALA VISUAL
  * ============================================================================
+ *
+ * Esses valores controlam a aparência do "poço gravitacional".
+ * O objetivo é criar uma deformação VISÍVEL semelhante aos diagramas clássicos.
  */
 
 /*
- * Escala de profundidade para o embedding de Flamm.
- * Valor maior = poço mais profundo visualmente.
+ * Escala de profundidade para o embedding.
+ * Valor ALTO = poço mais profundo e visível.
+ * Com M☉ = 20, rs = 40, SCALE = 8 → depth máx ≈ 4 unidades
  */
-#define FLAMM_SCALE 0.8
+#define FLAMM_SCALE 8.0
 
 /*
  * Limiar de massa para considerar "corpo massivo" (estrela, BH).
- * Em unidades de simulação: M☉ ≈ 20, então 0.5 é ~2.5% de uma massa solar.
  */
 #define MASS_THRESHOLD 0.5
 
 /*
  * Escala para indicador visual de planetas.
- * Multiplica o raio físico para criar um dimple local.
  */
-#define PLANET_DIMPLE_SCALE 5.0
+#define PLANET_DIMPLE_SCALE 3.0
 
 /*
  * Raio de influência do dimple planetário.
- * Múltiplo do raio do corpo.
  */
-#define PLANET_INFLUENCE_RADIUS 8.0
+#define PLANET_INFLUENCE_RADIUS 10.0
 
 /*
- * Profundidade máxima visual (evita infinito).
+ * Profundidade MÁXIMA visual (limite de segurança).
  */
-#define MAX_DEPTH 100.0
+#define MAX_DEPTH 15.0
 
 /*
- * Suavização mínima para evitar singularidades.
+ * Suavização mínima.
  */
 #define EPSILON 0.5
 
@@ -111,30 +112,25 @@ static inline double flamm_embedding(double r, double rs)
 		return 0.0;
 
 	/*
-	 * Dentro do horizonte: profundidade máxima.
-	 * A fórmula de Flamm só é válida para r > rs.
+	 * Simplificação visual do embedding de Flamm.
+	 * 
+	 * Em vez da fórmula matemática exata (que vai a infinito),
+	 * usamos um perfil suave que decai com a distância:
+	 *
+	 *   depth = -SCALE * rs / (r + rs)
+	 *
+	 * Isso produz:
+	 *   - Poço máximo perto do centro: -SCALE * rs / rs = -SCALE
+	 *   - Decai suavemente para zero em r → ∞
+	 *   - Não tem paredes verticais
 	 */
-	if (r <= rs + EPSILON) {
-		return -MAX_DEPTH;
+	if (r < EPSILON) {
+		r = EPSILON;
 	}
 
-	/*
-	 * z(r) = 2 * sqrt(rs * (r - rs))
-	 *
-	 * Invertemos o sinal para que o poço vá "para baixo".
-	 * Aplicamos FLAMM_SCALE para ajustar a visualização.
-	 */
-	double z = 2.0 * sqrt(rs * (r - rs));
+	double depth = -FLAMM_SCALE * rs / (r + rs);
 
-	/*
-	 * O embedding de Flamm vai para infinito em r → ∞.
-	 * Normalizamos para que o efeito seja visível mas limitado.
-	 *
-	 * Usamos: depth = -SCALE * rs / (z + 1)
-	 * Isso cria um poço que é mais profundo perto do horizonte.
-	 */
-	double depth = -FLAMM_SCALE * rs * 10.0 / (z + 1.0);
-
+	/* Limita profundidade máxima */
 	if (depth < -MAX_DEPTH)
 		depth = -MAX_DEPTH;
 

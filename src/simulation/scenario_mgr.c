@@ -11,7 +11,7 @@
 #include "src/simulation/presets/presets.h"
 
 #include "engine/scene/scene.h"
-#include "framework/log.h"
+#include "gui-framework/log.h"
 #include "math/vec4.h"
 
 #include <stdio.h>
@@ -274,6 +274,9 @@ void scenario_unload(struct app_state *app)
 	while ((void)bhs_scene_get_bodies(app->scene, &count), count > 0) {
 		bhs_scene_remove_body(app->scene, 0);
 	}
+
+	/* Reseta contadores de nomes para próximo cenário começar do 1 */
+	bhs_scene_reset_counters();
 
 	app->scenario = APP_SCENARIO_NONE;
 }

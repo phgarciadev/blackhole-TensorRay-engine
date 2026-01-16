@@ -15,9 +15,9 @@ target_include_directories(bhs_engine PUBLIC
     ${CMAKE_SOURCE_DIR}
 )
 
-# Dependências (Engine usa Framework e Math)
+# Dependências (Engine usa gui-framework e Math)
 target_link_libraries(bhs_engine PUBLIC 
-    bhs_framework
+    bhs_gui-framework
     bhs_math
 )
 

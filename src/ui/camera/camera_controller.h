@@ -2,7 +2,7 @@
 #define BHS_CMD_UI_CAMERA_CONTROLLER_H
 
 #include "camera.h"
-#include "framework/ui/lib.h" /* Para bhs_ui_ctx_t e chaves */
+#include "gui-framework/ui/lib.h" /* Para bhs_ui_ctx_t e chaves */
 
 /**
  * @brief Atualiza a posição da câmera baseado no input do usuário

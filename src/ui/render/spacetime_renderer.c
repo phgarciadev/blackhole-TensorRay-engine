@@ -175,8 +175,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		}
 	}
 
-	/* 1. Spacetime Grid (Wireframe) */
-	/* Only draw if requested */
+	/* 1. Spacetime Grid (Solid Checkerboard - "Tecido" do Espaço-Tempo) */
 	if (assets && assets->show_grid) {
 		bhs_spacetime_t st = bhs_scene_get_spacetime(scene);
 		if (st) {
@@ -184,90 +183,98 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			int count;
 			bhs_spacetime_get_render_data(st, &vertices, &count);
 			if (vertices) {
-				/* ... Rendering Loop (Skipping indentation for replace block clarity) ... */
 				int divs = bhs_spacetime_get_divisions(st);
 				int cols = divs + 1;
-				int rows = divs + 1;
 
-				struct bhs_ui_color col_base = { 0.0f, 0.8f,
-								 1.0f, 0.3f };
-				struct bhs_ui_color col_hilit = { 0.5f, 0.9f,
-								  1.0f, 0.8f };
+				/*
+				 * Paleta de cores estilo "Tron/Sci-Fi Gravity":
+				 * - Superfície: Azul profundo uniforme (reduzido checkerboard)
+				 * - Linhas: Ciano elétrico/Branco definidos
+				 */
+				struct bhs_ui_color col_light = { 0.0f, 0.05f, 0.22f, 0.95f }; /* Deep Blue */
+				struct bhs_ui_color col_dark  = { 0.0f, 0.04f, 0.18f, 0.95f }; /* Slightly Darker Blue */
+				struct bhs_ui_color col_line  = { 0.6f, 0.85f, 1.0f, 1.0f };   /* Electric Cyan/White */
 
-				for (int r = 0; r < rows; r++) {
-					for (int c = 0; c < cols; c++) {
-						int idx = (r * cols + c) * 6;
+				/* Aumenta espessura da linha para definição */
+				float line_width = 1.5f;
 
-						float x1 = vertices[idx + 0];
-						float y1 = vertices
-							[idx +
-							 1]; /* Deformação (Y físico) */
-						float z1 = vertices[idx + 2];
+				/*
+				 * Desenha quads preenchidos (células do grid)
+				 * Cada célula conecta 4 vértices: (r,c), (r,c+1), (r+1,c+1), (r+1,c)
+				 */
+				for (int r = 0; r < divs; r++) {
+					for (int c = 0; c < divs; c++) {
+						/* Índices dos 4 cantos */
+						int i00 = (r * cols + c) * 6;         /* Top-Left */
+						int i10 = (r * cols + c + 1) * 6;     /* Top-Right */
+						int i11 = ((r + 1) * cols + c + 1) * 6; /* Bottom-Right */
+						int i01 = ((r + 1) * cols + c) * 6;   /* Bottom-Left */
 
-						float sx1, sy1;
-						project_point(cam, x1, y1, z1,
-							      width, height,
-							      &sx1, &sy1);
+						/* Exaggerate depth for visual impact (Embedding Diagram style) */
+						float depth_scale = 8.0f; 
 
-						bool deep = fabs(y1) > 0.5f;
-						struct bhs_ui_color c1 =
-							deep ? col_hilit
-							     : col_base;
-						float t1 = deep ? 2.0f : 1.0f;
+						/* Posições 3D */
+						float x00 = vertices[i00 + 0], y00 = vertices[i00 + 1] * depth_scale, z00 = vertices[i00 + 2];
+						float x10 = vertices[i10 + 0], y10 = vertices[i10 + 1] * depth_scale, z10 = vertices[i10 + 2];
+						float x11 = vertices[i11 + 0], y11 = vertices[i11 + 1] * depth_scale, z11 = vertices[i11 + 2];
+						float x01 = vertices[i01 + 0], y01 = vertices[i01 + 1] * depth_scale, z01 = vertices[i01 + 2];
 
-						/* Horizontal (Right) */
-						if (c < cols - 1) {
-							int idx2 = (r * cols +
-								    c + 1) *
-								   6;
-							float x2 =
-								vertices[idx2 +
-									 0];
-							float y2 =
-								vertices[idx2 +
-									 1];
-							float z2 =
-								vertices[idx2 +
-									 2];
+						/* Projeta para tela */
+						float sx00, sy00, sx10, sy10, sx11, sy11, sx01, sy01;
+						project_point(cam, x00, y00, z00, width, height, &sx00, &sy00);
+						project_point(cam, x10, y10, z10, width, height, &sx10, &sy10);
+						project_point(cam, x11, y11, z11, width, height, &sx11, &sy11);
+						project_point(cam, x01, y01, z01, width, height, &sx01, &sy01);
 
-							float sx2, sy2;
-							project_point(
-								cam, x2, y2, z2,
-								width, height,
-								&sx2, &sy2);
+						/* Padrão checkerboard */
+						bool checker = ((r + c) % 2 == 0);
+						struct bhs_ui_color quad_color = checker ? col_light : col_dark;
 
-							bhs_ui_draw_line(
-								ctx, sx1, sy1,
-								sx2, sy2, c1,
-								t1);
+						/*
+						 * Ajusta opacidade pela profundidade (deformação)
+						 * Quanto mais fundo no poço, mais opaco
+						 */
+						float avg_depth = (fabsf(y00) + fabsf(y10) + fabsf(y11) + fabsf(y01)) * 0.25f;
+						float depth_factor = fminf(avg_depth * 0.5f, 0.3f);
+						quad_color.a += depth_factor;
+						if (quad_color.a > 1.0f) quad_color.a = 1.0f;
+
+						/* Desenha quad preenchido */
+						bhs_ui_draw_quad_uv(ctx, NULL,
+							sx00, sy00, 0.0f, 0.0f,  /* TL */
+							sx10, sy10, 1.0f, 0.0f,  /* TR */
+							sx11, sy11, 1.0f, 1.0f,  /* BR */
+							sx01, sy01, 0.0f, 1.0f,  /* BL */
+							quad_color);
+					}
+				}
+
+				/*
+				 * Opcional: Desenha linhas de grade por cima dos quads
+				 * para dar aquele visual de "fio" mais definido
+				 */
+				for (int r = 0; r < divs; r++) {
+					for (int c = 0; c < divs; c++) {
+						int i00 = (r * cols + c) * 6;
+						int i10 = (r * cols + c + 1) * 6;
+						int i01 = ((r + 1) * cols + c) * 6;
+
+						float depth_scale = 8.0f;
+						float x00 = vertices[i00 + 0], y00 = vertices[i00 + 1] * depth_scale, z00 = vertices[i00 + 2];
+						float x10 = vertices[i10 + 0], y10 = vertices[i10 + 1] * depth_scale, z10 = vertices[i10 + 2];
+						float x01 = vertices[i01 + 0], y01 = vertices[i01 + 1] * depth_scale, z01 = vertices[i01 + 2];
+
+						float sx00, sy00, sx10, sy10, sx01, sy01;
+						project_point(cam, x00, y00, z00, width, height, &sx00, &sy00);
+						project_point(cam, x10, y10, z10, width, height, &sx10, &sy10);
+						project_point(cam, x01, y01, z01, width, height, &sx01, &sy01);
+
+						/* Linhas horizontais e verticais */
+						if (c < divs) {
+							bhs_ui_draw_line(ctx, sx00, sy00, sx10, sy10, col_line, line_width);
 						}
-
-						/* Vertical (Down) */
-						if (r < rows - 1) {
-							int idx2 = ((r +
-								     1) * cols +
-								    c) *
-								   6;
-							float x2 =
-								vertices[idx2 +
-									 0];
-							float y2 =
-								vertices[idx2 +
-									 1];
-							float z2 =
-								vertices[idx2 +
-									 2];
-
-							float sx2, sy2;
-							project_point(
-								cam, x2, y2, z2,
-								width, height,
-								&sx2, &sy2);
-
-							bhs_ui_draw_line(
-								ctx, sx1, sy1,
-								sx2, sy2, c1,
-								t1);
+						if (r < divs) {
+							bhs_ui_draw_line(ctx, sx00, sy00, sx01, sy01, col_line, line_width);
 						}
 					}
 				}
@@ -297,6 +304,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
             /* Use Engine API to get the correct visual depth (metric embedding) */
             visual_y = bhs_spacetime_get_depth_at_point(scene ? bhs_scene_get_spacetime(scene) : NULL, 
                                                         visual_x, visual_z);
+			visual_y *= 8.0f; /* Apply same visual scale as grid */
 		}
 
 		/* Project body center */
@@ -342,9 +350,12 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					      (float)b->color.z, 1.0f };
 
 		if (b->type == BHS_BODY_PLANET) {
+			/* [FIX] Always draw solid backing first to ensure visibility */
+			bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
+
 			/* [IMPOSTRO 3D] Draw using generated sphere texture */
-			/* FIX: Temporarily force fallback to circle for debugging/fixing visibility */
-			if (tex_sphere && false) {
+			/* FIX: Re-enabled texture rendering */
+			if (tex_sphere) {
 				float diameter = s_radius * 2.0f;
 				/* DEBUG: Force NULL (White Texture) to verify Draw Call */
 				bhs_ui_draw_texture(ctx, tex_sphere,
@@ -359,8 +370,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					}
 			} else {
 				/* Fallback if texture failed */
-				bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius,
-							color);
+				// bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color); // This is now redundant
 			}
 
 			/* Debug Label */

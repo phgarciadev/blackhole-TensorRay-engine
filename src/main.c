@@ -13,7 +13,7 @@
 
 #include "app_state.h"
 #include "simulation/scenario_mgr.h"
-#include "framework/log.h"
+#include "gui-framework/log.h"
 
 #include <stdlib.h>
 

@@ -69,10 +69,10 @@ endif()
 # 1. Math (Base, zero dependencies)
 add_subdirectory(math)
 
-# 2. Framework (Depende de Math)
-add_subdirectory(framework)
+# 2. gui-framework (Depende de Math)
+add_subdirectory(gui-framework)
 
-# 3. Engine (Depende de Math, Framework)
+# 3. Engine (Depende de Math, gui-framework)
 add_subdirectory(engine)
 
 # 4. Source/App (Glue code, Executable)

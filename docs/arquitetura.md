@@ -19,14 +19,14 @@ Se você mexer na camada errada, a culpa é sua. Tá avisado.
            │                               │
            ▼                               ▼
 ┌──────────────────────┐     ┌──────────────────────────┐
-│   ENGINE (engine/)   │     │  FRAMEWORK (framework/)  │
-│   libbhs_engine.a    │     │   libbhs_framework.a     │
+│   ENGINE (engine/)   │     │  gui-framework (gui-framework/)  │
+│   libbhs_engine.a    │     │   libbhs_gui-framework.a     │
 │                      │     │                          │
 │  • ECS               │     │  • Platform (Wayland,    │
 │  • Physics           │     │    X11, Cocoa, Win32)    │
 │  • Geodesics         │     │  • RHI (Vulkan, Metal,   │
 │  • Bodies            │────▶│    OpenGL, DirectX)      │
-│  • Scene             │     │  • UI Framework          │
+│  • Scene             │     │  • UI gui-framework          │
 └───────────┬──────────┘     └────────────┬─────────────┘
             │                              │
             │         depends on           │
@@ -64,8 +64,8 @@ blackholegravity/
 │       ├── kerr.h/c
 │       └── schwarzschild.h/c
 │
-├── framework/                  # Camada 2: HAL + RHI + UI
-│   ├── CMakeLists.txt         → libbhs_framework.a
+├── gui-framework/                  # Camada 2: HAL + RHI + UI
+│   ├── CMakeLists.txt         → libbhs_gui-framework.a
 │   ├── platform/              # Abstração de OS
 │   │   ├── platform.h         # API pública
 │   │   ├── wayland/           # Backend Linux moderno
@@ -78,7 +78,7 @@ blackholegravity/
 │   │   ├── metal/             # Backend Metal
 │   │   ├── opengl/            # Backend OpenGL
 │   │   └── dx/                # Backend DirectX
-│   └── ui/                    # UI Framework
+│   └── ui/                    # UI gui-framework
 │       ├── lib.h              # API pública
 │       ├── context.c          # Gerenciamento de contexto
 │       ├── widgets.c          # Botões, sliders, etc
@@ -107,7 +107,7 @@ blackholegravity/
 │
 ├── build/                      # Artefatos de build (CMake)
 │   ├── lib/libbhs_math.a
-│   ├── lib/libbhs_framework.a
+│   ├── lib/libbhs_gui-framework.a
 │   ├── lib/libbhs_engine.a
 │   └── bin/blackhole_sim
 │
@@ -121,12 +121,12 @@ blackholegravity/
 ### 1. Hierarquia de Dependências
 
 ```
-src/ → engine/ → framework/ → math/
-src/ → framework/ → math/
+src/ → engine/ → gui-framework/ → math/
+src/ → gui-framework/ → math/
 src/ → math/
-engine/ → framework/ → math/
+engine/ → gui-framework/ → math/
 engine/ → math/
-framework/ → math/
+gui-framework/ → math/
 ```
 
 **PROIBIDO**: Dependências circulares ou inversas.
@@ -136,7 +136,7 @@ framework/ → math/
 | Camada | Output | Responsabilidade |
 |--------|--------|------------------|
 | math/ | `libbhs_math.a` | Computação pura (ZERO deps externas) |
-| framework/ | `libbhs_framework.a` | Hardware abstraction (não sabe de física) |
+| gui-framework/ | `libbhs_gui-framework.a` | Hardware abstraction (não sabe de física) |
 | engine/ | `libbhs_engine.a` | Lógica de simulação |
 | src/ | `blackhole_sim` | Glue code, entry point |
 
@@ -147,13 +147,13 @@ Use includes relativos à raiz do projeto:
 ```c
 /* CORRETO */
 #include "math/vec4.h"
-#include "framework/rhi/renderer.h"
+#include "gui-framework/rhi/renderer.h"
 #include "engine/scene/scene.h"
 #include "src/ui/camera/camera.h"
 
 /* ERRADO (caminhos relativos feios) */
 #include "../../math/vec4.h"
-#include "../framework/rhi/renderer.h"
+#include "../gui-framework/rhi/renderer.h"
 ```
 
 ---
@@ -189,17 +189,17 @@ cd build && ctest
 #include <stddef.h>
 
 /* PROIBIDO em math/: */
-#include "framework/..."  // NÃO!
+#include "gui-framework/..."  // NÃO!
 #include "engine/..."     // NÃO!
 #include <vulkan.h>       // NÃO!
 ```
 
-### framework/ - Não sabe de física
+### gui-framework/ - Não sabe de física
 ```c
-/* framework/ pode incluir: */
+/* gui-framework/ pode incluir: */
 #include "math/..."
 
-/* framework/ NÃO sabe o que é: */
+/* gui-framework/ NÃO sabe o que é: */
 // Black hole, planet, geodesic, spacetime, Kerr metric...
 // Só sabe: triangles, buffers, windows, events
 ```
@@ -208,7 +208,7 @@ cd build && ctest
 ```c
 /* engine/ pode incluir: */
 #include "math/..."
-#include "framework/..."
+#include "gui-framework/..."
 
 /* engine/ contém toda a lógica de: */
 // ECS, physics, bodies, geodesics, scene management
@@ -218,7 +218,7 @@ cd build && ctest
 ```c
 /* src/ pode incluir TUDO: */
 #include "math/..."
-#include "framework/..."
+#include "gui-framework/..."
 #include "engine/..."
 #include "src/..."  // UI específica
 

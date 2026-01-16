@@ -15,7 +15,7 @@ BUILD_DIR := ../../build/tests/integration
 ROOT_DIR := ../..
 PLATFORM_LIB := $(ROOT_DIR)/build/ux/platform
 RENDERER_LIB := $(ROOT_DIR)/build/ux/renderer
-FRAMEWORK_LIB := $(ROOT_DIR)/build/ux/lib
+gui-framework_LIB := $(ROOT_DIR)/build/ux/lib
 UI_LIB := $(ROOT_DIR)/build/ux/ui
 
 # Detecta plataforma
@@ -35,7 +35,7 @@ CC := clang
 
 # Flags
 CFLAGS := -std=c11 -Wall -Wextra -I$(ROOT_DIR)/src
-LDFLAGS := -L$(UI_LIB) -L$(FRAMEWORK_LIB) -L$(PLATFORM_LIB) -L$(RENDERER_LIB)
+LDFLAGS := -L$(UI_LIB) -L$(gui-framework_LIB) -L$(PLATFORM_LIB) -L$(RENDERER_LIB)
 LDFLAGS += -lbhs_ui -lbhs_lib -lbhs_platform_$(PLATFORM) -lbhs_renderer_$(RENDERER)
 
 ifneq ($(PKG_DEPS),)

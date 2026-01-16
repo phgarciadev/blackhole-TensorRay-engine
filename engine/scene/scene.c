@@ -55,8 +55,9 @@ bhs_scene_t bhs_scene_create(void)
     // Plan: Engine Core owns world. Scene is just a high level helper.
     // For now, let's assume we can get the world or we rely on engine global state commands.
 	
-    // Create spacetime grid
-    scene->spacetime = bhs_spacetime_create(100.0, 80);
+    // Create spacetime grid - tamanho grande para cobrir Sistema Solar
+    // Divisões menores = menos vértices = melhor performance
+    scene->spacetime = bhs_spacetime_create(300.0, 40);
     g_spacetime_cache = scene->spacetime;
     
     // Connect to Engine World
@@ -176,12 +177,52 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 // LEGACY ADAPTER: Create entity from struct
 bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
 {
-    return bhs_scene_add_body(scene, b.type, b.state.pos, b.state.vel, b.state.mass, b.state.radius, b.color);
+    return bhs_scene_add_body_named(scene, b.type, b.state.pos, b.state.vel,
+                                    b.state.mass, b.state.radius, b.color, b.name);
+}
+
+/* Contador global para nomes únicos (lazy, mas funciona) */
+static int g_planet_counter = 0;
+static int g_star_counter = 0;
+static int g_asteroid_counter = 0;
+
+void bhs_scene_reset_counters(void)
+{
+    g_planet_counter = 0;
+    g_star_counter = 0;
+    g_asteroid_counter = 0;
 }
 
 bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
 			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
 			double radius, struct bhs_vec3 color)
+{
+    /* Gera nome único baseado no tipo */
+    char name[64];
+    switch (type) {
+    case BHS_BODY_PLANET:
+        snprintf(name, sizeof(name), "Planet %d", ++g_planet_counter);
+        break;
+    case BHS_BODY_STAR:
+        snprintf(name, sizeof(name), "Star %d", ++g_star_counter);
+        break;
+    case BHS_BODY_BLACKHOLE:
+        snprintf(name, sizeof(name), "Black Hole");
+        break;
+    case BHS_BODY_ASTEROID:
+        snprintf(name, sizeof(name), "Asteroid %d", ++g_asteroid_counter);
+        break;
+    default:
+        snprintf(name, sizeof(name), "Body");
+        break;
+    }
+    return bhs_scene_add_body_named(scene, type, pos, vel, mass, radius, color, name);
+}
+
+bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
+			      struct bhs_vec3 pos, struct bhs_vec3 vel,
+			      double mass, double radius, struct bhs_vec3 color,
+			      const char *name)
 {
     extern bhs_world_handle bhs_engine_get_world_internal(void);
     bhs_world_handle world = bhs_engine_get_world_internal();
@@ -212,12 +253,16 @@ bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
         c.type = BHS_CELESTIAL_PLANET;
         c.data.planet.radius = radius;
         c.data.planet.color = color;
-        strncpy(c.name, "Planet", 63);
+        strncpy(c.name, name ? name : "Planet", 63);
     } else if (type == BHS_BODY_BLACKHOLE) {
         c.type = BHS_CELESTIAL_BLACKHOLE;
-        strncpy(c.name, "Black Hole", 63);
+        strncpy(c.name, name ? name : "Black Hole", 63);
+    } else if (type == BHS_BODY_STAR) {
+        c.type = BHS_CELESTIAL_STAR;
+        strncpy(c.name, name ? name : "Star", 63);
     } else {
         c.type = BHS_CELESTIAL_ASTEROID;
+        strncpy(c.name, name ? name : "Asteroid", 63);
     }
     // Note: BHS_COMP_CELESTIAL ID must match what is used in src/
     // Since we included sim_components.h which defines BHS_COMP_CELESTIAL, use that.
@@ -226,13 +271,35 @@ bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
     return true;
 }
 
+
 void bhs_scene_remove_body(bhs_scene_t scene, int index)
 {
-    // Need mapping from index -> ID.
-    // bhs_scene_get_bodies implies a stable list, but ECS queries aren't stable unless sorted.
-    // This function is hard to implement correctly without an indexing system.
-    // For now, ignore or just try to find the Nth entity?
-    // Implementation skipped for brevity/complexity in refactor. 
-    // Usually UI deletes by ID, not index.
-    (void)scene; (void)index;
+    if (!scene || !scene->world) return;
+    bhs_world_handle world = scene->world;
+
+    bhs_ecs_query q;
+    // Query movable things - Same mask as get_bodies
+    bhs_ecs_query_init(&q, world, (1<<BHS_COMP_TRANSFORM)); 
+
+    int idx = 0;
+    bhs_entity_id id;
+    bool found = false;
+
+    while(bhs_ecs_query_next(&q, &id)) {
+        bhs_transform_t *t = bhs_ecs_get_component(world, id, BHS_COMP_TRANSFORM);
+        if (!t) continue;
+
+        if (idx == index) {
+            found = true;
+            break; /* Found our victim */
+        }
+        idx++;
+    }
+
+    if (found) {
+        printf("[SCENE] Destroying entity ID %d (Index %d)\n", id, index);
+        bhs_ecs_destroy_entity(world, id);
+    } else {
+        printf("[SCENE] Failed to delete: Index %d not found.\n", index);
+    }
 }

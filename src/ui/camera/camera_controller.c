@@ -5,7 +5,7 @@
 
 #include "camera_controller.h"
 #include <math.h>
-#include "framework/ui/lib.h"
+#include "gui-framework/ui/lib.h"
 
 void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
 				  double dt)
@@ -60,12 +60,32 @@ void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
      based on previous logic?) Wait, init said z = -40, so looking +Z? Let's
      standard: Yaw 0 = Looking +Z? Let's deduce: x = sin(yaw) z = cos(yaw)
   */
+	/* Calculate Forward and Right vectors */
+	/* Forward: Z is forward (usually -Z in OpenGL, but here +Z seems to be 'into'
+     based on previous logic?) Wait, init said z = -40, so looking +Z? Let's
+     standard: Yaw 0 = Looking +Z? Let's deduce: x = sin(yaw) z = cos(yaw)
+  */
 	float sin_y = sinf(cam->yaw);
 	float cos_y = cosf(cam->yaw);
 
+	/* Mouse Zoom (3D Directional) */
+	float scroll = bhs_ui_mouse_scroll(ctx);
+	if (scroll != 0.0f) {
+		float zoom_speed = 5.0f; /* Sensitivity */
+		
+        /* Calculate 3D Forward Vector */
+        /* Pitch affects how much we move in Y vs XZ plane */
+        /* If looking down (Pitch < 0), we move down. */
+        float sin_p = sinf(cam->pitch);
+        float cos_p = cosf(cam->pitch);
 
+        /* Move along View Vector */
+		cam->x += sin_y * cos_p * scroll * zoom_speed;
+		cam->z += cos_y * cos_p * scroll * zoom_speed;
+        cam->y += sin_p * scroll * zoom_speed; /* Check sign: Pitch-Up should move Up */
+	}
 
-	/* W/S - Forward/Back (Standard FPS: Forward moves INTO scene) */
+	/* W/S - Forward/Back (Standard FPS: Forward moves INTO scene - Planar for walking) */
 	if (bhs_ui_key_down(ctx, BHS_KEY_W)) {
 		cam->x += sin_y * move_speed;
 		cam->z += cos_y * move_speed;

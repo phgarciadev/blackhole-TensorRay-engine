@@ -1,7 +1,7 @@
 #ifndef BHS_CMD_UI_HUD_H
 #define BHS_CMD_UI_HUD_H
 
-#include "framework/ui/lib.h"
+#include "gui-framework/ui/lib.h"
 
 #include "engine/scene/scene.h"
 #include "src/simulation/planets/planet.h" // Added as per instruction
