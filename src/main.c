@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 
 	/* 2. Load Initial Scenario */
 	const char *scene_env = getenv("BHS_DEBUG_SCENE");
-	enum scenario_type scenario = SCENARIO_SOLAR_SYSTEM;
+	enum scenario_type scenario = SCENARIO_EMPTY;
 
 	if (scene_env) {
 		switch (scene_env[0]) {

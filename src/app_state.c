@@ -206,14 +206,11 @@ void app_run(struct app_state *app)
 		/* Fixed timestep para física */
 		double t0 = get_time_seconds();
 		while (accumulator >= PHYSICS_DT && app->sim_status == APP_SIM_RUNNING) {
-			/* [NEW] ECS Systems Update */
+			/* [NEW] ECS Systems Update (Leapfrog + 1PN) */
 			bhs_world_handle world = bhs_scene_get_world(app->scene);
 			
-			/* 1. Calculate Forces */
-			gravity_system_update(world, PHYSICS_DT);
-			
-			/* 2. Integrate Motion */
-			orbital_integrator_system_update(world, PHYSICS_DT);
+			/* High-Fidelity Physics Integration */
+			physics_system_update(world, PHYSICS_DT);
 
 			/* 3. Engine Update (Collision, Transfrom hierarchy, Spacetime sync) */
 			bhs_scene_update(app->scene, PHYSICS_DT);

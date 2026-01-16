@@ -186,6 +186,9 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				int divs = bhs_spacetime_get_divisions(st);
 				int cols = divs + 1;
 
+				/* Usa todas as divisões do grid (80 é gerenciável) */
+				int render_divs = divs;
+
 				/*
 				 * Paleta de cores estilo "Tron/Sci-Fi Gravity":
 				 * - Superfície: Azul profundo uniforme (reduzido checkerboard)
@@ -202,8 +205,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 * Desenha quads preenchidos (células do grid)
 				 * Cada célula conecta 4 vértices: (r,c), (r,c+1), (r+1,c+1), (r+1,c)
 				 */
-				for (int r = 0; r < divs; r++) {
-					for (int c = 0; c < divs; c++) {
+				for (int r = 0; r < render_divs; r++) {
+					for (int c = 0; c < render_divs; c++) {
 						/* Índices dos 4 cantos */
 						int i00 = (r * cols + c) * 6;         /* Top-Left */
 						int i10 = (r * cols + c + 1) * 6;     /* Top-Right */
@@ -253,8 +256,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 * Opcional: Desenha linhas de grade por cima dos quads
 				 * para dar aquele visual de "fio" mais definido
 				 */
-				for (int r = 0; r < divs; r++) {
-					for (int c = 0; c < divs; c++) {
+				for (int r = 0; r < render_divs; r++) {
+					for (int c = 0; c < render_divs; c++) {
 						int i00 = (r * cols + c) * 6;
 						int i10 = (r * cols + c + 1) * 6;
 						int i01 = ((r + 1) * cols + c) * 6;
@@ -270,10 +273,10 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 						project_point(cam, x01, y01, z01, width, height, &sx01, &sy01);
 
 						/* Linhas horizontais e verticais */
-						if (c < divs) {
+						if (c < render_divs) {
 							bhs_ui_draw_line(ctx, sx00, sy00, sx10, sy10, col_line, line_width);
 						}
-						if (r < divs) {
+						if (r < render_divs) {
 							bhs_ui_draw_line(ctx, sx00, sy00, sx01, sy01, col_line, line_width);
 						}
 					}

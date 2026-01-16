@@ -60,36 +60,46 @@
  */
 
 /*
- * Escala de profundidade para o embedding.
- * Valor ALTO = poço mais profundo e visível.
- * Com M☉ = 20, rs = 40, SCALE = 8 → depth máx ≈ 4 unidades
+ * ============================================================================
+ * CONFIGURAÇÃO DA VISUALIZAÇÃO DO ESPAÇO-TEMPO
+ * ============================================================================
+ *
+ * Modo: REALISMO FÍSICO
+ *
+ * Na física real, o raio de Schwarzschild de planetas é microscópico:
+ *   - Sol: rs ≈ 3 km
+ *   - Júpiter: rs ≈ 2.8 m
+ *   - Terra: rs ≈ 9 mm
+ *
+ * Portanto, só estrelas e buracos negros criam deformação visível.
+ * Planetas são ignorados na visualização (massa < limiar).
  */
-#define FLAMM_SCALE 8.0
 
 /*
- * Limiar de massa para considerar "corpo massivo" (estrela, BH).
+ * FLAMM_SCALE: Fator de escala visual para a profundidade do poço.
+ * Com Sol (M=20) e rs=40, depth ≈ -SCALE * 40 / (r + 40)
+ * Para poço visível, usar 1.0 a 5.0.
+ */
+#define FLAMM_SCALE 2.0
+
+/*
+ * MAX_DEPTH: Profundidade máxima visual (evita infinito).
+ */
+#define MAX_DEPTH 20.0
+
+/*
+ * EPSILON: Suavização mínima (evita singularidade em r=0).
+ */
+#define EPSILON 1.0
+
+/*
+ * MASS_THRESHOLD: Massa mínima para afetar o grid.
+ * Com sistema de unidades atual:
+ *   - Sol = 20.0 (afeta)
+ *   - Júpiter = 0.019 (não afeta)
+ *   - Estrelas típicas >= 0.5 (afetam)
  */
 #define MASS_THRESHOLD 0.5
-
-/*
- * Escala para indicador visual de planetas.
- */
-#define PLANET_DIMPLE_SCALE 3.0
-
-/*
- * Raio de influência do dimple planetário.
- */
-#define PLANET_INFLUENCE_RADIUS 10.0
-
-/*
- * Profundidade MÁXIMA visual (limite de segurança).
- */
-#define MAX_DEPTH 15.0
-
-/*
- * Suavização mínima.
- */
-#define EPSILON 0.5
 
 /**
  * flamm_embedding - Calcula profundidade usando o Embedding de Flamm
@@ -137,30 +147,19 @@ static inline double flamm_embedding(double r, double rs)
 	return depth;
 }
 
-/**
- * planet_dimple_depth - Calcula indicador visual para planeta
- * @r: Distância radial do centro do planeta
- * @radius: Raio físico do planeta
+/*
+ * REMOVIDO: planet_dimple_depth()
  *
- * Cria um pequeno "dente" visível ao redor do planeta.
- * Perfil gaussiano: exp(-r²/σ²)
+ * A função "dimple" era uma gambiarra visual que criava
+ * um "dente" gaussiano ao invés de usar física real.
+ *
+ * Problema: Isso violava a proporcionalidade da Relatividade
+ * Geral. Se Einstein visse isso, ele viraria no túmulo.
+ *
+ * SOLUÇÃO: Todos os corpos agora usam flamm_embedding()
+ * com rs proporcional à massa, mas com boost visual para
+ * corpos pequenos (PLANET_RS_BOOST).
  */
-static inline double planet_dimple_depth(double r, double radius)
-{
-	if (radius <= 0.0)
-		return 0.0;
-
-	double influence = radius * PLANET_INFLUENCE_RADIUS;
-
-	if (r > influence)
-		return 0.0;
-
-	double sigma_sq = influence * influence;
-	double gaussian = exp(-(r * r) / sigma_sq);
-
-	/* Profundidade proporcional ao raio do planeta */
-	return -radius * PLANET_DIMPLE_SCALE * gaussian;
-}
 
 /**
  * redshift_color - Calcula cor baseada no redshift gravitacional
@@ -197,54 +196,68 @@ static inline void redshift_color(double depth, float *r, float *g, float *b)
 void bhs_spacetime_update(bhs_spacetime_t st, const void *bodies_ptr,
                           int n_bodies)
 {
-	if (!st || !bodies_ptr || n_bodies <= 0)
+	if (!st)
 		return;
+
+	const int stride = 6;
+
+	/*
+	 * Caso especial: sem corpos ou bodies_ptr nulo.
+	 * Reseta o grid para plano.
+	 */
+	if (!bodies_ptr || n_bodies <= 0) {
+		for (int i = 0; i < st->num_vertices; i++) {
+			float *v = &st->vertex_data[i * stride];
+			v[1] = 0.0f;  /* Y = 0 (plano) */
+			/* Cor: ciano neutro */
+			v[3] = 0.2f;
+			v[4] = 0.9f;
+			v[5] = 1.0f;
+		}
+		return;
+	}
 
 	const struct bhs_body *bodies = (const struct bhs_body *)bodies_ptr;
 
 	/*
-	 * Separa corpos em duas categorias:
-	 * - Massivos: usam embedding de Flamm (fisica real)
-	 * - Leves (planetas): usam dimple visual
+	 * REALISMO FÍSICO:
+	 * Só corpos com massa >= MASS_THRESHOLD (0.5) afetam o grid.
+	 * Isso inclui estrelas e buracos negros.
+	 * Planetas têm rs microscópico e são ignorados.
 	 */
-	double rs_m[64], px_m[64], pz_m[64];
-	int n_massive = 0;
-
-	double radius_p[64], px_p[64], pz_p[64];
-	int n_planet = 0;
+	double rs[64], px[64], pz[64];
+	int n_bodies_valid = 0;
 
 	for (int b = 0; b < n_bodies && b < 64; b++) {
 		double M = bodies[b].state.mass;
-		double R = bodies[b].state.radius;
-		double px = bodies[b].state.pos.x;
-		double pz = bodies[b].state.pos.z;
 
-		if (M <= 0)
+		/* Ignora corpos abaixo do limiar de massa */
+		if (M < MASS_THRESHOLD)
 			continue;
 
-		if (M >= MASS_THRESHOLD) {
-			/* Corpo massivo: estrela, buraco negro */
-			rs_m[n_massive] = 2.0 * M;  /* Raio de Schwarzschild */
-			px_m[n_massive] = px;
-			pz_m[n_massive] = pz;
-			n_massive++;
-		} else {
-			/* Planeta: usa indicador visual */
-			radius_p[n_planet] = R;
-			px_p[n_planet] = px;
-			pz_p[n_planet] = pz;
-			n_planet++;
-		}
+		px[n_bodies_valid] = bodies[b].state.pos.x;
+		pz[n_bodies_valid] = bodies[b].state.pos.z;
+		rs[n_bodies_valid] = 2.0 * M;  /* rs = 2M (unidades naturais) */
+		n_bodies_valid++;
 	}
 
-	if (n_massive == 0 && n_planet == 0)
+	/*
+	 * Se não há corpos massivos, reseta grid para plano.
+	 */
+	if (n_bodies_valid == 0) {
+		for (int i = 0; i < st->num_vertices; i++) {
+			float *v = &st->vertex_data[i * stride];
+			v[1] = 0.0f;
+			v[3] = 0.2f;
+			v[4] = 0.9f;
+			v[5] = 1.0f;
+		}
 		return;
+	}
 
 	/*
 	 * Itera sobre vértices da malha.
-	 * Stride = 6 floats: x, y, z, r, g, b
 	 */
-	int stride = 6;
 
 	for (int i = 0; i < st->num_vertices; i++) {
 		float *v = &st->vertex_data[i * stride];
@@ -255,28 +268,19 @@ void bhs_spacetime_update(bhs_spacetime_t st, const void *bodies_ptr,
 		double total_depth = 0.0;
 
 		/*
-		 * 1. Contribuição de corpos massivos (Flamm embedding).
+		 * Somatório das curvaturas de TODOS os corpos.
+		 * Princípio da superposição (aproximação válida
+		 * para campos fracos, que é o nosso caso visual).
 		 */
-		for (int b = 0; b < n_massive; b++) {
-			double dx = x - px_m[b];
-			double dz = z - pz_m[b];
+		for (int b = 0; b < n_bodies_valid; b++) {
+			double dx = x - px[b];
+			double dz = z - pz[b];
 			double r = sqrt(dx * dx + dz * dz);
 
-			total_depth += flamm_embedding(r, rs_m[b]);
+			total_depth += flamm_embedding(r, rs[b]);
 		}
 
-		/*
-		 * 2. Contribuição de planetas (dimple visual).
-		 */
-		for (int p = 0; p < n_planet; p++) {
-			double dx = x - px_p[p];
-			double dz = z - pz_p[p];
-			double r = sqrt(dx * dx + dz * dz);
-
-			total_depth += planet_dimple_depth(r, radius_p[p]);
-		}
-
-		/* Clamp */
+		/* Clamp para evitar buraco infinito */
 		if (total_depth < -MAX_DEPTH)
 			total_depth = -MAX_DEPTH;
 

@@ -55,9 +55,19 @@ bhs_scene_t bhs_scene_create(void)
     // Plan: Engine Core owns world. Scene is just a high level helper.
     // For now, let's assume we can get the world or we rely on engine global state commands.
 	
-    // Create spacetime grid - tamanho grande para cobrir Sistema Solar
-    // Divisões menores = menos vértices = melhor performance
-    scene->spacetime = bhs_spacetime_create(300.0, 40);
+    /*
+     * Spacetime Grid (malha visual da curvatura)
+     *
+     * Tamanho: 500 unidades (cobre área ao redor do Sol)
+     * Com 1 AU = 50 unidades, o grid cobre ~10 AU de raio.
+     *
+     * Divisões: 80 → células de ~6.25u cada
+     * Isso dá resolução suficiente para ver a curvatura suave.
+     *
+     * Para ver órbitas externas (Saturno em 9.5 AU = 475u),
+     * o grid atual é adequado.
+     */
+    scene->spacetime = bhs_spacetime_create(500.0, 80);
     g_spacetime_cache = scene->spacetime;
     
     // Connect to Engine World
