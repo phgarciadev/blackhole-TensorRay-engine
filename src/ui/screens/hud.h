@@ -4,7 +4,7 @@
 #include "gui-framework/ui/lib.h"
 
 #include "engine/scene/scene.h"
-#include "src/simulation/planets/planet.h" // Added as per instruction
+#include "src/simulation/data/planet.h" // Added as per instruction
 
 typedef struct {
 	bool show_fps;

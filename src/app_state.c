@@ -10,6 +10,7 @@
 
 #include "app_state.h"
 #include "simulation/scenario_mgr.h"
+#include "simulation/systems/systems.h" // [NEW] Logic Systems
 
 #include "gui-framework/log.h"
 #include "gui-framework/rhi/renderer.h"
@@ -205,7 +206,18 @@ void app_run(struct app_state *app)
 		/* Fixed timestep para física */
 		double t0 = get_time_seconds();
 		while (accumulator >= PHYSICS_DT && app->sim_status == APP_SIM_RUNNING) {
+			/* [NEW] ECS Systems Update */
+			bhs_world_handle world = bhs_scene_get_world(app->scene);
+			
+			/* 1. Calculate Forces */
+			gravity_system_update(world, PHYSICS_DT);
+			
+			/* 2. Integrate Motion */
+			orbital_integrator_system_update(world, PHYSICS_DT);
+
+			/* 3. Engine Update (Collision, Transfrom hierarchy, Spacetime sync) */
 			bhs_scene_update(app->scene, PHYSICS_DT);
+			
 			accumulator -= PHYSICS_DT;
 			app->accumulated_time += PHYSICS_DT;
 		}

@@ -4,7 +4,7 @@
  */
 
 #include "engine/scene/scene.h"
-#include "src/simulation/planets/planet.h"
+#include "src/simulation/data/planet.h"
 #include <string.h>
 
 struct bhs_body bhs_body_create_planet_simple(struct bhs_vec3 pos, double mass,

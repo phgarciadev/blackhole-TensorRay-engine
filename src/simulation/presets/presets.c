@@ -9,7 +9,7 @@
  */
 
 #include "presets.h"
-#include "../planets/planet.h"
+#include "../data/planet.h"
 #include "math/units.h"
 #include <math.h>
 #include <stdio.h>
