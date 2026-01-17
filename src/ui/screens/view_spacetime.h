@@ -18,6 +18,7 @@ void bhs_camera_update_view(bhs_camera_t *cam, bhs_ui_ctx_t ctx, double dt);
 typedef struct bhs_view_assets {
 	void *bg_texture;
 	void *sphere_texture;
+	void *bh_texture; /* [NEW] Black Hole Compute Result */
 	bool show_grid; /* Toggles wireframe rendering */
 } bhs_view_assets_t;
 

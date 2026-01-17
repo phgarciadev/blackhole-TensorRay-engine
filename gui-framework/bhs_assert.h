@@ -6,8 +6,8 @@
  * Se math/ mudar o assert, gui-framework não é afetado. Desacoplamento total.
  */
 
-#ifndef BHS_gui-framework_ASSERT_H
-#define BHS_gui-framework_ASSERT_H
+#ifndef BHS_GUI_FRAMEWORK_ASSERT_H
+#define BHS_GUI_FRAMEWORK_ASSERT_H
 
 #include <assert.h>
 

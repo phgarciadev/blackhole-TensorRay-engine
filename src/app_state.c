@@ -18,6 +18,7 @@
 
 #include "src/input/input_layer.h"
 #include "src/ui/screens/view_spacetime.h"
+#include "src/ui/render/blackhole_pass.h" /* [NEW] */
 #include "src/debug/telemetry.h"
 
 #include <stdio.h>
@@ -137,6 +138,19 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		}
 	}
 
+	/* 4.2. Black Hole Pass (Init) */
+	{
+		bhs_gpu_device_t dev = bhs_ui_get_gpu_device(app->ui);
+		bhs_blackhole_pass_config_t bh_conf = {
+			.width = width,
+			.height = height
+		};
+		app->bh_pass = bhs_blackhole_pass_create(dev, &bh_conf);
+		if (!app->bh_pass) {
+			BHS_LOG_WARN("Compute Pass falhou ao iniciar - Shader faltando?");
+		}
+	}
+
 	/* 5. Camera (valores padrão) */
 	bhs_camera_init(&app->camera);
 
@@ -229,10 +243,24 @@ void app_run(struct app_state *app)
 		/* Limpa tela - preto absoluto */
 		bhs_ui_clear(app->ui, (struct bhs_ui_color){ 0.0f, 0.0f, 0.0f, 1.0f });
 
+		/* [NEW] Dispatch Compute Pass */
+		bhs_gpu_texture_t bh_tex = NULL;
+		if (app->bh_pass && app->scenario == APP_SCENARIO_KERR_BLACKHOLE) {
+			/* Resize check */
+			bhs_blackhole_pass_resize(app->bh_pass, win_w, win_h);
+			
+			/* Dispatch */
+			bhs_gpu_cmd_buffer_t cmd = bhs_ui_get_current_cmd(app->ui);
+			bhs_blackhole_pass_dispatch(app->bh_pass, cmd, app->scene, &app->camera);
+			
+			bh_tex = bhs_blackhole_pass_get_output(app->bh_pass);
+		}
+
 		/* Desenha cena */
 		bhs_view_assets_t assets = {
 			.bg_texture = app->bg_tex,
 			.sphere_texture = app->sphere_tex,
+			.bh_texture = bh_tex, /* [NEW] */
 			.show_grid = app->hud.show_grid
 		};
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
@@ -285,6 +313,8 @@ void app_shutdown(struct app_state *app)
 		bhs_gpu_texture_destroy(app->bg_tex);
 	if (app->sphere_tex)
 		bhs_gpu_texture_destroy(app->sphere_tex);
+	if (app->bh_pass)
+		bhs_blackhole_pass_destroy(app->bh_pass);
 	if (app->ui)
 		bhs_ui_destroy(app->ui);
 	if (app->scene)

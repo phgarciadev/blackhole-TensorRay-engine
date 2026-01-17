@@ -40,10 +40,30 @@ struct bhs_render_batch {
 
 static void *read_file(const char *filename, size_t *size)
 {
-	FILE *f = fopen(filename, "rb");
+	/* Try multiple prefixes */
+	const char *prefixes[] = {
+		"",
+		"build/bin/",
+		"../",
+		"bin/"
+	};
+	
+	FILE *f = NULL;
+	char path[256];
+	
+	for (int i = 0; i < 4; i++) {
+		snprintf(path, sizeof(path), "%s%s", prefixes[i], filename);
+		f = fopen(path, "rb");
+		if (f) {
+			/* Found it */
+			// fprintf(stderr, "[INFO] Loaded asset: %s\n", path);
+			break;
+		}
+	}
+
 	if (!f) {
 		fprintf(stderr,
-			"Erro: Arquivo '%s' não encontrado. Quem comeu?\n",
+			"Erro: Arquivo '%s' não encontrado em nenhum lugar. Quem comeu?\n",
 			filename);
 		return NULL;
 	}
@@ -131,8 +151,8 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx)
 
 	/* 2. Carrega Shaders */
 	size_t vs_size, fs_size;
-	void *vs_code = read_file("shaders/ui.vert.spv", &vs_size);
-	void *fs_code = read_file("shaders/ui.frag.spv", &fs_size);
+	void *vs_code = read_file("assets/shaders/ui.vert.spv", &vs_size);
+	void *fs_code = read_file("assets/shaders/ui.frag.spv", &fs_size);
 
 	if (!vs_code || !fs_code) {
 		fprintf(stderr, "erro: falha ao carregar shaders UI\n");

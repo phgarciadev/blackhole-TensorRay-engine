@@ -104,6 +104,25 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		(const bhs_view_assets_t *)assets_void;
 	void *tex_bg = assets ? assets->bg_texture : NULL;
 	void *tex_sphere = assets ? assets->sphere_texture : NULL;
+	void *tex_bh = assets ? assets->bh_texture : NULL;
+
+	/* -1. Black Hole Compute Output (Overlay on top of background, behind grid) */
+	if (tex_bh) {
+		/* Desenha Fullscreen Quad com o resultado do Ray Marching */
+		/* Nota: O shader já traz o fundo estrelado embutido se o raio escapa, 
+		   então ele substitui o background, a menos que alpha blending seja usado.
+		   Assumimos replace opaco por enquanto. */
+		struct bhs_ui_color white = { 1.0f, 1.0f, 1.0f, 1.0f };
+		bhs_ui_draw_quad_uv(ctx, tex_bh,
+				    0, 0, 0, 0,
+				    (float)width, 0, 1, 0,
+				    (float)width, (float)height, 1, 1,
+				    0, (float)height, 0, 1,
+				    white);
+		
+		/* Se desenhou o BH, não desenha o BG padrão pra economizar fillrate/evitar z-fighting */
+		tex_bg = NULL; 
+	}
 
 	/* 0. Background */
 	if (tex_bg) {

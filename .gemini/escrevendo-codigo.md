@@ -1,6 +1,6 @@
 # 📜 Escrevendo Código - Guia Definitivo
 
-Este documento é **LEITURA OBRIGATÓRIA** antes de escrever qualquer linha de código neste projeto. Se você pulou pra cá sem ler, volte e leia o `GEMINI.md` primeiro. Eu espero.
+Este documento é **LEITURA OBRIGATÓRIA** antes de escrever qualquer linha de código neste projeto. Se você pulou pra cá sem ler, volte e leia o `GEMINI.md` primeiro. Eu espero. Nao use emojis, coisa de geti mediokre
 
 ---
 
@@ -771,5 +771,6 @@ Agora vai lá e escreve código bonito. E se escrever código feio, pelo menos s
  * Desculpa pelo código abaixo.
  * Eu tentei fazer melhor, juro.
  * (mentira, quero q se foda kkkkkkkkkk)
+ * vai toma no cu kkkkkkkkkk
  */
 ```

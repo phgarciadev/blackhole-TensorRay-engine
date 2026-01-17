@@ -76,6 +76,9 @@ struct app_state {
 	bhs_gpu_texture_t bg_tex;	/* Textura do skybox */
 	bhs_gpu_texture_t sphere_tex;	/* Impostor de esfera */
 
+	/* ---- Compute Passes ---- */
+	struct bhs_blackhole_pass *bh_pass; /* [NEW] Opaque handle */
+
 	/* ---- Estado da Câmera ---- */
 	bhs_camera_t camera;		/* Posição, rotação, FOV */
 

@@ -75,10 +75,8 @@ Antes de escrever UMA linha de código, leia tudo isso. Não, não é opcional. 
 
 | Documento | O que tem | Quando ler |
 |-----------|-----------|------------|
-| `arquitetura.md` | Como o projeto é organizado, abstração platform/renderer | **PRIMEIRO** |
 | `escrevendo-codigo.md` | Estilo de código, regras, proibições | Antes de codar |
-| `lib.h` do módulo (ex: engine.h, core.h, etc...) | Interface que você vai implementar/usar | Antes de mexer no módulo |
-| `TODA A PASTA 'docs/` | Tudo. | Sempre. |
+| Absolutamente todo o código fonte | todo o código fonte ne kkkk | SEMPRE, SEMPRE, PRECISA ENTENDER TUDO, TUDOOOOOOOOOOOOOOOOOOOOOO |
 
 Se você não leu e fez merda, a culpa é sua. Tá avisado.
 
@@ -87,7 +85,6 @@ Se você não leu e fez merda, a culpa é sua. Tá avisado.
 ## Antes de Cada Ação
 
 **OBRIGATÓRIO** ler:
-- `.gemini/arquitetura.md` - Entenda a estrutura do projeto
 - `.gemini/escrevendo-codigo.md` - Regras detalhadas de código
 
 ---
