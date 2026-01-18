@@ -372,31 +372,58 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					      (float)b->color.z, 1.0f };
 
 		if (b->type == BHS_BODY_PLANET) {
-			/* [FIX] Always draw solid backing first to ensure visibility */
+			const char *label = (b->name[0] != '\0') ? b->name : "Planet";
+
+			/* [VISUAL FIX] Always draw solid backing first to ensure visibility */
+			/* Use darker color for backing to simulate night side if texture has alpha? No, texture is opaque. */
 			bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
 
-			/* [IMPOSTRO 3D] Draw using generated sphere texture */
-			/* FIX: Re-enabled texture rendering */
-			if (tex_sphere) {
+			/* [IMPOSTRO 3D + PROCEDURAL TEXTURE] */
+			void *use_tex = tex_sphere; /* Default Fallback */
+			
+			/* Try to find specific texture in cache */
+			if (assets && assets->tex_cache) {
+				for (int t = 0; t < assets->tex_cache_count; t++) {
+					/* Simple string match */
+					const char *c_name = assets->tex_cache[t].name;
+					/* Check match with body name OR body type name */
+					/* Start with strict name match */
+					bool match = false;
+					const char *b_name = b->name;
+					
+					/* Compare until null char */
+					int k = 0;
+					while(c_name[k] && b_name[k] && c_name[k] == b_name[k]) k++;
+					if (c_name[k] == '\0' && b_name[k] == '\0') match = true;
+					
+					if (match) {
+						use_tex = assets->tex_cache[t].tex;
+						break;
+					}
+				}
+			}
+
+			if (use_tex) {
 				float diameter = s_radius * 2.0f;
-				/* DEBUG: Force NULL (White Texture) to verify Draw Call */
-				bhs_ui_draw_texture(ctx, tex_sphere,
+				/* Draw Texture tinted with body color? 
+				   If we have a real texture, we should use WHITE as tint to show original colors.
+				   But current assets generate grayscale or colored?
+				   Let's check planet definitions... Mars is Red in get_surface_color? Yes.
+				   So we should draw with WHITE tint.
+				*/
+				struct bhs_ui_color draw_color = {1.f, 1.f, 1.f, 1.f};
+				if (use_tex == tex_sphere) { 
+					/* If using fallback white sphere, TINT IT */
+					draw_color = color; 
+				}
+
+				bhs_ui_draw_texture(ctx, use_tex,
 						    sx - s_radius,
 						    sy - s_radius, diameter,
-						    diameter, color);
-					
-					/* DEBUG LOG (Limit frequency) */
-					static int dbg_count = 0;
-					if (dbg_count++ % 120 == 0) {
-						printf("[RENDER] Drawing Planet with Tex: %p\n", (void*)tex_sphere);
-					}
-			} else {
-				/* Fallback if texture failed */
-				// bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color); // This is now redundant
+						    diameter, draw_color);
 			}
 
 			/* Debug Label */
-			const char *label = (b->name[0] != '\0') ? b->name : "Planet";
 			bhs_ui_draw_text(ctx, label, sx + s_radius + 5, sy,
 					 12.0f, BHS_UI_COLOR_WHITE);
 		} else {

@@ -22,6 +22,7 @@
 #include "gui-framework/ui/lib.h"
 #include "gui-framework/rhi/renderer.h"
 #include "src/ui/screens/hud.h"
+#include "src/ui/render/planet_renderer.h"
 #include "src/ui/camera/camera.h"
 
 /* ============================================================================
@@ -74,10 +75,18 @@ struct app_state {
 
 	/* ---- Assets de Rendering ---- */
 	bhs_gpu_texture_t bg_tex;	/* Textura do skybox */
-	bhs_gpu_texture_t sphere_tex;	/* Impostor de esfera */
+	bhs_gpu_texture_t sphere_tex;	/* Impostor de esfera (fallback) */
+	
+	/* Texture Cache (Name -> GPU Texture) */
+	struct {
+		char name[32];
+		bhs_gpu_texture_t tex;
+	} tex_cache[32];
+	int tex_cache_count;
 
 	/* ---- Compute Passes ---- */
 	struct bhs_blackhole_pass *bh_pass; /* [NEW] Opaque handle */
+	struct bhs_planet_pass *planet_pass; /* [NEW] 3D Renderer */
 
 	/* ---- Estado da Câmera ---- */
 	bhs_camera_t camera;		/* Posição, rotação, FOV */

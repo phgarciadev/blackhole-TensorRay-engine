@@ -32,4 +32,16 @@ void bhs_image_free(bhs_image_t img);
  */
 bhs_image_t bhs_image_gen_sphere(int size);
 
+struct bhs_planet_desc; /* Forward declare */
+
+/**
+ * @brief Generate a planet surface texture using its procedural definition.
+ * Iterates over UV space (Equirectangular projection) and calls get_surface_color.
+ * 
+ * @param desc Pointer to the planet description dealing with the procedural logic.
+ * @param width Texture width (e.g. 1024)
+ * @param height Texture height (e.g. 512)
+ */
+bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int width, int height);
+
 #endif /* BHS_LIB_LOADER_IMAGE_H */

@@ -15,6 +15,7 @@
 #include "gui-framework/log.h"
 #include "gui-framework/rhi/renderer.h"
 #include "engine/assets/image_loader.h"
+#include "src/simulation/data/planet.h" /* Registry is here */
 
 #include "src/input/input_layer.h"
 #include "src/ui/screens/view_spacetime.h"
@@ -24,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 /* ============================================================================
  * CONSTANTES
@@ -138,6 +140,54 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		}
 	}
 
+	/* 4.1.5. [NEW] Procedural Planet Textures (The Awakening) */
+	{
+		BHS_LOG_INFO("Gerando texturas procedurais dos planetas...");
+		bhs_gpu_device_t dev = bhs_ui_get_gpu_device(app->ui);
+		
+		const struct bhs_planet_registry_entry *entry = bhs_planet_registry_get_head();
+		int count = 0;
+		
+		while (entry && count < 32) {
+			if (entry->getter) {
+				struct bhs_planet_desc desc = entry->getter();
+				BHS_LOG_INFO("  > Gerando surface: %s...", desc.name);
+				
+				/* Generate High-Res Texture (1024x512) */
+				/* Note: Large textures increase boot time. Keep modest for now. */
+				bhs_image_t img = bhs_image_gen_planet_texture(&desc, 1024, 512); // Aumentar resolução aqui
+				
+				if (img.data) {
+					struct bhs_gpu_texture_config conf = {
+						.width = img.width,
+						.height = img.height,
+						.depth = 1,
+						.mip_levels = 1,
+						.array_layers = 1,
+						.format = BHS_FORMAT_RGBA8_UNORM, /* Albedo */
+						.usage = BHS_TEXTURE_SAMPLED | BHS_TEXTURE_TRANSFER_DST,
+						.label = desc.name
+					};
+					
+					bhs_gpu_texture_t tex = NULL;
+					if (bhs_gpu_texture_create(dev, &conf, &tex) == BHS_GPU_OK) {
+						bhs_gpu_texture_upload(tex, 0, 0, img.data, img.width * img.height * 4);
+						
+						/* Cache it */
+						strncpy(app->tex_cache[count].name, desc.name, 31);
+						app->tex_cache[count].tex = tex;
+						count++;
+					}
+					
+					bhs_image_free(img);
+				}
+			}
+			entry = entry->next;
+		}
+		app->tex_cache_count = count;
+		BHS_LOG_INFO("Geradas %d texturas de planetas.", count);
+	}
+
 	/* 4.2. Black Hole Pass (Init) */
 	{
 		bhs_gpu_device_t dev = bhs_ui_get_gpu_device(app->ui);
@@ -149,6 +199,11 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		if (!app->bh_pass) {
 			BHS_LOG_WARN("Compute Pass falhou ao iniciar - Shader faltando?");
 		}
+	}
+
+	/* 4.3. [NEW] Planet 3D Pass */
+	if (bhs_planet_pass_create(app->ui, &app->planet_pass) != 0) {
+		BHS_LOG_ERROR("Falha ao inicializar renderer de planetas.");
 	}
 
 	/* 5. Camera (valores padrão) */
@@ -261,10 +316,24 @@ void app_run(struct app_state *app)
 			.bg_texture = app->bg_tex,
 			.sphere_texture = app->sphere_tex,
 			.bh_texture = bh_tex, /* [NEW] */
-			.show_grid = app->hud.show_grid
+			.show_grid = app->hud.show_grid,
+			.tex_cache = (const struct bhs_planet_tex_entry *)app->tex_cache,
+			.tex_cache_count = app->tex_cache_count
 		};
+		/* app_run call update */
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
-					win_w, win_h, &assets);
+					win_w, win_h, &assets, app->planet_pass);
+
+/* app_shutdown unused var removal */
+	/* 4.2. Black Hole Pass (Init) - removed logic if present or check context. 
+	   Wait, error was in app_shutdown line 376. 
+	   The logical block there was creating 'dev' but not using it?
+	   Let's just remove the line. 
+	*/
+	/* Note: The context of 'unused variable dev' was likely inside the '4.2' block I copy-pasted in replace_file earlier?
+	   No, error said 'app_shutdown'.
+	   Let's target the exact lines.
+	*/
 
 		/* HUD */
 		bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
@@ -313,8 +382,20 @@ void app_shutdown(struct app_state *app)
 		bhs_gpu_texture_destroy(app->bg_tex);
 	if (app->sphere_tex)
 		bhs_gpu_texture_destroy(app->sphere_tex);
+	
+	/* Destroy cached textures */
+	for (int i = 0; i < app->tex_cache_count; i++) {
+		if (app->tex_cache[i].tex)
+			bhs_gpu_texture_destroy(app->tex_cache[i].tex);
+	}
+
+
+/* ... Shutdown ... */
+
 	if (app->bh_pass)
 		bhs_blackhole_pass_destroy(app->bh_pass);
+	if (app->planet_pass)
+		bhs_planet_pass_destroy(app->planet_pass);
 	if (app->ui)
 		bhs_ui_destroy(app->ui);
 	if (app->scene)

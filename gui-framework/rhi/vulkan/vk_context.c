@@ -39,6 +39,8 @@ VkFormat bhs_vk_format(enum bhs_gpu_texture_format fmt) {
     return VK_FORMAT_R32_SFLOAT;
   case BHS_FORMAT_RG32_FLOAT:
     return VK_FORMAT_R32G32_SFLOAT;
+  case BHS_FORMAT_RGB32_FLOAT:
+    return VK_FORMAT_R32G32B32_SFLOAT;
   case BHS_FORMAT_RGBA32_FLOAT:
     return VK_FORMAT_R32G32B32A32_SFLOAT;
   case BHS_FORMAT_DEPTH32_FLOAT:
