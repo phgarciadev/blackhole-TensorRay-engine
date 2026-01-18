@@ -206,6 +206,13 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		BHS_LOG_ERROR("Falha ao inicializar renderer de planetas.");
 	}
 
+	/* 4.4. [NEW] Doppler Fabric */
+	/* Grid denso: 100x100 cobrindo 50x50 unidades (spacing 0.5) */
+	app->fabric = bhs_fabric_create(100, 100, 0.5);
+	if (!app->fabric) {
+		BHS_LOG_ERROR("Falha ao criar Doppler Fabric - sem memória?");
+	}
+
 	/* 5. Camera (valores padrão) */
 	bhs_camera_init(&app->camera);
 
@@ -214,7 +221,9 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	app->time_scale = 1.0;
 	app->accumulated_time = 0.0;
 	app->scenario = APP_SCENARIO_NONE;
+	app->scenario = APP_SCENARIO_NONE;
 	app->should_quit = false;
+	app->show_grid = true; /* [NEW] Default ON for Sci-Fi glory */
 
 	/* 7. Timing */
 	app->last_frame_time = get_time_seconds();
@@ -287,6 +296,15 @@ void app_run(struct app_state *app)
 			accumulator -= PHYSICS_DT;
 			app->accumulated_time += PHYSICS_DT;
 		}
+		
+		/* [NEW] Update visual fabric based on current physics state */
+		if (app->fabric && app->scene) {
+			int n_bodies = 0;
+			const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &n_bodies);
+			/* Update fabric deformation (O(V*B)) */
+			bhs_fabric_update(app->fabric, bodies, n_bodies);
+		}
+
 		app->phys_ms = (get_time_seconds() - t0) * 1000.0;
 
 		/* Rendering */
@@ -316,7 +334,8 @@ void app_run(struct app_state *app)
 			.bg_texture = app->bg_tex,
 			.sphere_texture = app->sphere_tex,
 			.bh_texture = bh_tex, /* [NEW] */
-			.show_grid = app->hud.show_grid,
+			.show_grid = app->show_grid,
+			.fabric = app->fabric, /* [NEW] Pass fabrics to renderer */
 			.tex_cache = (const struct bhs_planet_tex_entry *)app->tex_cache,
 			.tex_cache_count = app->tex_cache_count
 		};
@@ -357,7 +376,7 @@ void app_run(struct app_state *app)
 		app->frame_count++;
 		if (app->frame_count % 30 == 0) {
 			bhs_telemetry_print_scene(app->scene, app->accumulated_time,
-						  app->hud.show_grid, 
+						  app->show_grid, 
 						  app->phys_ms, app->render_ms);
 		}
 	}
@@ -382,6 +401,9 @@ void app_shutdown(struct app_state *app)
 		bhs_gpu_texture_destroy(app->bg_tex);
 	if (app->sphere_tex)
 		bhs_gpu_texture_destroy(app->sphere_tex);
+	
+	if (app->fabric)
+		bhs_fabric_destroy(app->fabric);
 	
 	/* Destroy cached textures */
 	for (int i = 0; i < app->tex_cache_count; i++) {

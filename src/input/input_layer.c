@@ -259,26 +259,25 @@ static void handle_object_interaction(struct app_state *app)
 		int best_idx = -1;
 		float best_dist = 10000.0f;
 
-#include "engine/physics/spacetime/spacetime.h"
-
 		for (int i = 0; i < n_bodies; i++) {
 			float sx, sy;
             
-            /* [FIX] Use Visual Depth for Picking (Match Renderer) */
             float visual_x = (float)bodies[i].state.pos.x;
             float visual_z = (float)bodies[i].state.pos.z;
             float visual_y = (float)bodies[i].state.pos.y;
 
             if (bodies[i].type == BHS_BODY_PLANET) {
-                 /* We need to get the depth from spacetime. 
-                  * Since we don't have spacetime handy here, we can query it from scene 
-                  * or duplicate the logic? Scene has it.
-                  */
-                 bhs_spacetime_t st = bhs_scene_get_spacetime(app->scene);
-                 if (st) {
-                     visual_y = bhs_spacetime_get_depth_at_point(st, visual_x, visual_z);
-                     visual_y *= 8.0f; /* MATCH RENDERER SCALE */
+                 /* Calculate depth based on gravity well (Doppler Logic) */
+                 float potential = 0.0f;
+                 for (int j = 0; j < n_bodies; j++) {
+                     if (i == j) continue; 
+                     float dx = visual_x - bodies[j].state.pos.x;
+                     float dz = visual_z - bodies[j].state.pos.z; 
+                     float r = sqrtf(dx*dx + dz*dz + 0.1f);
+                     potential -= bodies[j].state.mass / r;
                  }
+                 visual_y = potential * 5.0f; 
+                 if (visual_y < -50.0f) visual_y = -50.0f;
             }
 
 			project_point(&app->camera,

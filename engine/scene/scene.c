@@ -6,8 +6,7 @@
 #include "engine/scene/scene.h"
 #include "engine/ecs/ecs.h"
 #include "engine/components/components.h"
-#include "engine/scene/scene.h"
-#include "engine/physics/spacetime/spacetime.h" // Pending verification of path
+// #include "engine/physics/spacetime/spacetime.h" /* REMOVED */
 #include "src/simulation/components/sim_components.h" // Game components
 
 #include <stdio.h>
@@ -20,7 +19,7 @@ extern void bhs_engine_init(void);
 // Temporary storage for legacy get_bodies
 #define MAX_BODIES 128
 static struct bhs_body g_legacy_bodies[MAX_BODIES];
-static bhs_spacetime_t g_spacetime_cache = NULL;
+// static bhs_spacetime_t g_spacetime_cache = NULL; /* REMOVED */
 
 extern bhs_world_handle bhs_engine_get_world_internal(void); // Need a way to get world if opaque
 
@@ -38,7 +37,7 @@ bhs_world_handle bhs_engine_get_world_unsafe(void) {
 
 struct bhs_scene_impl {
 	bhs_world_handle world;
-    bhs_spacetime_t spacetime; // Keep spacetime managed here for now
+    // bhs_spacetime_t spacetime; /* REMOVED */
 };
 
 bhs_scene_t bhs_scene_create(void)
@@ -55,20 +54,9 @@ bhs_scene_t bhs_scene_create(void)
     // Plan: Engine Core owns world. Scene is just a high level helper.
     // For now, let's assume we can get the world or we rely on engine global state commands.
 	
-    /*
-     * Spacetime Grid (malha visual da curvatura)
-     *
-     * Tamanho: 500 unidades (cobre área ao redor do Sol)
-     * Com 1 AU = 50 unidades, o grid cobre ~10 AU de raio.
-     *
-     * Divisões: 80 → células de ~6.25u cada
-     * Isso dá resolução suficiente para ver a curvatura suave.
-     *
-     * Para ver órbitas externas (Saturno em 9.5 AU = 475u),
-     * o grid atual é adequado.
-     */
-    scene->spacetime = bhs_spacetime_create(500.0, 80);
-    g_spacetime_cache = scene->spacetime;
+    /* Spacetime Grid removed - relocated to app_state visualization logic */
+    // scene->spacetime = bhs_spacetime_create(500.0, 80);
+    // g_spacetime_cache = scene->spacetime;
     
     // Connect to Engine World
     extern bhs_world_handle bhs_engine_get_world_internal(void);
@@ -80,7 +68,8 @@ bhs_scene_t bhs_scene_create(void)
 void bhs_scene_destroy(bhs_scene_t scene)
 {
 	if (!scene) return;
-	if (scene->spacetime) bhs_spacetime_destroy(scene->spacetime);
+	if (!scene) return;
+	// if (scene->spacetime) bhs_spacetime_destroy(scene->spacetime);
 	free(scene);
 }
 
@@ -93,6 +82,7 @@ void bhs_scene_init_default(bhs_scene_t scene)
 
 void bhs_scene_update(bhs_scene_t scene, double dt)
 {
+    (void)scene;
     // Run Engine Update
     bhs_engine_update(dt);
 
@@ -100,18 +90,15 @@ void bhs_scene_update(bhs_scene_t scene, double dt)
     // We need to pass bodies to spacetime.
     // This is where we reconstruct the legacy body array for visualization tools
     // that haven't been ported to ECS.
+    // Sync spacetime (visual) -> Moved to App State
     int count = 0;
-    const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
-    
-    if (scene->spacetime) {
-        bhs_spacetime_update(scene->spacetime, bodies, count);
-    }
+    // const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count); /* UNUSED NOW */
+    (void)count; /* Suppress unused warning for count if needed */
+    //     bhs_spacetime_update(scene->spacetime, bodies, count);
+    // }
 }
 
-bhs_spacetime_t bhs_scene_get_spacetime(bhs_scene_t scene)
-{
-	return scene ? scene->spacetime : NULL;
-}
+/* bhs_scene_get_spacetime removed */
 
 bhs_world_handle bhs_scene_get_world(bhs_scene_t scene)
 {
@@ -159,7 +146,7 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 
         // Map Celestial
         if (c) {
-            strncpy(b->name, c->name, 31);
+            snprintf(b->name, sizeof(b->name), "%.31s", c->name);
             if (c->type == BHS_CELESTIAL_PLANET) {
                 b->type = BHS_BODY_PLANET;
                 b->state.radius = c->data.planet.radius;
@@ -263,16 +250,16 @@ bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
         c.type = BHS_CELESTIAL_PLANET;
         c.data.planet.radius = radius;
         c.data.planet.color = color;
-        strncpy(c.name, name ? name : "Planet", 63);
+        snprintf(c.name, sizeof(c.name), "%s", name ? name : "Planet");
     } else if (type == BHS_BODY_BLACKHOLE) {
         c.type = BHS_CELESTIAL_BLACKHOLE;
-        strncpy(c.name, name ? name : "Black Hole", 63);
+        snprintf(c.name, sizeof(c.name), "%s", name ? name : "Black Hole");
     } else if (type == BHS_BODY_STAR) {
         c.type = BHS_CELESTIAL_STAR;
-        strncpy(c.name, name ? name : "Star", 63);
+        snprintf(c.name, sizeof(c.name), "%s", name ? name : "Star");
     } else {
         c.type = BHS_CELESTIAL_ASTEROID;
-        strncpy(c.name, name ? name : "Asteroid", 63);
+        snprintf(c.name, sizeof(c.name), "%s", name ? name : "Asteroid");
     }
     // Note: BHS_COMP_CELESTIAL ID must match what is used in src/
     // Since we included sim_components.h which defines BHS_COMP_CELESTIAL, use that.

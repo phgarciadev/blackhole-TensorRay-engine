@@ -40,11 +40,7 @@ int main(void) {
       return 1;
     }
 
-    if (bhs_scene_get_spacetime(scene) == NULL) {
-      fprintf(stderr, "[FALHA] Spacetime nulo na iteracao %d\n", i);
-      bhs_scene_destroy(scene);
-      return 1;
-    }
+    /* Spacetime check removed (Legacy) */
 
     bhs_scene_destroy(scene);
 

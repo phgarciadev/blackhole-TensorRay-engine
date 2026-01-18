@@ -23,7 +23,9 @@
 #include "gui-framework/rhi/renderer.h"
 #include "src/ui/screens/hud.h"
 #include "src/ui/render/planet_renderer.h"
+#include "src/ui/render/planet_renderer.h"
 #include "src/ui/camera/camera.h"
+#include "include/bhs_fabric.h" /* [NEW] Doppler Fabric */
 
 /* ============================================================================
  * ENUMS DE ESTADO
@@ -87,6 +89,7 @@ struct app_state {
 	/* ---- Compute Passes ---- */
 	struct bhs_blackhole_pass *bh_pass; /* [NEW] Opaque handle */
 	struct bhs_planet_pass *planet_pass; /* [NEW] 3D Renderer */
+	struct bhs_fabric *fabric; /* [NEW] Doppler Visual Fabric */
 
 	/* ---- Estado da Câmera ---- */
 	bhs_camera_t camera;		/* Posição, rotação, FOV */
@@ -107,6 +110,7 @@ struct app_state {
 	int frame_count;		/* Contador de frames */
 
 	/* ---- Flags de Controle ---- */
+	bool show_grid;			/* Show/Hide Doppler Fabric */
 	bool should_quit;		/* Hora de ir embora */
 };
 
