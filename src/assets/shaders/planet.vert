@@ -12,8 +12,8 @@ layout(push_constant) uniform PushConstants {
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 lightPos; /* Sun position */
-    float pad;
+    vec4 lightAndStar; /* xyz = lightPos, w = isStar */
+    vec4 colorParams;  /* xyz = color, w = pad */
 } pc;
 
 void main() {

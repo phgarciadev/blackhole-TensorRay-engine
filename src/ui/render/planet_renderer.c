@@ -38,8 +38,8 @@ struct planet_pc {
 	bhs_mat4_t model;
 	bhs_mat4_t view;
 	bhs_mat4_t proj;
-	float lightPos[3];
-	float pad;
+	float lightAndStar[4]; /* xyz = lightPos, w = isStar */
+	float colorParams[4];  /* xyz = color, w = pad */
 };
 
 /* Private Helper: Load Shader Code */
@@ -288,11 +288,18 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			.model = m_model,
 			.view = mat_view,
 			.proj = mat_proj,
-			.lightPos = {0,0,0},
-			.pad = 0
 		};
-		/* Copy light pos */
-		memcpy(pc.lightPos, light_pos, sizeof(float)*3);
+		
+		/* Fill Parameters */
+		pc.lightAndStar[0] = light_pos[0];
+		pc.lightAndStar[1] = light_pos[1];
+		pc.lightAndStar[2] = light_pos[2];
+		pc.lightAndStar[3] = (b->type == BHS_BODY_STAR) ? 1.0f : 0.0f;
+		
+		pc.colorParams[0] = (float)b->color.x;
+		pc.colorParams[1] = (float)b->color.y;
+		pc.colorParams[2] = (float)b->color.z;
+		pc.colorParams[3] = 0.0f;
 		
 		bhs_gpu_cmd_push_constants(cmd, 0, &pc, sizeof(pc));
 		

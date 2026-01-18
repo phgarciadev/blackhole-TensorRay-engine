@@ -32,6 +32,7 @@ typedef struct {
     double luminosity;
     double temp_effective;
     char spectral_type[8];
+    struct bhs_vec3 color; // Visual color for star
 } bhs_star_component;
 
 /**

@@ -151,9 +151,16 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
                 b->type = BHS_BODY_PLANET;
                 b->state.radius = c->data.planet.radius;
                 b->color = c->data.planet.color;
+                b->prop.planet.density = c->data.planet.density;
+                b->prop.planet.has_atmosphere = c->data.planet.has_atmosphere;
             } else if (c->type == BHS_CELESTIAL_STAR) {
                 b->type = BHS_BODY_STAR;
-                 // Defaults/Map
+                b->prop.star.luminosity = c->data.star.luminosity;
+                b->prop.star.temp_effective = c->data.star.temp_effective;
+                b->color = c->data.star.color;
+                // Star radius is visual only in transform, but we can store if needed.
+                // For now, rely on Transform scale as master for radius.
+                b->state.radius = t->scale.x; 
             } else if (c->type == BHS_CELESTIAL_BLACKHOLE) {
                 b->type = BHS_BODY_BLACKHOLE;
             }
@@ -171,11 +178,58 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
     return g_legacy_bodies;
 }
 
-// LEGACY ADAPTER: Create entity from struct
+// Full-Fidelity Create
 bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
 {
-    return bhs_scene_add_body_named(scene, b.type, b.state.pos, b.state.vel,
-                                    b.state.mass, b.state.radius, b.color, b.name);
+    extern bhs_world_handle bhs_engine_get_world_internal(void);
+    bhs_world_handle world = bhs_engine_get_world_internal();
+    if (!world) return false;
+    (void)scene;
+
+    bhs_entity_id e = bhs_ecs_create_entity(world);
+
+    // Transform
+    bhs_transform_t t = {
+        .position = b.state.pos,
+        .scale = {b.state.radius, b.state.radius, b.state.radius},
+        .rotation = {0,0,0,1} // Quat identity
+    };
+    // Rotation from axis/angle if needed, but simplified for now
+    bhs_ecs_add_component(world, e, BHS_COMP_TRANSFORM, sizeof(t), &t);
+
+    // Physics
+    bhs_physics_t p = {
+        .mass = b.state.mass,
+        .velocity = b.state.vel,
+        .is_static = b.is_fixed
+    };
+    bhs_ecs_add_component(world, e, BHS_COMP_PHYSICS, sizeof(p), &p);
+
+    // Celestial Logic
+    bhs_celestial_component c = {0};
+    snprintf(c.name, sizeof(c.name), "%s", b.name);
+
+    if (b.type == BHS_BODY_PLANET) {
+        c.type = BHS_CELESTIAL_PLANET;
+        c.data.planet.radius = b.state.radius;
+        c.data.planet.color = b.color;
+        c.data.planet.density = b.prop.planet.density;
+        c.data.planet.has_atmosphere = b.prop.planet.has_atmosphere;
+    } else if (b.type == BHS_BODY_STAR) {
+        c.type = BHS_CELESTIAL_STAR;
+        c.data.star.luminosity = b.prop.star.luminosity;
+        c.data.star.temp_effective = b.prop.star.temp_effective;
+        c.data.star.color = b.color;
+    } else if (b.type == BHS_BODY_BLACKHOLE) {
+        c.type = BHS_CELESTIAL_BLACKHOLE;
+        // bh mechanics...
+    } else {
+        c.type = BHS_CELESTIAL_ASTEROID;
+    }
+    
+    bhs_ecs_add_component(world, e, BHS_COMP_CELESTIAL, sizeof(c), &c);
+    
+    return true;
 }
 
 /* Contador global para nomes únicos (lazy, mas funciona) */

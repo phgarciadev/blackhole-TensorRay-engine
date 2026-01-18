@@ -23,6 +23,7 @@
 
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
+#include "math/units.h"
 #include "gui-framework/ui/lib.h"
 #include "gui-framework/log.h"
 
@@ -169,12 +170,11 @@ static void handle_object_interaction(struct app_state *app)
 			const struct bhs_planet_desc desc = 
 				app->hud.req_add_registry_entry->getter();
 
-			#define MASS_SCALE   (1.0 / 1e29)
-			#define RADIUS_SCALE (3.0 / 6.9634e8)
-
 			new_body = bhs_body_create_from_desc(&desc, pos);
-			new_body.state.mass *= MASS_SCALE;
-			new_body.state.radius *= RADIUS_SCALE;
+			
+			/* Use Canonical Unit Conversion (SI -> Sim) */
+			new_body.state.mass = BHS_KG_TO_SIM(new_body.state.mass);
+			new_body.state.radius = BHS_RADIUS_TO_SIM(new_body.state.radius);
 
 			if (new_body.state.mass < 1e-10)
 				new_body.state.mass = 1e-10;

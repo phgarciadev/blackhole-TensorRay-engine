@@ -12,8 +12,8 @@ layout(push_constant) uniform PushConstants {
     mat4 model;
     mat4 view;
     mat4 proj;
-    vec3 lightPos;
-    float pad;
+    vec4 lightAndStar;
+    vec4 colorParams;
 } pc;
 
 void main() {
@@ -22,7 +22,11 @@ void main() {
     
     /* Lighting (Sun) */
     vec3 N = normalize(fragNormal);
-    vec3 L = normalize(pc.lightPos - fragPos); /* Light Direction */
+    /* Extract Params */
+    vec3 lightPos = pc.lightAndStar.xyz;
+    float isStar = pc.lightAndStar.w;
+    
+    vec3 L = normalize(lightPos - fragPos); /* Light Direction */
     
     /* Lambert Diffuse */
     float diff = max(dot(N, L), 0.0);
@@ -32,7 +36,22 @@ void main() {
     
     vec3 lightColor = vec3(1.0, 0.98, 0.9); /* Sun White/Yellow */
     
-    vec3 finalColor = baseColor.rgb * (ambient + diff * lightColor);
+    
+    vec3 finalColor;
+    
+    if (isStar > 0.5) {
+        /* Star is emissive, ignore lighting. 
+           If texture is present, use it. If it's the sun, we want it BRIGHT.
+           Use colorParams to tint the white texture (if generic).
+        */
+        vec3 tint = pc.colorParams.rgb;
+        /* Safety: avoid multiplying by 0 if color passed is 0 (should not happen given factory) */
+        if (length(tint) < 0.01) tint = vec3(1.0);
+        
+        finalColor = baseColor.rgb * tint * 2.0; /* 2.0 brightness */
+    } else {
+        finalColor = baseColor.rgb * (ambient + diff * lightColor);
+    }
     
     outColor = vec4(finalColor, 1.0);
 }

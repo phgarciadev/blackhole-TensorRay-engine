@@ -19,13 +19,22 @@ function(target_compile_shaders target_name)
     # Encontrar arquivos de shader (.c = OpenCL kernel, .comp = GLSL Compute)
     file(GLOB SHADER_SOURCES_CL "${SHADER_SRC_DIR}/*.c")
     file(GLOB SHADER_SOURCES_GLSL "${SHADER_SRC_DIR}/*.comp")
+    file(GLOB SHADER_SOURCES_VERT "${SHADER_SRC_DIR}/*.vert")
+    file(GLOB SHADER_SOURCES_FRAG "${SHADER_SRC_DIR}/*.frag")
     
     # UI Shaders from gui-framework
     set(GUI_SHADER_DIR "${CMAKE_SOURCE_DIR}/gui-framework/ui/render/shaders")
     file(GLOB UI_SHADERS_VERT "${GUI_SHADER_DIR}/*.vert")
     file(GLOB UI_SHADERS_FRAG "${GUI_SHADER_DIR}/*.frag")
 
-    set(SHADER_SOURCES ${SHADER_SOURCES_CL} ${SHADER_SOURCES_GLSL} ${UI_SHADERS_VERT} ${UI_SHADERS_FRAG})
+    set(SHADER_SOURCES 
+        ${SHADER_SOURCES_CL} 
+        ${SHADER_SOURCES_GLSL} 
+        ${SHADER_SOURCES_VERT} 
+        ${SHADER_SOURCES_FRAG} 
+        ${UI_SHADERS_VERT} 
+        ${UI_SHADERS_FRAG}
+    )
 
     if(NOT SHADER_SOURCES)
         message(WARNING "Nenhum shader encontrado em ${SHADER_SRC_DIR}")
