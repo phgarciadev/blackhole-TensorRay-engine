@@ -10,6 +10,7 @@ typedef struct {
 	bool show_fps;
 	bool vsync_enabled;
 	bool show_grid;	       /* Malha espacial visivel? */
+	float fabric_spacing;  /* Tamanho da malha (Slider) */
 	int active_menu_index; /* -1 = none, 0=Config, 1=Add */
 
 	/* Selection State */

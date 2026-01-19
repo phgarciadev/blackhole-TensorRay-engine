@@ -46,6 +46,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 # Módulos Utilitários
 # ==============================================================================
 
+include(AutoDetectEnvironment) # Detecção automática (Wayland/X11/Vulkan/etc)
+include(PlatformValidation)    # Validação e Warnings (Ex: Mac+OpenGL)
+
+
 include(CompilerWarnings)
 include(Sanitizers)
 include(ShaderCompiler)

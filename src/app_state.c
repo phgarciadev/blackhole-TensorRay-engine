@@ -299,6 +299,12 @@ void app_run(struct app_state *app)
 		
 		/* [NEW] Update visual fabric based on current physics state */
 		if (app->fabric && app->scene) {
+			/* Sync HUD Slider -> Fabric Spacing */
+			/* Check diff with epsilon to avoid spam */
+			if (fabs(app->hud.fabric_spacing - app->fabric->spacing) > 0.01) {
+				bhs_fabric_set_spacing(app->fabric, (double)app->hud.fabric_spacing);
+			}
+
 			int n_bodies = 0;
 			const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &n_bodies);
 			/* Update fabric deformation (O(V*B)) */

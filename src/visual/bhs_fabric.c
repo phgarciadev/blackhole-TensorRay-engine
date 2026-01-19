@@ -254,3 +254,31 @@ void bhs_fabric_update(struct bhs_fabric *fabric,
 		}
 	}
 }
+
+void bhs_fabric_set_spacing(struct bhs_fabric *fabric, double new_spacing)
+{
+	uint32_t x, y;
+
+	if (!fabric || new_spacing <= 0.001)
+		return;
+
+	fabric->spacing = new_spacing;
+
+	/* Recalcula posições de repouso */
+	double offset_x = (fabric->width * new_spacing) / 2.0;
+	double offset_y = (fabric->height * new_spacing) / 2.0;
+
+	for (y = 0; y < fabric->height; y++) {
+		for (x = 0; x < fabric->width; x++) {
+			struct bhs_fabric_vertex *v = &fabric->vertices[y * fabric->width + x];
+			v->pos.x = (x * new_spacing) - offset_x;
+			v->pos.y = (y * new_spacing) - offset_y;
+			v->pos.z = 0.0;
+
+			/* Reset visual state to avoid interpolation glitches */
+			v->cur = v->pos;
+			v->potential = 0.0;
+		}
+	}
+}
+

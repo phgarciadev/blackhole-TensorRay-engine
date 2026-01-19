@@ -95,4 +95,14 @@ void bhs_fabric_destroy(struct bhs_fabric *fabric);
 void bhs_fabric_update(struct bhs_fabric *fabric, const struct bhs_body *bodies,
 		       uint32_t n_bodies);
 
+/**
+ * bhs_fabric_set_spacing - Atualiza o espaçamento entre vértices (zoom)
+ * @fabric: O tecido
+ * @new_spacing: Novo espaçamento (> 0.0)
+ *
+ * Recalcula as posições de repouso (pos) e reinicia o estado atual (cur)
+ * para a nova grade plana, preservando a topologia.
+ */
+void bhs_fabric_set_spacing(struct bhs_fabric *fabric, double new_spacing);
+
 #endif /* BHS_FABRIC_H */
