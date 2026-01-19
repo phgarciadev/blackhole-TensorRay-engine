@@ -84,7 +84,7 @@ static void handle_camera_input(struct app_state *app, double dt)
 /**
  * Processa controles de simulação (pause, time scale)
  */
-static void handle_simulation_input(struct app_state *app)
+static void handle_simulation_input(struct app_state *app, double dt)
 {
 	/* Toggle pause com Space */
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_SPACE)) {
@@ -109,6 +109,16 @@ static void handle_simulation_input(struct app_state *app)
 		app_set_time_scale(app, 2.0);
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_5))
 		app_set_time_scale(app, 4.0);
+		
+	/* Grid Size Control Keys: 9 and 0 */
+	if (bhs_ui_key_down(app->ui, BHS_KEY_9)) {
+		app->hud.fabric_size_val -= 0.5f * dt; /* Slow decrease */
+		if (app->hud.fabric_size_val < 0.0f) app->hud.fabric_size_val = 0.0f;
+	}
+	if (bhs_ui_key_down(app->ui, BHS_KEY_0)) {
+		app->hud.fabric_size_val += 0.5f * dt;
+		if (app->hud.fabric_size_val > 1.0f) app->hud.fabric_size_val = 1.0f;
+	}
 }
 
 /**
@@ -323,7 +333,7 @@ void input_process_frame(struct app_state *app, double dt)
 		return;
 
 	handle_global_input(app);
-	handle_simulation_input(app);
+	handle_simulation_input(app, dt);
 	handle_camera_input(app, dt);
 	handle_object_interaction(app);
 }

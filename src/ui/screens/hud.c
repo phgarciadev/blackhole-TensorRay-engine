@@ -13,6 +13,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->vsync_enabled = true;
 		state->show_grid = false; /* Começa desligado */
 		state->fabric_slider_val = 0.259f; /* Default Scale (0.5 unit) */
+		state->fabric_size_val = 0.2f;     /* [NEW] Default Size (approx 100x100 if mapped) */
 		state->active_menu_index = -1;
 		state->selected_body_index = -1;
 		state->req_delete_body = false;
@@ -128,6 +129,19 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			y += 12.0f;
 			item_rect.y = y;
 			bhs_ui_slider(ctx, item_rect, &state->fabric_slider_val);
+
+			y += 28.0f;
+			item_rect.y = y;
+			
+			/* [NEW] Grid Size Control */
+			int current_res = (int)(50 + state->fabric_size_val * 450.0f); /* 50..500 */
+			char size_label[64];
+			snprintf(size_label, 64, "Grid Size: %dx%d (%d verts)", current_res, current_res, current_res*current_res);
+			
+			bhs_ui_draw_text(ctx, size_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
+			y += 12.0f;
+			item_rect.y = y;
+			bhs_ui_slider(ctx, item_rect, &state->fabric_size_val);
 
 			y += 28.0f;
 			item_rect.y = y;

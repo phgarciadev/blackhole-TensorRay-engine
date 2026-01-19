@@ -30,7 +30,7 @@ struct bhs_render_batch {
 	uint32_t count;
 };
 
-#define BHS_MAX_VERTICES 262144
+#define BHS_MAX_VERTICES 4000000 /* ~128MB for vertices, supports 500x500 dense grid */
 #define BHS_MAX_INDICES (BHS_MAX_VERTICES * 6)
 
 /* ============================================================================

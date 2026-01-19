@@ -61,7 +61,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 
 	/* 0. Logging (PRIMEIRO - antes de qualquer log) */
 	bhs_log_init();
-	bhs_log_set_level(BHS_LOG_LEVEL_INFO);
+	bhs_log_set_level(BHS_LOG_LEVEL_DEBUG); /* [DEBUG] Force Debug Level */
 	BHS_LOG_INFO("=== BlackHole TensorRay - Inicializando ===");
 
 	/* 1. Scene / Engine Memory */
@@ -208,7 +208,14 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	}
 
 	/* 4.4. [NEW] Doppler Fabric */
-	/* Grid denso: 100x100 cobrindo 50x50 unidades (spacing 0.5) */
+	/* Grid denso: 100x100 cobrindo 50x50 unidades */
+	/* Uses HUD default state: size val 0.2 -> ~140? No, let's match initial.
+	   Wait, HUD init sets 0.2 -> 50 + 0.2*450 = 140.
+	   Let's init with 100 to match prev.
+	   And set HUD to match 100? 
+	   (100 - 50) / 450 = 50/450 = 0.111
+	*/
+	app->hud.fabric_size_val = 0.1111f; /* Force sync start */
 	app->fabric = bhs_fabric_create(100, 100, 0.5);
 	if (!app->fabric) {
 		BHS_LOG_ERROR("Falha ao criar Doppler Fabric - sem memória?");
@@ -307,6 +314,23 @@ void app_run(struct app_state *app)
 			/* Check diff with epsilon to avoid spam */
 			if (fabs(target_spacing - app->fabric->spacing) > 0.001) {
 				bhs_fabric_set_spacing(app->fabric, (double)target_spacing);
+			}
+
+			/* Sync HUD Slider -> Fabric Resolution (Resize) */
+			/* Mapping: 0..1 -> 50..500 */
+			uint32_t target_res = (uint32_t)(50 + app->hud.fabric_size_val * 450.0f);
+			if (app->fabric->width != target_res) {
+				/* Resize requested! */
+				/* WARNING: Heavy operation inside loop. Done only on release or drag? 
+				   Doing it live. */
+				double current_spacing = app->fabric->spacing;
+				bhs_fabric_destroy(app->fabric);
+				
+				app->fabric = bhs_fabric_create(target_res, target_res, current_spacing);
+				if (!app->fabric) {
+					BHS_LOG_FATAL("OOM ao redimensionar grid! Tentando fallback...");
+					app->fabric = bhs_fabric_create(50, 50, current_spacing);
+				}
 			}
 
 			int n_bodies = 0;
