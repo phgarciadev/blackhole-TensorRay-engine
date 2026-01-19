@@ -13,6 +13,7 @@
 #include "simulation/systems/systems.h" // [NEW] Logic Systems
 
 #include "gui-framework/log.h"
+#include <math.h> /* [NEW] for powf/fabs */
 #include "gui-framework/rhi/renderer.h"
 #include "engine/assets/image_loader.h"
 #include "src/simulation/data/planet.h" /* Registry is here */
@@ -299,10 +300,13 @@ void app_run(struct app_state *app)
 		
 		/* [NEW] Update visual fabric based on current physics state */
 		if (app->fabric && app->scene) {
-			/* Sync HUD Slider -> Fabric Spacing */
+			/* Sync HUD Slider -> Fabric Spacing (Exponential) */
+			/* Formula: 0.1 * 500^val */
+			float target_spacing = 0.1f * powf(500.0f, app->hud.fabric_slider_val);
+			
 			/* Check diff with epsilon to avoid spam */
-			if (fabs(app->hud.fabric_spacing - app->fabric->spacing) > 0.01) {
-				bhs_fabric_set_spacing(app->fabric, (double)app->hud.fabric_spacing);
+			if (fabs(target_spacing - app->fabric->spacing) > 0.001) {
+				bhs_fabric_set_spacing(app->fabric, (double)target_spacing);
 			}
 
 			int n_bodies = 0;

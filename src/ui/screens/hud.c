@@ -1,4 +1,5 @@
 #include "hud.h"
+#include <math.h> /* [NEW] for powf */
 #include "src/simulation/data/planet.h"
 #include <stdio.h>
 
@@ -11,7 +12,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_fps = true;
 		state->vsync_enabled = true;
 		state->show_grid = false; /* Começa desligado */
-		state->fabric_spacing = 0.5f; /* Default Scale */
+		state->fabric_slider_val = 0.259f; /* Default Scale (0.5 unit) */
 		state->active_menu_index = -1;
 		state->selected_body_index = -1;
 		state->req_delete_body = false;
@@ -118,10 +119,15 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 			y += 28.0f;
 			item_rect.y = y;
-			bhs_ui_draw_text(ctx, "Grid Scale", panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
+			/* Calculate real spacing for display: 0.1 * 500^val */
+			float display_spacing = 0.1f * powf(500.0f, state->fabric_slider_val);
+			char grid_label[64];
+			snprintf(grid_label, 64, "Grid Scale: %.2f", display_spacing);
+
+			bhs_ui_draw_text(ctx, grid_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
 			y += 12.0f;
 			item_rect.y = y;
-			bhs_ui_slider(ctx, item_rect, &state->fabric_spacing);
+			bhs_ui_slider(ctx, item_rect, &state->fabric_slider_val);
 
 			y += 28.0f;
 			item_rect.y = y;
