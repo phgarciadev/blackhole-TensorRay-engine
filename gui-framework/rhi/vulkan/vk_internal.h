@@ -122,6 +122,12 @@ struct bhs_gpu_swapchain_impl {
   VkRenderPass render_pass;
   VkFramebuffer framebuffers[BHS_VK_MAX_SWAPCHAIN_IMAGES];
 
+  /* Depth Buffer (compartilhado entre todas as imagens do swapchain) */
+  VkImage depth_image;
+  VkImageView depth_view;
+  VkDeviceMemory depth_memory;
+  VkFormat depth_format;
+
   uint32_t current_image;
   VkSemaphore image_available[BHS_VK_MAX_FRAMES_IN_FLIGHT];
   VkSemaphore render_finished[BHS_VK_MAX_FRAMES_IN_FLIGHT];

@@ -205,7 +205,7 @@ int bhs_gpu_pipeline_create(bhs_gpu_device_t device,
 	/* 2. Render Pass Temporário (para criação do pipeline) */
 	/* NOTA: Vulkan exige um RenderPass compatível na criação.
      Criamos um dummy aqui que bate com a configuração esperada. */
-	VkAttachmentDescription attachments[8];
+	VkAttachmentDescription attachments[9]; /* 8 color + 1 depth */
 	VkAttachmentReference color_refs[8];
 	uint32_t att_count = 0;
 
@@ -226,11 +226,33 @@ int bhs_gpu_pipeline_create(bhs_gpu_device_t device,
 		att_count++;
 	}
 
+	/* Depth Attachment (se necessário) */
+	VkAttachmentReference depth_ref = {0};
+	VkAttachmentReference *p_depth_ref = NULL;
+
+	if (config->depth_test || config->depth_write) {
+		attachments[att_count] = (VkAttachmentDescription){
+			.format = bhs_vk_format(config->depth_format),
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		};
+
+		depth_ref.attachment = att_count;
+		depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		p_depth_ref = &depth_ref;
+		att_count++;
+	}
+
 	VkSubpassDescription subpass = {
 		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 		.colorAttachmentCount = config->color_format_count,
 		.pColorAttachments = color_refs,
-		.pDepthStencilAttachment = NULL,
+		.pDepthStencilAttachment = p_depth_ref,
 	};
 
 	VkRenderPassCreateInfo rp_info = {
@@ -827,14 +849,19 @@ void bhs_gpu_cmd_begin_render_pass(bhs_gpu_cmd_buffer_t cmd,
 		return;
 	}
 
+	/* Clear Values: [0] = Cor, [1] = Depth */
+	VkClearValue clear_values[2] = {
+		{ .color = { { 0.1f, 0.1f, 0.1f, 1.0f } } },
+		{ .depthStencil = { 1.0f, 0 } },
+	};
+
 	VkRenderPassBeginInfo rp_info = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderPass = target_rp,
 		.framebuffer = sc->framebuffers[sc->current_image],
 		.renderArea = { .offset = { 0, 0 }, .extent = sc->extent },
-		.clearValueCount = 1,
-		.pClearValues =
-			&(VkClearValue){ { { 0.1f, 0.1f, 0.1f, 1.0f } } },
+		.clearValueCount = 2,
+		.pClearValues = clear_values,
 	};
 
 	vkCmdBeginRenderPass(cmd->cmd, &rp_info, VK_SUBPASS_CONTENTS_INLINE);

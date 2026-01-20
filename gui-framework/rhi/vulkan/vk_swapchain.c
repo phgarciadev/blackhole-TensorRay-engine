@@ -35,6 +35,20 @@ static void _cleanup_swapchain_resources(struct bhs_gpu_swapchain_impl *sc) {
     }
   }
 
+  /* Limpa Depth Buffer */
+  if (sc->depth_view) {
+    vkDestroyImageView(sc->device->device, sc->depth_view, NULL);
+    sc->depth_view = VK_NULL_HANDLE;
+  }
+  if (sc->depth_image) {
+    vkDestroyImage(sc->device->device, sc->depth_image, NULL);
+    sc->depth_image = VK_NULL_HANDLE;
+  }
+  if (sc->depth_memory) {
+    vkFreeMemory(sc->device->device, sc->depth_memory, NULL);
+    sc->depth_memory = VK_NULL_HANDLE;
+  }
+
   if (sc->render_pass) {
     vkDestroyRenderPass(sc->device->device, sc->render_pass, NULL);
     sc->render_pass = VK_NULL_HANDLE;
@@ -131,16 +145,94 @@ static int _create_swapchain_resources(struct bhs_gpu_swapchain_impl *sc,
     sc->texture_wrappers[i].owns_image = false;
   }
 
-  /* RenderPass Padrão */
-  VkAttachmentDescription color_attachment = {
-      .format = sc->format,
+  /* =========================================================================
+   * DEPTH BUFFER - Porque profundidade importa, caralho!
+   * ========================================================================= */
+  sc->depth_format = VK_FORMAT_D32_SFLOAT;
+
+  VkImageCreateInfo depth_image_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = sc->depth_format,
+      .extent = {sc->extent.width, sc->extent.height, 1},
+      .mipLevels = 1,
+      .arrayLayers = 1,
       .samples = VK_SAMPLE_COUNT_1_BIT,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-      .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-      .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  };
+
+  if (vkCreateImage(device->device, &depth_image_info, NULL,
+                    &sc->depth_image) != VK_SUCCESS) {
+    return BHS_GPU_ERR_DEVICE;
+  }
+
+  /* Aloca memória pro depth buffer */
+  VkMemoryRequirements mem_reqs;
+  vkGetImageMemoryRequirements(device->device, sc->depth_image, &mem_reqs);
+
+  VkMemoryAllocateInfo alloc_info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = mem_reqs.size,
+      .memoryTypeIndex = bhs_vk_find_memory_type(
+          device, mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+  };
+
+  if (vkAllocateMemory(device->device, &alloc_info, NULL, &sc->depth_memory) !=
+      VK_SUCCESS) {
+    return BHS_GPU_ERR_NOMEM;
+  }
+
+  vkBindImageMemory(device->device, sc->depth_image, sc->depth_memory, 0);
+
+  /* View pro depth buffer */
+  VkImageViewCreateInfo depth_view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = sc->depth_image,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = sc->depth_format,
+      .subresourceRange = {
+          .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1,
+      },
+  };
+
+  if (vkCreateImageView(device->device, &depth_view_info, NULL,
+                        &sc->depth_view) != VK_SUCCESS) {
+    return BHS_GPU_ERR_DEVICE;
+  }
+
+  /* =========================================================================
+   * RENDER PASS - Agora com depth attachment!
+   * ========================================================================= */
+  VkAttachmentDescription attachments[2] = {
+      /* [0] Color Attachment */
+      {
+          .format = sc->format,
+          .samples = VK_SAMPLE_COUNT_1_BIT,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+      },
+      /* [1] Depth Attachment */
+      {
+          .format = sc->depth_format,
+          .samples = VK_SAMPLE_COUNT_1_BIT,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      },
   };
 
   VkAttachmentReference color_attachment_ref = {
@@ -148,18 +240,39 @@ static int _create_swapchain_resources(struct bhs_gpu_swapchain_impl *sc,
       .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
   };
 
+  VkAttachmentReference depth_attachment_ref = {
+      .attachment = 1,
+      .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+  };
+
   VkSubpassDescription subpass = {
       .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
       .colorAttachmentCount = 1,
       .pColorAttachments = &color_attachment_ref,
+      .pDepthStencilAttachment = &depth_attachment_ref,
+  };
+
+  /* Dependência para garantir que depth buffer está pronto */
+  VkSubpassDependency dependency = {
+      .srcSubpass = VK_SUBPASS_EXTERNAL,
+      .dstSubpass = 0,
+      .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+      .srcAccessMask = 0,
+      .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+      .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
   };
 
   VkRenderPassCreateInfo render_pass_info = {
       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-      .attachmentCount = 1,
-      .pAttachments = &color_attachment,
+      .attachmentCount = 2,
+      .pAttachments = attachments,
       .subpassCount = 1,
       .pSubpasses = &subpass,
+      .dependencyCount = 1,
+      .pDependencies = &dependency,
   };
 
   if (vkCreateRenderPass(device->device, &render_pass_info, NULL,
@@ -167,14 +280,16 @@ static int _create_swapchain_resources(struct bhs_gpu_swapchain_impl *sc,
     return BHS_GPU_ERR_DEVICE;
   }
 
-  /* Framebuffers */
+  /* =========================================================================
+   * FRAMEBUFFERS - Agora com 2 attachments (cor + depth)
+   * ========================================================================= */
   for (uint32_t i = 0; i < sc->image_count; i++) {
-    VkImageView attachments[] = {sc->views[i]};
+    VkImageView fb_attachments[] = {sc->views[i], sc->depth_view};
     VkFramebufferCreateInfo framebuffer_info = {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .renderPass = sc->render_pass,
-        .attachmentCount = 1,
-        .pAttachments = attachments,
+        .attachmentCount = 2,
+        .pAttachments = fb_attachments,
         .width = sc->extent.width,
         .height = sc->extent.height,
         .layers = 1,
