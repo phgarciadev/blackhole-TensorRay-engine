@@ -94,7 +94,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 
 	/* 4. Assets - Skybox */
 	BHS_LOG_INFO("Carregando assets...");
-	bhs_image_t bg_img = bhs_image_load("assets/textures/space_bg.png");
+	bhs_image_t bg_img = bhs_image_load("src/assets/textures/space_bg.png");
 	if (bg_img.data) {
 		struct bhs_gpu_texture_config tex_conf = {
 			.width = bg_img.width,

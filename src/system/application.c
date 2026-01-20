@@ -55,7 +55,7 @@ bool bhs_app_init(bhs_app_t *app)
 
     // 4.1 Skybox
     BHS_LOG_INFO("Loading Assets...");
-    bhs_image_t bg_img = bhs_image_load("assets/textures/space_bg.png");
+    bhs_image_t bg_img = bhs_image_load("src/assets/textures/space_bg.png");
     if (bg_img.data) {
         struct bhs_gpu_texture_config tex_conf = {
 			.width = bg_img.width,
