@@ -55,14 +55,15 @@ void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			   UI is likely already inside a RenderPass (the Swapchain one).
 			   The 3D pipeline expects to run inside A render pass.
 			   Since we share the framebuffer, we should inherit it.
-			   How to deal with `bhs_gpu_cmd_begin_render_pass` inside `bhs_planet_pass_draw`?
-			   I implemented `bhs_planet_pass_draw` WITHOUT `begin_render_pass`. It just draws.
-			   So we are good IF we are inside one.
-			   The UI `draw_frame` usually starts one.
-			   But `bhs_ui_draw_...` queues commands? Or records immediately?
-			   Immediate recording.
+			   
+			   [FIX] Flush UI batch so it doesn't get drawn with the WRONG pipeline later.
 			*/
+			bhs_ui_flush(ctx);
+
 			bhs_planet_pass_draw(planet_pass, cmd, scene, cam, assets, (float)width, (float)height);
+			
+			/* [FIX] Restore UI Pipeline State because planet_pass hijacked it */
+			bhs_ui_reset_render_state(ctx);
 		}
 	}
 }

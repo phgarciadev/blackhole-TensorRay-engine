@@ -230,7 +230,7 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx)
 		.blend_state_count = 1,
 		.color_formats = &color_fmt,
 		.color_format_count = 1,
-		.depth_stencil_format = BHS_FORMAT_UNDEFINED,
+		.depth_stencil_format = BHS_FORMAT_DEPTH32_FLOAT,
 		.label = "UI Pipeline 2D",
 	};
 
@@ -269,6 +269,21 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx)
 	};
 	bhs_gpu_sampler_create(ctx->device, &sam_cfg, &ctx->default_sampler);
 
+	/* 6. Depth Texture for 3D Planets */
+	struct bhs_gpu_texture_config depth_cfg = {
+		.width = (uint32_t)ctx->width,
+		.height = (uint32_t)ctx->height,
+		.depth = 1,
+		.format = BHS_FORMAT_DEPTH32_FLOAT,
+		.usage = BHS_TEXTURE_DEPTH_STENCIL,
+		.mip_levels = 1,
+		.array_layers = 1,
+		.label = "UI Depth Buffer",
+	};
+	if (bhs_gpu_texture_create(ctx->device, &depth_cfg, &ctx->depth_texture) != BHS_GPU_OK) {
+		return BHS_UI_ERR_GPU;
+	}
+
 	return BHS_UI_OK;
 }
 
@@ -283,6 +298,8 @@ void bhs_ui_render_shutdown_internal(bhs_ui_ctx_t ctx)
 		bhs_gpu_texture_destroy(ctx->white_texture);
 	if (ctx->default_sampler)
 		bhs_gpu_sampler_destroy(ctx->default_sampler);
+	if (ctx->depth_texture)
+		bhs_gpu_texture_destroy(ctx->depth_texture);
 
 	bhs_gpu_buffer_unmap(ctx->vertex_buffer);
 	bhs_gpu_buffer_unmap(ctx->index_buffer);
@@ -312,10 +329,19 @@ void bhs_ui_render_begin(bhs_ui_ctx_t ctx)
 		.store_action = BHS_STORE_STORE,
 		.clear_color = { 0.1f, 0.1f, 0.1f, 1.0f },
 	};
+	
+	struct bhs_gpu_depth_attachment depth_att = {
+		.texture = ctx->depth_texture,
+		.load_action = BHS_LOAD_CLEAR,
+		.store_action = BHS_STORE_DONT_CARE,
+		.clear_depth = 1.0f,
+		.clear_stencil = 0,
+	};
 
 	struct bhs_gpu_render_pass pass = {
 		.color_attachments = &color_att,
 		.color_attachment_count = 1,
+		.depth_attachment = &depth_att,
 	};
 
 	/* bhs_gpu_cmd_reset(ctx->cmd); REMOVED: Managed externally via
@@ -761,4 +787,36 @@ void bhs_ui_draw_circle_fill(bhs_ui_ctx_t ctx, float cx, float cy, float radius,
 		ctx->index_count += 3;
 		ctx->current_batch.count += 3;
 	}
+}
+
+void bhs_ui_flush(bhs_ui_ctx_t ctx)
+{
+	if (ctx)
+		flush_batch(ctx);
+}
+
+void bhs_ui_reset_render_state(bhs_ui_ctx_t ctx)
+{
+	if (!ctx || !ctx->cmd)
+		return;
+
+	/* Restore Viewport/Scissor */
+	bhs_gpu_cmd_set_viewport(ctx->cmd, 0, 0, (float)ctx->width,
+				 (float)ctx->height, 0.0f, 1.0f);
+	bhs_gpu_cmd_set_scissor(ctx->cmd, 0, 0, ctx->width, ctx->height);
+	
+	/* Restore Pipeline */
+	bhs_gpu_cmd_set_pipeline(ctx->cmd, ctx->pipeline_2d);
+
+	/* Restore Constants */
+	float push[4];
+	push[0] = 2.0f / ctx->width;
+	push[1] = 2.0f / ctx->height;
+	push[2] = -1.0f;
+	push[3] = -1.0f;
+	bhs_gpu_cmd_push_constants(ctx->cmd, 0, push, sizeof(push));
+
+	/* Restore Buffers */
+	bhs_gpu_cmd_set_vertex_buffer(ctx->cmd, 0, ctx->vertex_buffer, 0);
+	bhs_gpu_cmd_set_index_buffer(ctx->cmd, ctx->index_buffer, 0, true);
 }

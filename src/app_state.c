@@ -379,7 +379,8 @@ void app_run(struct app_state *app)
 			.show_grid = app->show_grid,
 			.fabric = app->fabric, /* [NEW] Pass fabrics to renderer */
 			.tex_cache = (const struct bhs_planet_tex_entry *)app->tex_cache,
-			.tex_cache_count = app->tex_cache_count
+			.tex_cache_count = app->tex_cache_count,
+			.render_3d_active = (app->planet_pass != NULL)
 		};
 		/* app_run call update */
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,

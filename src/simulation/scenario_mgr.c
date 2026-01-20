@@ -185,28 +185,20 @@ static bool load_binary_star(struct app_state *app)
 
 static bool load_debug(struct app_state *app)
 {
-	BHS_LOG_INFO("Carregando cenário de debug...");
+	BHS_LOG_INFO("Carregando cenário de debug (SINGLE PLANET)...");
 
-	struct bhs_vec3 center = { 0, 0, 0 };
-	struct bhs_vec3 zero = { 0, 0, 0 };
-	struct bhs_vec3 black = { 0, 0, 0 };
-
-	bhs_scene_add_body(app->scene, BHS_BODY_BLACKHOLE, center, zero,
-			   10.0, 2.0, black);
-
-	double r = 15.0;
-	double v = sqrt(10.0 / r);
+	/* Single Planet at (30, 0, 0) */
+	/* Radius 1.0 (will be scaled x30 visually = 30.0) */
+	/* Should be HUGE on screen if camera is at (0, 20, -40) looking at (0,0,0) */
+	/* Wait, (30, 0, 0) is to the RIGHT. */
+	
+	/* Let's put it DEAD CENTER 0,0,0 to be sure */
 	bhs_scene_add_body(app->scene, BHS_BODY_PLANET,
-		(struct bhs_vec3){ r, 0, 0 },
-		(struct bhs_vec3){ 0, 0, v },
-		0.1, 0.5, (struct bhs_vec3){ 0.3, 0.5, 1.0 });
-
-	r = 25.0;
-	v = sqrt(10.0 / r);
-	bhs_scene_add_body(app->scene, BHS_BODY_PLANET,
-		(struct bhs_vec3){ 0, 0, r },
-		(struct bhs_vec3){ v, 0, 0 },
-		0.15, 0.6, (struct bhs_vec3){ 1.0, 0.5, 0.3 });
+		(struct bhs_vec3){ 0, 0, 0 },     /* Pos 0,0,0 */
+		(struct bhs_vec3){ 0, 0, 0 },     /* Static */
+		1.0, 1.0,                         /* Mass, Radius=1.0 */
+		(struct bhs_vec3){ 1.0, 0.0, 1.0 } /* Magenta Color */
+	);
 
 	return true;
 }

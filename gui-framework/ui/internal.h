@@ -78,6 +78,7 @@ struct bhs_ui_ctx_impl {
   /* Sincronização por frame */
   bhs_gpu_fence_t fence_frame;
   bhs_gpu_texture_t current_texture; /* Textura do frame atual */
+  bhs_gpu_texture_t depth_texture;   /* Textura de profundidade (para 3D) */
 
   /* === Estado da janela === */
   int32_t width;

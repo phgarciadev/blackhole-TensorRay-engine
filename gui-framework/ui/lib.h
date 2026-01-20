@@ -215,6 +215,18 @@ void *bhs_ui_get_gpu_device(bhs_ui_ctx_t ctx);
 void *bhs_ui_get_current_cmd(bhs_ui_ctx_t ctx);
 
 /**
+ * bhs_ui_flush - Força o envio do batch atual para a GPU
+ * Útil antes de mudar o pipeline manualmente.
+ */
+void bhs_ui_flush(bhs_ui_ctx_t ctx);
+
+/**
+ * bhs_ui_reset_render_state - Restaura o pipeline e estado da UI
+ * Útil após desenhar coisas customizadas que alteram o pipeline.
+ */
+void bhs_ui_reset_render_state(bhs_ui_ctx_t ctx);
+
+/**
  * bhs_ui_begin_drawing - Inicia explicitamente o Render Pass
  *
  * Se você usar isso, bhs_ui_begin_frame NÃO iniciará o render pass

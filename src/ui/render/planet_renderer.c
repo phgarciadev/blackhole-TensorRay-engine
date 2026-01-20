@@ -34,20 +34,67 @@ struct bhs_planet_pass {
 };
 
 /* Push Constants matching shader */
+/* Push Constants matching shader (PACKED to 128 bytes) */
 struct planet_pc {
-	bhs_mat4_t model;
-	bhs_mat4_t view;
-	bhs_mat4_t proj;
-	float lightAndStar[4]; /* xyz = lightPos, w = isStar */
-	float colorParams[4];  /* xyz = color, w = pad */
-};
+	bhs_mat4_t viewProj;    /* 64 bytes */
+	float modelParams[4];   /* xyz=pos, w=radius */
+	float rotParams[4];     /* xyz=axis, w=angle */
+	float lightAndStar[4];  /* xyz=lightPos, w=isStar */
+	float colorParams[4];   /* xyz=color, w=pad */
+}; /* Total 128 bytes */
+
+/* Helper: Gravity Depth (Copied from spacetime_renderer.c to match grid) */
+static float calculate_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
+{
+	if (!bodies || n_bodies == 0) return 0.0f;
+	
+	float potential = 0.0f;
+	for (int i = 0; i < n_bodies; i++) {
+		float dx = x - bodies[i].state.pos.x;
+		float dz = z - bodies[i].state.pos.z;
+		
+		float dist_sq = dx*dx + dz*dz;
+		float dist = sqrtf(dist_sq + 0.1f);
+		
+		double eff_mass = bodies[i].state.mass;
+		if (bodies[i].type == BHS_BODY_PLANET) {
+			eff_mass *= 5000.0; /* Match bhs_fabric visual boost */
+		}
+		
+		potential -= (eff_mass) / dist;
+	}
+	float depth = potential * 5.0f;
+	if (depth < -50.0f) depth = -50.0f;
+	return depth;
+}
 
 /* Private Helper: Load Shader Code */
-static int load_shader(bhs_gpu_device_t dev, const char *path, enum bhs_gpu_shader_stage stage, bhs_gpu_shader_t *out) {
-	/* TODO: Use a proper file reader. Using stdio for now as fallback if `lib.h` doesn't provide FS. */
-	/* gui-framework/platform/fs.h? Let's assume standard C for now or check usage */
-	FILE *f = fopen(path, "rb");
-	if (!f) return BHS_GPU_ERR_INVALID;
+static int load_shader(bhs_gpu_device_t dev, const char *rel_path, enum bhs_gpu_shader_stage stage, bhs_gpu_shader_t *out) {
+	/* Try multiple prefixes to find the shader */
+	const char *prefixes[] = {
+		"",                      /* If running from bin/ or if assets are in CWD */
+		"build/bin/",            /* If running from root and shaders are in build */
+		"../",                   /* If running from some subdir */
+		"bin/",                  /* Generic */
+		"assets/"                /* Redundant check */
+	};
+	
+	FILE *f = NULL;
+	char full_path[512];
+	
+	for (int i = 0; i < 5; i++) {
+		snprintf(full_path, sizeof(full_path), "%s%s", prefixes[i], rel_path);
+		f = fopen(full_path, "rb");
+		if (f) {
+			BHS_LOG_INFO("Shader found at: %s", full_path);
+			break;
+		}
+	}
+
+	if (!f) {
+		BHS_LOG_ERROR("Shader NOT found: %s (checked common paths)", rel_path);
+		return BHS_GPU_ERR_INVALID;
+	}
 	
 	fseek(f, 0, SEEK_END);
 	long size = ftell(f);
@@ -67,6 +114,11 @@ static int load_shader(bhs_gpu_device_t dev, const char *path, enum bhs_gpu_shad
 	
 	int res = bhs_gpu_shader_create(dev, &conf, out);
 	free(code);
+	
+	if (res != 0) {
+		BHS_LOG_ERROR("Shader compilation/create failed for: %s", full_path);
+	}
+	
 	return res;
 }
 
@@ -135,12 +187,7 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 		.per_instance = false
 	};
 	
-	enum bhs_gpu_texture_format color_fmt = BHS_FORMAT_BGRA8_UNORM; /* Swapchain typical */
-	/* Warning: Should match actual render pass format. 
-	   If drawing to screen, usually BHS_FORMAT_BGRA8_UNORM or RGBA8_UNORM depending on OS.
-	   Let's check renderer/lib.h defaults or query swapchain?
-	   For now assume Swapchain Format.
-	*/
+	enum bhs_gpu_texture_format color_fmt = BHS_FORMAT_BGRA8_SRGB; /* Match Swapchain/UI Pass */
 	
 	struct bhs_gpu_pipeline_config pipe_conf = {
 		.vertex_shader = p->vs,
@@ -150,7 +197,7 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 		.vertex_bindings = &binding,
 		.vertex_binding_count = 1,
 		.primitive = BHS_PRIMITIVE_TRIANGLES,
-		.cull_mode = BHS_CULL_BACK,
+		.cull_mode = BHS_CULL_NONE, /* [DEBUG] Disable culling to ensure visibility */
 		.front_ccw = true, /* Sphere gen uses CCW */
 		.depth_test = true, /* ENABLE 3D! */
 		.depth_write = true,
@@ -192,29 +239,43 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 {
 	if (!pass || !cmd || !scene) return;
 	
+	/* Explicitly set Viewport/Scissor (Dynamic State) */
+	bhs_gpu_cmd_set_viewport(cmd, 0, 0, output_width, output_height, 0.0f, 1.0f);
+	bhs_gpu_cmd_set_scissor(cmd, 0, 0, (uint32_t)output_width, (uint32_t)output_height);
+
 	bhs_gpu_cmd_set_pipeline(cmd, pass->pipeline);
 	bhs_gpu_cmd_set_vertex_buffer(cmd, 0, pass->vbo, 0);
 	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
 	
 	/* View/Proj Matrices */
-	/* RTC View Matrix: Camera is at (0,0,0), so we only apply Rotation */
 	/* LookAt(0,0,0 -> Dir, Up) */
 	struct bhs_v3 eye = { 0, 0, 0 };
-	/* Direction from yaw/pitch */
 	float cx = cosf(cam->pitch) * sinf(cam->yaw);
 	float cy = sinf(cam->pitch);
 	float cz = cosf(cam->pitch) * cosf(cam->yaw);
 	struct bhs_v3 center = { cx, cy, cz };
 	struct bhs_v3 up = { 0, 1, 0 };
 	
-	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up); /* Now this IS the RTC view */
+	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up);
+	
+	/* Flip Z */
+	bhs_mat4_t mat_flip = bhs_mat4_scale(1.0f, 1.0f, -1.0f);
+	mat_view = bhs_mat4_mul(mat_flip, mat_view);
 	
 	/* Proj Matrix */
-	float aspect = output_width / output_height;
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(cam->fov * (PI/180.0f), aspect, 0.1f, 100000.0f);
+	float focal_length = cam->fov;
+	if (focal_length < 1.0f) focal_length = 1.0f;
 	
-	/* Light Pos (Sun assumed at 0,0,0) - World Space */
-	float light_pos[3] = {0, 0, 0};
+	float fov_y = 2.0f * atanf((output_height * 0.5f) / focal_length);
+	float aspect = output_width / output_height;
+	
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 0.1f, 2000.0f);
+	
+	/* Pre-multiply ViewProj for Packed PC */
+	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
+	
+	/* Light Pos (Sun at 0,0,0) */
+	float light_pos[3] = { 0.0f, 0.0f, 0.0f };
 	
 	/* Iterate Bodies */
 	int count = 0;
@@ -224,10 +285,8 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		
-		/* Find Texture */
-		bhs_gpu_texture_t tex = assets->sphere_texture; /* Fallback */
-		
-		/* Lookup in cache */
+		/* Textura ... */
+		bhs_gpu_texture_t tex = assets->sphere_texture;
 		if (assets->tex_cache) {
 			for (int t=0; t < assets->tex_cache_count; t++) {
 				if (strcmp(assets->tex_cache[t].name, b->name) == 0) {
@@ -236,79 +295,47 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 				}
 			}
 		}
-		
-		/* Bind Texture */
 		bhs_gpu_cmd_bind_texture(cmd, 0, 0, tex, pass->sampler);
 		
-		/* ==========================================================
-		 * RTC (Relative-To-Camera) CALCULATION
-		 * ==========================================================
-		 */
+		/* RTC Position */
+		float visual_y = calculate_gravity_depth((float)b->state.pos.x, (float)b->state.pos.z, bodies, count);
 		
-		/* 1. Subtração em High Precision (Double) */
 		double rel_x = b->state.pos.x - cam->x;
-		double rel_y = b->state.pos.y - cam->y;
+		double rel_y = visual_y - cam->y;
 		double rel_z = b->state.pos.z - cam->z;
 		
-		/* 2. Conversão para Float (agora que os números são pequenos) */
 		float tx = (float)rel_x;
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
-		float radius = (float)b->state.radius;
+		float radius = (float)b->state.radius * 30.0f;
 		
-		/* 3. Matrizes de Modelo */
-		bhs_mat4_t m_scale = bhs_mat4_scale(radius, radius, radius);
-		bhs_mat4_t m_trans = bhs_mat4_translate(tx, ty, tz);
-		
-		/* Rotação Axial */
-		/* Primeiro o Spin (Dia/Noite) */
-		/* Assumindo eixo Y local como eixo de rotação se não especificado, 
-		   mas temos rot_axis na struct state se quisermos ser precisos.
-		   Por simplicidade (e como rot_axis pode ser 0,0,0 em dados velhos),
-		   vamos usar RotateY com Axis Tilt composto.
-		   
-		   Melhor: Usar Axis-Angle se rot_axis estiver definido.
-		*/
-		bhs_mat4_t m_rot;
+		/* Rotation Params */
 		float angle = (float)b->state.current_rotation_angle;
-		
-		/* Verifica se rot_axis tem comprimento */
 		float ax = (float)b->state.rot_axis.x;
 		float ay = (float)b->state.rot_axis.y;
 		float az = (float)b->state.rot_axis.z;
 		
-		if (fabsf(ax) + fabsf(ay) + fabsf(az) > 0.1f) {
-			m_rot = bhs_mat4_rotate_axis((struct bhs_v3){ax, ay, az}, angle);
-		} else {
-			/* Fallback: Rotação no Y (comum) */
-			m_rot = bhs_mat4_rotate_y(angle);
+		/* Ensure valid axis for shader normalize() */
+		if (fabsf(ax) + fabsf(ay) + fabsf(az) < 0.01f) {
+			ax = 0.0f; ay = 1.0f; az = 0.0f;
 		}
 
-		/* Planet Tilt é estático ou parte do eixo? 
-		   Se rot_axis já é o eixo inclinado, está resolvido.
-		*/
+		/* Fill Packed Push Constants */
+		struct planet_pc pc;
+		pc.viewProj = mat_vp;
 		
-		/* Ordem: Scale -> Rotate -> Translate */
-		/* Primeiro escala a esfera unitária para o tamanho do planeta */
-		/* Depois rotaciona a esfera no lugar */
-		/* Depois move para a posição relativa */
-		bhs_mat4_t m_model = bhs_mat4_mul(m_rot, m_scale);
-		m_model = bhs_mat4_mul(m_trans, m_model);
-
-
-		/* 4. Matriz View "Limpa" (Câmera na origem) */
-		/* Usamos a mat_view calculada fora do loop */
-
-		/* Push Constants */
-		struct planet_pc pc = {
-			.model = m_model,
-			.view = mat_view,
-			.proj = mat_proj,
-		};
+		pc.modelParams[0] = tx;
+		pc.modelParams[1] = ty;
+		pc.modelParams[2] = tz;
+		pc.modelParams[3] = radius;
 		
-		/* Fill Parameters */
-		pc.lightAndStar[0] = light_pos[0] - (float)cam->x; /* Light also relative! */
-		pc.lightAndStar[1] = light_pos[1] - (float)cam->y; /* Correct lighting in RTC */
+		pc.rotParams[0] = ax;
+		pc.rotParams[1] = ay;
+		pc.rotParams[2] = az;
+		pc.rotParams[3] = angle;
+		
+		pc.lightAndStar[0] = light_pos[0] - (float)cam->x;
+		pc.lightAndStar[1] = light_pos[1] - (float)cam->y;
 		pc.lightAndStar[2] = light_pos[2] - (float)cam->z;
 		pc.lightAndStar[3] = (b->type == BHS_BODY_STAR) ? 1.0f : 0.0f;
 		
@@ -318,8 +345,6 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		pc.colorParams[3] = 0.0f;
 		
 		bhs_gpu_cmd_push_constants(cmd, 0, &pc, sizeof(pc));
-		
-		/* Draw */
 		bhs_gpu_cmd_draw_indexed(cmd, pass->index_count, 1, 0, 0, 0);
 	}
 }

@@ -34,6 +34,9 @@ typedef struct bhs_view_assets {
 	/* [NEW] Procedural Cache */
 	const struct bhs_planet_tex_entry *tex_cache;
 	int tex_cache_count;
+	
+	/* [NEW] 3D Renderer Status */
+	bool render_3d_active;
 } bhs_view_assets_t;
 
 /* Proxy to renderer */

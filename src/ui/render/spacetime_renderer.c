@@ -194,7 +194,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 {
 	const bhs_view_assets_t *assets = (const bhs_view_assets_t *)assets_void;
 	void *tex_bg = assets ? assets->bg_texture : NULL;
-	void *tex_sphere = assets ? assets->sphere_texture : NULL;
+
 	void *tex_bh = assets ? assets->bh_texture : NULL;
 	const struct bhs_fabric *fabric = assets ? assets->fabric : NULL; /* [NEW] */
 
@@ -414,26 +414,18 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 		struct bhs_ui_color color = { (float)b->color.x, (float)b->color.y, (float)b->color.z, 1.0f };
 		
-		if (b->type == BHS_BODY_PLANET) {
-			const char *label = (b->name[0]) ? b->name : "Planet";
-            bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
-            
-            /* Impostor Logic */
-            void *use_tex = tex_sphere;
-            if (assets && assets->tex_cache) {
-                for(int t=0; t<assets->tex_cache_count; t++) {
-                    if (strncmp(assets->tex_cache[t].name, b->name, 32) == 0) {
-                        use_tex = assets->tex_cache[t].tex;
-                        break;
-                    }
-                }
-            }
-            if (use_tex) {
-                struct bhs_ui_color tint = (use_tex == tex_sphere) ? color : (struct bhs_ui_color){1,1,1,1};
-                bhs_ui_draw_texture(ctx, use_tex, sx-s_radius, sy-s_radius, s_radius*2, s_radius*2, tint);
-            }
-            bhs_ui_draw_text(ctx, label, sx + s_radius + 5, sy, 12.0f, BHS_UI_COLOR_WHITE);
+		/* [FIX] Aggressive Refactor: NO 2D DRAWING for Celestial Bodies */
+		/* We only draw labels for planets/stars to help identification in 3D view */
+		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR || b->type == BHS_BODY_MOON) {
+			if (b->type == BHS_BODY_PLANET) {
+				const char *label = (b->name[0]) ? b->name : "Planet";
+				bhs_ui_draw_text(ctx, label, sx + 5, sy, 12.0f, BHS_UI_COLOR_WHITE);
+			}
+			/* NO 2D SPRITES - "Garantir ao supremo que o planeta tá só 3d" */
 		} else {
+             /* Other bodies (Asteroids, Ships?) can stay simple circles for now if needed, 
+                or remove them too if you want PURE 3D. 
+                Assuming we only care about major bodies. */
              bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
 		}
 	}
