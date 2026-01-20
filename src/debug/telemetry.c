@@ -5,6 +5,7 @@
 
 #include "telemetry.h"
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 /* Helper para limpar tela ou voltar cursos (ANSI) */
@@ -78,4 +79,27 @@ void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid, d
 		       extra_str);
 	}
 	printf("-----------------------------------------------------------------------------------------------------------------\n");
+}
+
+void bhs_telemetry_log_orbits(bhs_scene_t scene, double time)
+{
+	int count = 0;
+	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
+
+	printf("[T=%6.2f] ", time);
+	for (int i = 0; i < count; i++) {
+		const struct bhs_body *b = &bodies[i];
+		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR) {
+			char name_short[4] = {0};
+			if (strstr(b->name, "Sun")) strcpy(name_short, "SUN");
+			else if (strstr(b->name, "Mer")) strcpy(name_short, "MER");
+			else if (strstr(b->name, "Ven")) strcpy(name_short, "VEN");
+			else if (strstr(b->name, "Ear")) strcpy(name_short, "EAR");
+			else if (strstr(b->name, "Mar")) strcpy(name_short, "MAR");
+			else continue; 
+			
+			printf("%s:(%5.1f,%5.1f) ", name_short, b->state.pos.x, b->state.pos.z);
+		}
+	}
+	printf("\n");
 }

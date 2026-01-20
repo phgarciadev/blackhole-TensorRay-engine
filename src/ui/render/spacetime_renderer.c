@@ -394,7 +394,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
            Y is 0 in 2D physics.
         */
 		float visual_x = b->state.pos.x;
-		float visual_z = b->state.pos.y; /* Physics Y -> Visual Z */
+		float visual_z = b->state.pos.z; /* Physics Z -> Visual Z (Matches presets.c X-Z orbit) */
 		
 		/* Calculate depth based on gravity well logic */
 		float visual_y = calculate_gravity_depth(visual_x, visual_z, bodies, n_bodies);

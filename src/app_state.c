@@ -339,6 +339,11 @@ void app_run(struct app_state *app)
 			bhs_fabric_update(app->fabric, bodies, n_bodies);
 		}
 
+		/* [NEW] Sync Time Scale from HUD */
+		/* Mapping: 0.1 * 100^val */
+		float target_timescale = 0.1f * powf(100.0f, app->hud.time_scale_val);
+		app_set_time_scale(app, (double)target_timescale);
+
 		app->phys_ms = (get_time_seconds() - t0) * 1000.0;
 
 		/* Rendering */
@@ -412,6 +417,11 @@ void app_run(struct app_state *app)
 			bhs_telemetry_print_scene(app->scene, app->accumulated_time,
 						  app->show_grid, 
 						  app->phys_ms, app->render_ms);
+		}
+		
+		/* Log orbits periodically for analysis (Scrollable history) */
+		if (app->frame_count % 60 == 0) {
+			bhs_telemetry_log_orbits(app->scene, app->accumulated_time);
 		}
 	}
 

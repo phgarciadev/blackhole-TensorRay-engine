@@ -14,6 +14,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_grid = false; /* Começa desligado */
 		state->fabric_slider_val = 0.259f; /* Default Scale (0.5 unit) */
 		state->fabric_size_val = 0.2f;     /* [NEW] Default Size (approx 100x100 if mapped) */
+		state->time_scale_val = 0.5f;      /* [NEW] Default Time Scale (1.0x mapped from 0.5) */
 		state->active_menu_index = -1;
 		state->selected_body_index = -1;
 		state->req_delete_body = false;
@@ -145,6 +146,22 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 			y += 28.0f;
 			item_rect.y = y;
+
+			/* [NEW] Time Scale Control */
+			/* Mapping: 0.0->0.1x, 0.5->1.0x, 1.0->10.0x (Logarithmic feel) */
+			/* Formula: 0.1 * 100^val */
+			float time_scale_disp = 0.1f * powf(100.0f, state->time_scale_val);
+			char time_label[64];
+			snprintf(time_label, 64, "Time Speed: %.2fx", time_scale_disp);
+			
+			bhs_ui_draw_text(ctx, time_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
+			y += 12.0f;
+			item_rect.y = y;
+			bhs_ui_slider(ctx, item_rect, &state->time_scale_val);
+
+			y += 28.0f;
+			item_rect.y = y;
+
 			bool vsync_prev = state->vsync_enabled;
 			bhs_ui_checkbox(ctx, "Enable VSync", item_rect,
 					&state->vsync_enabled);

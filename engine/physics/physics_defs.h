@@ -13,6 +13,6 @@
 
 /* G para simulação (Normalizado se necessário, ou usar IAU_G) */
 /* Se estivermos usando unidades SI reais: */
-#define BHS_G IAU_G
+#define BHS_G 1.0
 
 #endif /* BHS_ENGINE_PHYSICS_DEFS_H */

@@ -409,6 +409,17 @@ void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt)
 		state->bodies[i].vel.x += acc[i].x * half_dt;
 		state->bodies[i].vel.y += acc[i].y * half_dt;
 		state->bodies[i].vel.z += acc[i].z * half_dt;
+
+		// Debug Mercury (Index 1) acceleration
+		if (i == 1) {
+			static int debug_counter = 0;
+			if (debug_counter++ % 60 == 0) {
+				// printf("[DEBUG] Mercury Acc: (%.4f, %.4f, %.4f) | Vel: (%.4f) | dt: %.4f\n", 
+				// 	   acc[i].x, acc[i].y, acc[i].z, 
+				// 	   sqrt(state->bodies[i].vel.x*state->bodies[i].vel.x + state->bodies[i].vel.z*state->bodies[i].vel.z),
+				// 	   dt);
+			}
+		}
 	}
 
 	state->time += dt;

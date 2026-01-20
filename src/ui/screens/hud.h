@@ -12,6 +12,7 @@ typedef struct {
 	bool show_grid;	       /* Malha espacial visivel? */
 	float fabric_slider_val; /* Slider 0..1 (Logarithmic Scale) - Spacing */
 	float fabric_size_val;   /* [NEW] Slider 0..1 (Linear Scale) - Resolution */
+	float time_scale_val;    /* [NEW] Slider 0..1 (Logarithmic) */
 	int active_menu_index; /* -1 = none, 0=Config, 1=Add */
 
 	/* Selection State */

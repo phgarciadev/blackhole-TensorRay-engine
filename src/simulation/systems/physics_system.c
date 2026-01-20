@@ -43,6 +43,12 @@ void physics_system_update(bhs_world_handle world, double dt)
         state.n_bodies++;
     }
 
+    if (state.n_bodies > 0) {
+        /* Debug: Check Sun Mass and Mercury Acc/Vel */
+        // printf("DEBUG: Bodies: %d | Body[0] GM: %.2f | Body[1] Pos: (%.2f, %.2f)\n", 
+        //       state.n_bodies, state.bodies[0].gm, state.bodies[1].pos.x, state.bodies[1].pos.z);
+    }
+
     /* 2. Run High-Fidelity Integrator (Leapfrog) */
     /* This handles Gravity (N^2), 1PN Relativity, and Symplectic Integration */
     bhs_integrator_leapfrog(&state, dt);

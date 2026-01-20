@@ -48,9 +48,10 @@ void bhs_engine_shutdown(void)
 void bhs_engine_update(double dt)
 {
     if (!g_engine.is_initialized) return;
+    (void)dt;
 
-    /* 1. Physics Integration */
-    bhs_physics_system_update(g_engine.world, dt);
+    /* 1. Physics Integration - DISABLED (Handled by Simulation Layer) */
+    // bhs_physics_system_update(g_engine.world, dt);
 
     /* 2. Spacetime Updates (Metric) */
     
