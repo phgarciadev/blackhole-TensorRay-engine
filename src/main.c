@@ -45,9 +45,12 @@ int main(int argc, char **argv)
 			scenario = SCENARIO_SOLAR_SYSTEM;
 			break;
 		case '3':
-			scenario = SCENARIO_KERR_BLACKHOLE;
+			scenario = SCENARIO_EARTH_SUN;
 			break;
 		case '4':
+			scenario = SCENARIO_KERR_BLACKHOLE;
+			break;
+		case '5':
 			scenario = SCENARIO_BINARY_STAR;
 			break;
 		}

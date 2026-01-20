@@ -142,6 +142,32 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 	printf("[PRESET] Sistema Solar Completo Carregado!\n");
 }
 
+void bhs_preset_earth_sun_only(bhs_scene_t scene)
+{
+	if (!scene) return;
+
+	printf("[PRESET] Criando APENAS Sol e Terra (Escala Real)...\n");
+
+	/* 1. SUN */
+	struct bhs_planet_desc d_sun = bhs_sun_get_desc();
+	struct bhs_body sun = bhs_body_create_from_desc(&d_sun, (struct bhs_vec3){0,0,0});
+	
+	/* Escalas */
+	sun.state.mass = BHS_KG_TO_SIM(sun.state.mass);
+	sun.state.radius = BHS_RADIUS_TO_SIM(sun.state.radius);
+	sun.is_fixed = true;
+	
+	bhs_scene_add_body_struct(scene, sun);
+
+	/* 2. EARTH */
+	struct bhs_planet_desc d_earth = bhs_earth_get_desc();
+	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, sun.state.mass);
+	
+	bhs_scene_add_body_struct(scene, earth);
+
+	printf("[PRESET] Sol e Terra carregados.\n");
+}
+
 /* Backward compatibility dummies if needed, but we replaced the main loop */
 struct bhs_body bhs_preset_sun(struct bhs_vec3 pos) {
 	/* Não usado pelo main loop, mas mantido para compatibilidade */

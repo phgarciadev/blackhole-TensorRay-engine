@@ -42,6 +42,16 @@ static void set_camera_for_scenario(struct app_state *app, enum scenario_type ty
 		app->camera.fov = 600.0f;
 		break;
 
+	case SCENARIO_EARTH_SUN:
+		/* Câmera focada em observar a distância */
+		app->camera.x = 0.0f;
+		app->camera.y = 100.0f; /* Bem acima */
+		app->camera.z = 0.0f;
+		app->camera.pitch = -1.57f; /* Olhando para baixo (90 graus) */
+		app->camera.yaw = 0.0f;
+		app->camera.fov = 1000.0f;
+		break;
+
 	case SCENARIO_KERR_BLACKHOLE:
 		/* Perto do evento horizon */
 		app->camera.x = 15.0f;
@@ -84,6 +94,13 @@ static bool load_solar_system(struct app_state *app)
 {
 	BHS_LOG_INFO("Carregando Sistema Solar...");
 	bhs_preset_solar_system(app->scene);
+	return true;
+}
+
+static bool load_earth_sun(struct app_state *app)
+{
+	BHS_LOG_INFO("Carregando Sol e Terra...");
+	bhs_preset_earth_sun_only(app->scene);
 	return true;
 }
 
@@ -219,6 +236,9 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 	case SCENARIO_SOLAR_SYSTEM:
 		ok = load_solar_system(app);
 		break;
+	case SCENARIO_EARTH_SUN:
+		ok = load_earth_sun(app);
+		break;
 	case SCENARIO_KERR_BLACKHOLE:
 		ok = load_kerr_blackhole(app);
 		break;
@@ -238,6 +258,10 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 		switch (type) {
 		case SCENARIO_SOLAR_SYSTEM:
 			app->scenario = APP_SCENARIO_SOLAR_SYSTEM;
+			break;
+		case SCENARIO_EARTH_SUN:
+			/* Reusando SOLAR_SYSTEM para app state por enquanto, ou NONE */
+			app->scenario = APP_SCENARIO_SOLAR_SYSTEM; 
 			break;
 		case SCENARIO_KERR_BLACKHOLE:
 			app->scenario = APP_SCENARIO_KERR_BLACKHOLE;
@@ -288,6 +312,8 @@ const char *scenario_get_name(enum scenario_type type)
 		return "Espaço Vazio";
 	case SCENARIO_SOLAR_SYSTEM:
 		return "Sistema Solar";
+	case SCENARIO_EARTH_SUN:
+		return "Terra e Sol";
 	case SCENARIO_KERR_BLACKHOLE:
 		return "Black Hole Kerr";
 	case SCENARIO_BINARY_STAR:

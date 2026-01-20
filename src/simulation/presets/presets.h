@@ -59,6 +59,14 @@ struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos,
 void bhs_preset_solar_system(bhs_scene_t scene);
 
 /**
+ * bhs_preset_earth_sun_only - Cria apenas Sol e Terra
+ * @scene: Cena onde adicionar os corpos
+ *
+ * Para debug: visualização da escala real Terra-Sol.
+ */
+void bhs_preset_earth_sun_only(bhs_scene_t scene);
+
+/**
  * bhs_preset_orbital_velocity - Calcula velocidade orbital
  * @central_mass: Massa do corpo central (unidades de simulação)
  * @orbital_radius: Distância orbital (unidades de simulação)

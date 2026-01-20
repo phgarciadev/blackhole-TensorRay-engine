@@ -29,6 +29,7 @@ struct app_state;
 enum scenario_type {
 	SCENARIO_EMPTY = 0,	/* Espaço vazio, canvas em branco */
 	SCENARIO_SOLAR_SYSTEM,	/* Sistema Solar completo (Sol + 8 planetas) */
+	SCENARIO_EARTH_SUN,		/* Apenas Sol e Terra (Debug de Escala) */
 	SCENARIO_KERR_BLACKHOLE,/* Black hole Kerr rotativo + partículas */
 	SCENARIO_BINARY_STAR,	/* Sistema estelar binário */
 	SCENARIO_DEBUG		/* Cenário simples de debug */
