@@ -6,4 +6,6 @@
 /* Unified Physics System (uses Integrator.c) */
 void physics_system_update(bhs_world_handle world, double dt);
 
+#include "simulation/systems/celestial_system.h"
+
 #endif

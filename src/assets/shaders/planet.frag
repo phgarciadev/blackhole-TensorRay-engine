@@ -50,7 +50,16 @@ void main() {
         
         finalColor = baseColor.rgb * tint * 2.0; /* 2.0 brightness */
     } else {
-        finalColor = baseColor.rgb * (ambient + diff * lightColor);
+        /* Rim Lighting (Fresnel) - Gives atmospheric volume feel */
+        /* Since we use RTC, Camera is at (0,0,0) in World Space (Relative) */
+        /* Therefore View Vector is simply -fragPos normalized */
+        vec3 V = normalize(-fragPos); 
+        float rim = 1.0 - max(dot(N, V), 0.0);
+        rim = smoothstep(0.6, 1.0, rim);
+        vec3 rimColor = vec3(0.4, 0.6, 1.0); /* Blueish atmosphere hint */
+        
+        vec3 litColor = baseColor.rgb * (ambient + diff * lightColor);
+        finalColor = litColor + (rim * rimColor * 0.5);
     }
     
     outColor = vec4(finalColor, 1.0);

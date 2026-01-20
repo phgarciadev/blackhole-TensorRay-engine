@@ -88,6 +88,7 @@ struct bhs_body_state {
 	double moment_inertia;
 	double mass;
 	double radius;
+	double current_rotation_angle; /* rad - acumulado */
 	int shape;
 };
 

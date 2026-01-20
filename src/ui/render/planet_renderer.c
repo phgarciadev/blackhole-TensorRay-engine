@@ -197,16 +197,17 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
 	
 	/* View/Proj Matrices */
-	/* Camera View Matrix */
-	struct bhs_v3 eye = { cam->x, cam->y, cam->z };
+	/* RTC View Matrix: Camera is at (0,0,0), so we only apply Rotation */
+	/* LookAt(0,0,0 -> Dir, Up) */
+	struct bhs_v3 eye = { 0, 0, 0 };
 	/* Direction from yaw/pitch */
 	float cx = cosf(cam->pitch) * sinf(cam->yaw);
 	float cy = sinf(cam->pitch);
 	float cz = cosf(cam->pitch) * cosf(cam->yaw);
-	struct bhs_v3 center = { cam->x + cx, cam->y + cy, cam->z + cz };
+	struct bhs_v3 center = { cx, cy, cz };
 	struct bhs_v3 up = { 0, 1, 0 };
 	
-	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up);
+	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up); /* Now this IS the RTC view */
 	
 	/* Proj Matrix */
 	float aspect = output_width / output_height;
@@ -221,7 +222,7 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	
 	for (int i = 0; i < count; i++) {
 		const struct bhs_body *b = &bodies[i];
-		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR) continue;
+		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		
 		/* Find Texture */
 		bhs_gpu_texture_t tex = assets->sphere_texture; /* Fallback */
@@ -237,52 +238,67 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		}
 		
 		/* Bind Texture */
-		/* Set 0, Binding 0 */
 		bhs_gpu_cmd_bind_texture(cmd, 0, 0, tex, pass->sampler);
 		
-		/* Model Matrix */
-		/* Scale = Radius */
-		/* Translate = Pos */
-		/* Rotate = Spin? TODO */
+		/* ==========================================================
+		 * RTC (Relative-To-Camera) CALCULATION
+		 * ==========================================================
+		 */
 		
-		/* Scale first, then rotate, then translate */
-		/* Since rendering unit sphere: */
-		/* Radius is simulation units. */
-		/* Coordinates in simulation are huge (AU). 
-		   Renderer usually scales down or camera moves fast.
-		   'spacetime_renderer' used manual projection with scale factor.
-		   We should respect the WORLD coordinates if Z-buffer allows, or scale everything.
-		   Camera position is also in world coords?
-		   Yes, app_state uses double for physics but float for camera?
-		   Wait, camera uses float. Bodies use double.
-		   We need a "Local Origin" approach or strict scaling if coordinates are too large for float precision.
-		   For "Solar System", limits are ~50 AU. 50 * 1.5e11 meters.
-		   Float variance becomes bad at >100,000.
+		/* 1. Subtração em High Precision (Double) */
+		double rel_x = b->state.pos.x - cam->x;
+		double rel_y = b->state.pos.y - cam->y;
+		double rel_z = b->state.pos.z - cam->z;
+		
+		/* 2. Conversão para Float (agora que os números são pequenos) */
+		float tx = (float)rel_x;
+		float ty = (float)rel_y;
+		float tz = (float)rel_z;
+		float radius = (float)b->state.radius;
+		
+		/* 3. Matrizes de Modelo */
+		bhs_mat4_t m_scale = bhs_mat4_scale(radius, radius, radius);
+		bhs_mat4_t m_trans = bhs_mat4_translate(tx, ty, tz);
+		
+		/* Rotação Axial */
+		/* Primeiro o Spin (Dia/Noite) */
+		/* Assumindo eixo Y local como eixo de rotação se não especificado, 
+		   mas temos rot_axis na struct state se quisermos ser precisos.
+		   Por simplicidade (e como rot_axis pode ser 0,0,0 em dados velhos),
+		   vamos usar RotateY com Axis Tilt composto.
 		   
-		   Current View Implementation:
-		   'cam->x' is float.
-		   So the user must have implemented a scaled universe or simple units.
-		   Let's check 'simulation/unit_defs.h' or just assume data fits in float for now since 'cam' is float.
+		   Melhor: Usar Axis-Angle se rot_axis estiver definido.
+		*/
+		bhs_mat4_t m_rot;
+		float angle = (float)b->state.current_rotation_angle;
+		
+		/* Verifica se rot_axis tem comprimento */
+		float ax = (float)b->state.rot_axis.x;
+		float ay = (float)b->state.rot_axis.y;
+		float az = (float)b->state.rot_axis.z;
+		
+		if (fabsf(ax) + fabsf(ay) + fabsf(az) > 0.1f) {
+			m_rot = bhs_mat4_rotate_axis((struct bhs_v3){ax, ay, az}, angle);
+		} else {
+			/* Fallback: Rotação no Y (comum) */
+			m_rot = bhs_mat4_rotate_y(angle);
+		}
+
+		/* Planet Tilt é estático ou parte do eixo? 
+		   Se rot_axis já é o eixo inclinado, está resolvido.
 		*/
 		
-		float bx = (float)b->state.pos.x;
-		float by = (float)b->state.pos.y;
-		float bz = (float)b->state.pos.z;
-		float br = (float)b->state.radius;
-		
-		/* Scale radius visibly? In 'spacetime_renderer' there was a `scale_factor`.
-		   We should probably match that logic or just render true scale.
-		   True scale: Sun radius = 696340 km. Distance Earth = 150 MKm.
-		   Sun is tiny dot at distance.
-		   For visualization, usually we scale up planets.
-		   I will invoke a "Visual Radius" multiplier of 1000x or so if needed?
-		   Let's stick to true scale first (1.0).
-		*/
-		
-		bhs_mat4_t m_scale = bhs_mat4_scale(br, br, br);
-		bhs_mat4_t m_trans = bhs_mat4_translate(bx, by, bz);
-		bhs_mat4_t m_model = bhs_mat4_mul(m_trans, m_scale); /* T * S * v */
-		
+		/* Ordem: Scale -> Rotate -> Translate */
+		/* Primeiro escala a esfera unitária para o tamanho do planeta */
+		/* Depois rotaciona a esfera no lugar */
+		/* Depois move para a posição relativa */
+		bhs_mat4_t m_model = bhs_mat4_mul(m_rot, m_scale);
+		m_model = bhs_mat4_mul(m_trans, m_model);
+
+
+		/* 4. Matriz View "Limpa" (Câmera na origem) */
+		/* Usamos a mat_view calculada fora do loop */
+
 		/* Push Constants */
 		struct planet_pc pc = {
 			.model = m_model,
@@ -291,9 +307,9 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		};
 		
 		/* Fill Parameters */
-		pc.lightAndStar[0] = light_pos[0];
-		pc.lightAndStar[1] = light_pos[1];
-		pc.lightAndStar[2] = light_pos[2];
+		pc.lightAndStar[0] = light_pos[0] - (float)cam->x; /* Light also relative! */
+		pc.lightAndStar[1] = light_pos[1] - (float)cam->y; /* Correct lighting in RTC */
+		pc.lightAndStar[2] = light_pos[2] - (float)cam->z;
 		pc.lightAndStar[3] = (b->type == BHS_BODY_STAR) ? 1.0f : 0.0f;
 		
 		pc.colorParams[0] = (float)b->color.x;

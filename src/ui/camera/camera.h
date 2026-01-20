@@ -5,10 +5,10 @@
  * @brief Estrutura da Câmera
  */
 typedef struct bhs_camera {
-  float x, y, z; /* Posição World (Y UP) */
-  float pitch;   /* Rotação X (radianos) */
-  float yaw;     /* Rotação Y (radianos) */
-  float fov;     /* Field of View / Scale Factor */
+  double x, y, z; /* Posição World (Y UP) - Double para RTC */
+  float pitch;    /* Rotação X (radianos) */
+  float yaw;      /* Rotação Y (radianos) */
+  float fov;      /* Field of View / Scale Factor */
 } bhs_camera_t;
 
 /**

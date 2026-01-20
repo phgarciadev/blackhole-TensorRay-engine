@@ -152,6 +152,38 @@ bhs_mat4_t bhs_mat4_rotate_x(float rad)
 	return m;
 }
 
+bhs_mat4_t bhs_mat4_rotate_axis(struct bhs_v3 axis, float angle_rad)
+{
+	bhs_mat4_t m = bhs_mat4_identity();
+	float c = cosf(angle_rad);
+	float s = sinf(angle_rad);
+	float omc = 1.0f - c;
+	
+	/* Normalize axis */
+	float len = sqrtf(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
+	if (len < 1e-6f) return m;
+	float x = axis.x / len;
+	float y = axis.y / len;
+	float z = axis.z / len;
+	
+	/* Column 0 */
+	m.m[0] = x*x*omc + c;
+	m.m[1] = y*x*omc + z*s;
+	m.m[2] = x*z*omc - y*s;
+	
+	/* Column 1 */
+	m.m[4] = x*y*omc - z*s;
+	m.m[5] = y*y*omc + c;
+	m.m[6] = y*z*omc + x*s;
+	
+	/* Column 2 */
+	m.m[8] = x*z*omc + y*s;
+	m.m[9] = y*z*omc - x*s;
+	m.m[10]= z*z*omc + c;
+	
+	return m;
+}
+
 /* ============================================================================
  * PROJEÇÃO (VULKAN CLIP SPACE: Y DOWN, 0..1 Z)
  * ============================================================================

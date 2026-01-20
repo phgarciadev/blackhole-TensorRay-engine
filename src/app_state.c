@@ -301,6 +301,9 @@ void app_run(struct app_state *app)
 			/* 3. Engine Update (Collision, Transfrom hierarchy, Spacetime sync) */
 			bhs_scene_update(app->scene, PHYSICS_DT);
 			
+			/* 4. Gameplay/Celestial Update (Rotation, Events) */
+			bhs_celestial_system_update(app->scene, PHYSICS_DT);
+			
 			accumulator -= PHYSICS_DT;
 			app->accumulated_time += PHYSICS_DT;
 		}

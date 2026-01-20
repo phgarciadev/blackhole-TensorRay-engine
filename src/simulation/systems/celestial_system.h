@@ -15,6 +15,7 @@
 #define BHS_ENGINE_SYSTEMS_CELESTIAL_H
 
 #include "engine/ecs/ecs.h"
+#include "engine/scene/scene.h"
 
 /**
  * bhs_celestial_system_init - Inicializa o sistema e registra listeners
@@ -30,5 +31,12 @@ void bhs_celestial_system_init(bhs_world_handle world);
  * @world: Mundo ECS
  */
 void bhs_celestial_system_shutdown(bhs_world_handle world);
+
+/**
+ * bhs_celestial_system_update - Atualiza estado celestial (rotação, orbitas, etc)
+ * @scene: Cena contendo os corpos
+ * @dt: Delta time em segundos
+ */
+void bhs_celestial_system_update(bhs_scene_t scene, double dt);
 
 #endif /* BHS_ENGINE_SYSTEMS_CELESTIAL_H */

@@ -11,6 +11,43 @@
 #include "engine/components/components.h"
 #include "engine/ecs/events.h"
 #include <stdio.h>
+#include <math.h>
+#include "engine/scene/scene.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+/* ============================================================================
+ * LOGICA DE ATUALIZAÇÃO
+ * ============================================================================
+ */
+
+void bhs_celestial_system_update(bhs_scene_t scene, double dt)
+{
+	int count = 0;
+	const struct bhs_body *bodies_const = bhs_scene_get_bodies(scene, &count);
+	/* Cast const away because we are the system updating the state. 
+	 * Ideally bhs_scene_get_bodies_mutable() would exist. */
+	struct bhs_body *bodies = (struct bhs_body *)bodies_const;
+
+	for (int i = 0; i < count; i++) {
+		struct bhs_body *b = &bodies[i];
+		
+		/* Verifica se é um corpo que deve rotacionar */
+		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR || 
+		    b->type == BHS_BODY_MOON) {
+			
+			/* Integrar rotação */
+			b->state.current_rotation_angle += b->state.rot_speed * dt;
+
+			/* Normalizar para 0..2PI */
+			if (b->state.current_rotation_angle > 2.0 * M_PI) {
+				b->state.current_rotation_angle = fmod(b->state.current_rotation_angle, 2.0 * M_PI);
+			}
+		}
+	}
+}
 
 /* ============================================================================
  * CALLBACKS DE EVENTOS

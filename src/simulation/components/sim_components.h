@@ -26,6 +26,10 @@ typedef struct {
     bool has_atmosphere;
     char composition[64];
     struct bhs_vec3 color; // Visual color
+    /* Rotation Params */
+    struct bhs_vec3 rotation_axis;
+    double rotation_speed;        /* rad/s */
+    double current_rotation_angle; /* rad */
 } bhs_planet_component;
 
 typedef struct {
