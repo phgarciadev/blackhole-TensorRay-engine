@@ -37,34 +37,69 @@
  * ============================================================================
  */
 
+#include "src/math/mat4.h"
+
 /**
  * Projeta ponto 3D para coordenadas de tela
- * (Código duplicado do antigo main.c - poderia ir pra um módulo de math)
+ * ATUALIZADO: Usa mesma lógica do planet_renderer.c
  */
 static void project_point(const bhs_camera_t *c, float x, float y, float z,
 			  float sw, float sh, float *ox, float *oy)
 {
-	float dx = x - c->x;
-	float dy = y - c->y;
-	float dz = z - c->z;
-
-	float cos_yaw = cosf(c->yaw);
-	float sin_yaw = sinf(c->yaw);
-	float x1 = dx * cos_yaw - dz * sin_yaw;
-	float z1 = dx * sin_yaw + dz * cos_yaw;
-	float y1 = dy;
-
-	float cos_pitch = cosf(c->pitch);
-	float sin_pitch = sinf(c->pitch);
-	float y2 = y1 * cos_pitch - z1 * sin_pitch;
-	float z2 = y1 * sin_pitch + z1 * cos_pitch;
-	float x2 = x1;
-
-	if (z2 < 0.1f)
-		z2 = 0.1f;
-	float factor = c->fov / z2;
-	*ox = x2 * factor + sw * 0.5f;
-	*oy = (sh * 0.5f) - (y2 * factor);
+	/* Ponto já está em coordenadas RTC (relativo à câmera) */
+	
+	/* 1. View Matrix (igual planet_renderer.c) */
+	float cy = cosf(c->yaw);
+	float sy = sinf(c->yaw);
+	float cp = cosf(c->pitch);
+	float sp = sinf(c->pitch);
+	
+	/* Yaw (Y-Axis) */
+	bhs_mat4_t m_yaw = bhs_mat4_identity();
+	m_yaw.m[0] = cy;
+	m_yaw.m[2] = sy;
+	m_yaw.m[8] = -sy;
+	m_yaw.m[10] = cy;
+	
+	/* Pitch (X-Axis) */
+	bhs_mat4_t m_pitch = bhs_mat4_identity();
+	m_pitch.m[5] = cp;
+	m_pitch.m[6] = sp;
+	m_pitch.m[9] = -sp;
+	m_pitch.m[10] = cp;
+	
+	/* View = Pitch * Yaw */
+	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
+	
+	/* 2. Projection Matrix */
+	float focal_length = c->fov;
+	if (focal_length < 1.0f) focal_length = 1.0f;
+	
+	float fov_y = 2.0f * atanf((sh * 0.5f) / focal_length);
+	float aspect = sw / sh;
+	
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 0.1f, 2000.0f);
+	
+	/* 3. ViewProj */
+	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
+	
+	/* 4. Transformar ponto */
+	struct bhs_v4 pos = { x, y, z, 1.0f };
+	struct bhs_v4 clip = bhs_mat4_mul_v4(mat_vp, pos);
+	
+	/* 5. Perspective divide */
+	if (fabsf(clip.w) < 0.001f) {
+		*ox = sw * 0.5f;
+		*oy = sh * 0.5f;
+		return;
+	}
+	
+	float ndc_x = clip.x / clip.w;
+	float ndc_y = clip.y / clip.w;
+	
+	/* 6. NDC -> Screen (Vulkan: Y já está invertido na projection) */
+	*ox = (ndc_x + 1.0f) * 0.5f * sw;
+	*oy = (ndc_y + 1.0f) * 0.5f * sh;
 }
 
 /* ============================================================================
@@ -267,38 +302,62 @@ static void handle_object_interaction(struct app_state *app)
 			bhs_scene_get_bodies(app->scene, &n_bodies);
 
 		int best_idx = -1;
-		float best_dist = 10000.0f;
+		float best_dist = 1e9f;
 
 		for (int i = 0; i < n_bodies; i++) {
+			const struct bhs_body *b = &bodies[i];
+			
+			/* Só pega planetas, estrelas e luas (como no renderer) */
+			if (b->type != BHS_BODY_PLANET && 
+			    b->type != BHS_BODY_STAR && 
+			    b->type != BHS_BODY_MOON) continue;
+
+			/* Calcula visual_y igual planet_renderer.c */
+			float visual_y = 0.0f;
+			float visual_x = (float)b->state.pos.x;
+			float visual_z = (float)b->state.pos.z;
+			
+			/* Gravity depth (igual calculate_gravity_depth) */
+			float potential = 0.0f;
+			for (int j = 0; j < n_bodies; j++) {
+				float dx = visual_x - (float)bodies[j].state.pos.x;
+				float dz = visual_z - (float)bodies[j].state.pos.z;
+				float dist = sqrtf(dx*dx + dz*dz + 0.1f);
+				
+				double eff_mass = bodies[j].state.mass;
+				if (bodies[j].type == BHS_BODY_PLANET) {
+					eff_mass *= 5000.0;
+				}
+				potential -= eff_mass / dist;
+			}
+			visual_y = potential * 5.0f;
+			if (visual_y < -50.0f) visual_y = -50.0f;
+
+			/* Coordenadas RTC (Relative To Camera) - igual planet_renderer */
+			float rtc_x = visual_x - (float)app->camera.x;
+			float rtc_y = visual_y - (float)app->camera.y;
+			float rtc_z = visual_z - (float)app->camera.z;
+
+			/* Projeta usando as coordenadas RTC */
 			float sx, sy;
-            
-            float visual_x = (float)bodies[i].state.pos.x;
-            float visual_z = (float)bodies[i].state.pos.z;
-            float visual_y = (float)bodies[i].state.pos.y;
+			project_point(&app->camera, rtc_x, rtc_y, rtc_z,
+				      (float)win_w, (float)win_h, &sx, &sy);
 
-            if (bodies[i].type == BHS_BODY_PLANET) {
-                 /* Calculate depth based on gravity well (Doppler Logic) */
-                 float potential = 0.0f;
-                 for (int j = 0; j < n_bodies; j++) {
-                     if (i == j) continue; 
-                     float dx = visual_x - bodies[j].state.pos.x;
-                     float dz = visual_z - bodies[j].state.pos.z; 
-                     float r = sqrtf(dx*dx + dz*dz + 0.1f);
-                     potential -= bodies[j].state.mass / r;
-                 }
-                 visual_y = potential * 5.0f; 
-                 if (visual_y < -50.0f) visual_y = -50.0f;
-            }
-
-			project_point(&app->camera,
-				      visual_x,
-				      visual_y,
-				      visual_z,
-				      (float)win_w, (float)win_h,
-				      &sx, &sy);
+			/* Raio de picking proporcional ao tamanho visual */
+			/* Heurística: 50px mínimo + proporcional à distância/raio */
+			float visual_radius = (float)b->state.radius * 30.0f;
+			float dist_to_cam = sqrtf(rtc_x*rtc_x + rtc_y*rtc_y + rtc_z*rtc_z);
+			float pick_radius = 30.0f; /* Base */
+			if (dist_to_cam > 0.1f) {
+				/* Projeta o raio visual para pixels (aproximado) */
+				float projected_r = (visual_radius / dist_to_cam) * app->camera.fov;
+				if (projected_r > pick_radius) pick_radius = projected_r;
+			}
+			if (pick_radius < 15.0f) pick_radius = 15.0f;
+			if (pick_radius > 200.0f) pick_radius = 200.0f;
 
 			float d2 = (sx - mx) * (sx - mx) + (sy - my) * (sy - my);
-			float radius_sq = 20.0f * 20.0f;
+			float radius_sq = pick_radius * pick_radius;
 
 			if (d2 < radius_sq && d2 < best_dist) {
 				best_dist = d2;
