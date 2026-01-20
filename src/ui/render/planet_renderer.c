@@ -197,7 +197,7 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 		.vertex_bindings = &binding,
 		.vertex_binding_count = 1,
 		.primitive = BHS_PRIMITIVE_TRIANGLES,
-		.cull_mode = BHS_CULL_NONE, /* [DEBUG] Disable culling to ensure visibility */
+		.cull_mode = BHS_CULL_BACK, /* Enable Backface Culling for solid look */
 		.front_ccw = true, /* Sphere gen uses CCW */
 		.depth_test = true, /* ENABLE 3D! */
 		.depth_write = true,
@@ -248,19 +248,53 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
 	
 	/* View/Proj Matrices */
-	/* LookAt(0,0,0 -> Dir, Up) */
-	struct bhs_v3 eye = { 0, 0, 0 };
-	float cx = cosf(cam->pitch) * sinf(cam->yaw);
-	float cy = sinf(cam->pitch);
-	float cz = cosf(cam->pitch) * cosf(cam->yaw);
-	struct bhs_v3 center = { cx, cy, cz };
-	struct bhs_v3 up = { 0, 1, 0 };
+	/* 
+	 * MANUAL VIEW MATRIX CONSTRUCTION
+	 * Goal: Match 'spacetime_renderer.c' logic exactly.
+	 * Logic: 1. Translate (RTC handled via Model) -> 2. Yaw (Y) -> 3. Pitch (X)
+	 * Standard Matrix Multiplication: M = P * V * M
+	 * V = R_pitch * R_yaw
+	 */
 	
-	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up);
+	float cy = cosf(cam->yaw);
+	float sy = sinf(cam->yaw);
+	float cp = cosf(cam->pitch);
+	float sp = sinf(cam->pitch);
 	
-	/* Flip Z */
-	bhs_mat4_t mat_flip = bhs_mat4_scale(1.0f, 1.0f, -1.0f);
-	mat_view = bhs_mat4_mul(mat_flip, mat_view);
+	/* Rotation Yaw (Y-Axis) */
+	/* Matches spacetime: x' = x*cy - z*sy; z' = x*sy + z*cy */
+	/* Column 0 (Input X): contributes to x' (cos) and z' (sin) */
+	/* Column 2 (Input Z): contributes to x' (-sin) and z' (cos) */
+	bhs_mat4_t m_yaw = bhs_mat4_identity();
+	m_yaw.m[0] = cy;   /* Row 0, Col 0: x->x */
+	m_yaw.m[2] = sy;   /* Row 2, Col 0: x->z (z' = x*sy...) */
+	m_yaw.m[8] = -sy;  /* Row 0, Col 2: z->x (x' = ... - z*sy) */
+	m_yaw.m[10] = cy;  /* Row 2, Col 2: z->z */
+	
+	/* Rotation Pitch (X-Axis) */
+	/* Matches spacetime: y' = y*cp - z*sp; z' = y*sp + z*cp */
+	/* Column 1 (Input Y): contributes to y' (cos) and z' (sin) */
+	/* Column 2 (Input Z): contributes to y' (-sin) and z' (cos) */
+	bhs_mat4_t m_pitch = bhs_mat4_identity();
+	m_pitch.m[5] = cp;   /* Row 1, Col 1: y->y */
+	m_pitch.m[6] = sp;   /* Row 2, Col 1: y->z (z' = y*sp...) */
+	m_pitch.m[9] = -sp;  /* Row 1, Col 2: z->y (y' = ... - z*sp) */
+	m_pitch.m[10] = cp;  /* Row 2, Col 2: z->z */
+	
+	/* Combined View Matrix: V = Pitch * Yaw */
+	/* Since we are using Column-Major (OpenGL/Vulkan standard), 
+	   and we want to apply Yaw THEN Pitch on the vector v:
+	   v' = P * Y * v
+	   So Matrix = P * Y
+	*/
+	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
+	
+	/* NO Z-FLIP NEEDED.
+	   spacetime_renderer projects z' directly. 
+	   It treats +Z as forward depth.
+	   Vulkan expects +Z as depth.
+	   So this matrix is natively compatible.
+	*/
 	
 	/* Proj Matrix */
 	float focal_length = cam->fov;

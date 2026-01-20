@@ -200,6 +200,14 @@ static bool load_debug(struct app_state *app)
 		(struct bhs_vec3){ 1.0, 0.0, 1.0 } /* Magenta Color */
 	);
 
+	/* REFERENCE PLANET (Blue) at (20, 0, 0) */
+	bhs_scene_add_body(app->scene, BHS_BODY_PLANET,
+		(struct bhs_vec3){ 30.0, 0, 0 },     /* Pos 30,0,0 */
+		(struct bhs_vec3){ 0, 0, 0 },     /* Static */
+		1.0, 1.0,                         /* Mass, Radius=1.0 */
+		(struct bhs_vec3){ 0.0, 1.0, 1.0 } /* Cyan Color */
+	);
+
 	return true;
 }
 
