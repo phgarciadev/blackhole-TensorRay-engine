@@ -207,20 +207,6 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		BHS_LOG_ERROR("Falha ao inicializar renderer de planetas.");
 	}
 
-	/* 4.4. [NEW] Doppler Fabric */
-	/* Grid denso: 100x100 cobrindo 50x50 unidades */
-	/* Uses HUD default state: size val 0.2 -> ~140? No, let's match initial.
-	   Wait, HUD init sets 0.2 -> 50 + 0.2*450 = 140.
-	   Let's init with 100 to match prev.
-	   And set HUD to match 100? 
-	   (100 - 50) / 450 = 50/450 = 0.111
-	*/
-	app->hud.fabric_size_val = 0.1111f; /* Force sync start */
-	app->fabric = bhs_fabric_create(100, 100, 0.5);
-	if (!app->fabric) {
-		BHS_LOG_ERROR("Falha ao criar Doppler Fabric - sem memória?");
-	}
-
 	/* 5. Camera (valores padrão) */
 	bhs_camera_init(&app->camera);
 
@@ -229,9 +215,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	app->time_scale = 1.0;
 	app->accumulated_time = 0.0;
 	app->scenario = APP_SCENARIO_NONE;
-	app->scenario = APP_SCENARIO_NONE;
 	app->should_quit = false;
-	app->show_grid = true; /* [NEW] Default ON for Sci-Fi glory */
 
 	/* 7. Timing */
 	app->last_frame_time = get_time_seconds();
@@ -307,40 +291,6 @@ void app_run(struct app_state *app)
 			accumulator -= PHYSICS_DT;
 			app->accumulated_time += PHYSICS_DT;
 		}
-		
-		/* [NEW] Update visual fabric based on current physics state */
-		if (app->fabric && app->scene) {
-			/* Sync HUD Slider -> Fabric Spacing (Exponential) */
-			/* Formula: 0.1 * 500^val */
-			float target_spacing = 0.1f * powf(500.0f, app->hud.fabric_slider_val);
-			
-			/* Check diff with epsilon to avoid spam */
-			if (fabs(target_spacing - app->fabric->spacing) > 0.001) {
-				bhs_fabric_set_spacing(app->fabric, (double)target_spacing);
-			}
-
-			/* Sync HUD Slider -> Fabric Resolution (Resize) */
-			/* Mapping: 0..1 -> 50..500 */
-			uint32_t target_res = (uint32_t)(50 + app->hud.fabric_size_val * 450.0f);
-			if (app->fabric->width != target_res) {
-				/* Resize requested! */
-				/* WARNING: Heavy operation inside loop. Done only on release or drag? 
-				   Doing it live. */
-				double current_spacing = app->fabric->spacing;
-				bhs_fabric_destroy(app->fabric);
-				
-				app->fabric = bhs_fabric_create(target_res, target_res, current_spacing);
-				if (!app->fabric) {
-					BHS_LOG_FATAL("OOM ao redimensionar grid! Tentando fallback...");
-					app->fabric = bhs_fabric_create(50, 50, current_spacing);
-				}
-			}
-
-			int n_bodies = 0;
-			const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &n_bodies);
-			/* Update fabric deformation (O(V*B)) */
-			bhs_fabric_update(app->fabric, bodies, n_bodies);
-		}
 
 		/* [NEW] Sync Time Scale from HUD */
 		/* Mapping: 0.1 * 100^val */
@@ -375,9 +325,7 @@ void app_run(struct app_state *app)
 		bhs_view_assets_t assets = {
 			.bg_texture = app->bg_tex,
 			.sphere_texture = app->sphere_tex,
-			.bh_texture = bh_tex, /* [NEW] */
-			.show_grid = app->show_grid,
-			.fabric = app->fabric, /* [NEW] Pass fabrics to renderer */
+			.bh_texture = bh_tex,
 			.tex_cache = (const struct bhs_planet_tex_entry *)app->tex_cache,
 			.tex_cache_count = app->tex_cache_count,
 			.render_3d_active = (app->planet_pass != NULL)
@@ -385,17 +333,6 @@ void app_run(struct app_state *app)
 		/* app_run call update */
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
 					win_w, win_h, &assets, app->planet_pass);
-
-/* app_shutdown unused var removal */
-	/* 4.2. Black Hole Pass (Init) - removed logic if present or check context. 
-	   Wait, error was in app_shutdown line 376. 
-	   The logical block there was creating 'dev' but not using it?
-	   Let's just remove the line. 
-	*/
-	/* Note: The context of 'unused variable dev' was likely inside the '4.2' block I copy-pasted in replace_file earlier?
-	   No, error said 'app_shutdown'.
-	   Let's target the exact lines.
-	*/
 
 		/* HUD */
 		bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
@@ -419,7 +356,6 @@ void app_run(struct app_state *app)
 		app->frame_count++;
 		if (app->frame_count % 30 == 0) {
 			bhs_telemetry_print_scene(app->scene, app->accumulated_time,
-						  app->show_grid, 
 						  app->phys_ms, app->render_ms);
 		}
 		
@@ -450,17 +386,11 @@ void app_shutdown(struct app_state *app)
 	if (app->sphere_tex)
 		bhs_gpu_texture_destroy(app->sphere_tex);
 	
-	if (app->fabric)
-		bhs_fabric_destroy(app->fabric);
-	
 	/* Destroy cached textures */
 	for (int i = 0; i < app->tex_cache_count; i++) {
 		if (app->tex_cache[i].tex)
 			bhs_gpu_texture_destroy(app->tex_cache[i].tex);
 	}
-
-
-/* ... Shutdown ... */
 
 	if (app->bh_pass)
 		bhs_blackhole_pass_destroy(app->bh_pass);

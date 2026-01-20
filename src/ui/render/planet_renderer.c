@@ -58,7 +58,7 @@ static float calculate_gravity_depth(float x, float z, const struct bhs_body *bo
 		
 		double eff_mass = bodies[i].state.mass;
 		if (bodies[i].type == BHS_BODY_PLANET) {
-			eff_mass *= 5000.0; /* Match bhs_fabric visual boost */
+			eff_mass *= 5000.0; /* Visual boost for planet gravity wells */
 		}
 		
 		potential -= (eff_mass) / dist;

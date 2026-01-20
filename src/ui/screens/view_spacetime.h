@@ -1,8 +1,6 @@
 #ifndef BHS_UX_UI_VIEW_SPACETIME_H
 #define BHS_UX_UI_VIEW_SPACETIME_H
 
-struct bhs_fabric; /* Forward Declaration */
-
 #include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
 #include "gui-framework/ui/lib.h"
@@ -27,15 +25,13 @@ struct bhs_planet_tex_entry {
 typedef struct bhs_view_assets {
 	void *bg_texture;
 	void *sphere_texture;
-	void *bh_texture; /* [NEW] Black Hole Compute Result */
-	bool show_grid; /* Toggles wireframe rendering */
-	const struct bhs_fabric *fabric; /* [NEW] Doppler Fabric Data */
+	void *bh_texture; /* Black Hole Compute Result */
 	
-	/* [NEW] Procedural Cache */
+	/* Procedural Cache */
 	const struct bhs_planet_tex_entry *tex_cache;
 	int tex_cache_count;
 	
-	/* [NEW] 3D Renderer Status */
+	/* 3D Renderer Status */
 	bool render_3d_active;
 } bhs_view_assets_t;
 

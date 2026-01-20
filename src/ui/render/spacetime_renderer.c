@@ -1,6 +1,6 @@
 /**
  * @file spacetime_renderer.c
- * @brief Renderização Pura da Malha (Projeção e Desenho de Linhas)
+ * @brief Renderização de Fundo e Corpos Celestes
  */
 
 #include "spacetime_renderer.h"
@@ -96,9 +96,6 @@ static void calculate_sphere_uv(const bhs_camera_t *cam, float width,
 
 #include "src/ui/screens/view_spacetime.h" /* For struct definition */
 
-
-#include "include/bhs_fabric.h" /* [NEW] */
-
 /* Helper: Calculate gravity depth for object placement */
 static float calculate_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
 {
@@ -107,83 +104,19 @@ static float calculate_gravity_depth(float x, float z, const struct bhs_body *bo
 	float potential = 0.0f;
 	for (int i = 0; i < n_bodies; i++) {
 		float dx = x - bodies[i].state.pos.x;
-		float dz = z - bodies[i].state.pos.z; /* Z is physics Y? Wait. Physics uses X, Y, Z. */
-		/* In this renderer:
-		   visual_x = pos.x
-		   visual_y = pos.y (Physics Y is Up/Down? Or Z?) 
-		   Looking at project_point: x, y, z. 
-		   Looking at body loop: visual_x = pos.x, visual_y = pos.y, visual_z = pos.z.
-		   Physics usually is 2D on X,Y plane? Or X,Z?
-		   The fabric uses X,Y as plane, Z as depth.
-		   So for calculating depth at (x,y), we sum.
-		   
-		   Wait, `bhs_fabric.c`:
-		     dx = v->pos.x - b->position.x;
-             dy = v->pos.y - b->position.y;
-             v->cur.z = deform;
-             
-           So Fabric UP is Z.
-           In this renderer, project_point takes x, y, z.
-           It rotates Yaw around Y axis. Pitch around X axis.
-           So Y is UP.
-           
-           Fabric logic: "cur.z = deform". This implies Z is the "depth" dimension in Fabric local space?
-           Usually Embedding diagrams have Z as depth.
-           
-           But `project_point` assumes standard 3D axes. Y usually is UP in OpenGL/Games.
-           If Fabric uses Z as depth, we probably need to map:
-           Fabric X -> World X
-           Fabric Y -> World Z (Ground plane)
-           Fabric Z -> World Y (Depth/Elevation)
-           
-           Let's verify `bhs_fabric.c` implementation:
-             v->pos.x = (x * spacing) ...
-             v->pos.y = (y * spacing) ...
-             v->pos.z = 0.0;
-             
-             r2 = dx*dx + dy*dy; (Distance in XY plane)
-             v->cur.z = deform;
-             
-           It seems Fabric assumes X,Y is the plane.
-           If the camera coordinate system (Y-up) expects ground on X-Z, then we need to swap Y and Z when rendering fabric vertices.
-           
-           Legacy Grid code:
-             x00 = vertices[0], y00 = vertices[1] * depth_scale, z00 = vertices[2];
-           It scaled Y. So legacy grid had Y as depth?
-           
-           Let's assume we map:
-           Fabric.x -> World.x
-           Fabric.y -> World.z
-           Fabric.z -> World.y (Depth)
-           
-           And when calculating depth for planets:
-           Planet.x -> World.x
-           Planet.y -> World.z (Physics pos.y is actually z in 3D view?)
-           
-           Let's look at `app_state.c` / `spacetime_renderer.c`:
-             visual_x = b->state.pos.x;
-             visual_y = b->state.pos.y;
-             visual_z = b->state.pos.z;
-             
-           If simulation is 2D (X, Y), then Z is 0.
-           If we want planets to sink, we modify visual_y?
-           Legacy code: `visual_y = get_depth(...)`. So Y is Up/Down.
-           
-           So physics (x,y) maps to visual (x, z). And visual y is depth.
-           Let's stick to this mapping.
-		*/
+		float dz = z - bodies[i].state.pos.z;
 		
 		float dist_sq = dx*dx + dz*dz;
 		float dist = sqrtf(dist_sq + 0.1f);
 		
 		double eff_mass = bodies[i].state.mass;
 		if (bodies[i].type == BHS_BODY_PLANET) {
-			eff_mass *= 5000.0; /* Match bhs_fabric visual boost */
+			eff_mass *= 5000.0; /* Visual boost for planet gravity wells */
 		}
 		
 		potential -= (eff_mass) / dist; /* G=1 visual */
 	}
-	float depth = potential * 5.0f; /* Scale matches BHS_FABRIC_POTENTIAL_SCALE */
+	float depth = potential * 5.0f; /* Potential scale */
 	if (depth < -50.0f) depth = -50.0f;
 	return depth;
 }
@@ -196,7 +129,6 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	void *tex_bg = assets ? assets->bg_texture : NULL;
 
 	void *tex_bh = assets ? assets->bh_texture : NULL;
-	const struct bhs_fabric *fabric = assets ? assets->fabric : NULL; /* [NEW] */
 
 	/* -1. Black Hole Compute Output */
 	if (tex_bh) {
@@ -244,141 +176,6 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
                 bhs_ui_draw_quad_uv(ctx, tex_bg, x0, y0, u0, v0, x1, y0, u1, v1, x1, y1, u2, v2, x0, y1, u3, v3, space_color);
             }
         }
-	}
-
-	/* 
-	 * [PHASE 1] Doppler Fabric (High Fidelity Rendering)
-	 * Strategy:
-	 * 1. Calculate Lighting per vertex (CPU-side Gouraud Shading style)
-	 * 2. Draw Filled Quads (Surface)
-	 * 3. Draw Wireframe Overlay (Definition)
-	 */
-	if (assets && assets->show_grid && fabric) {
-		/* Palette Definition (Sci-Fi Deep Space) */
-		struct bhs_ui_color col_base = { 0.02f, 0.05f, 0.15f, 1.0f };   /* Deep Void Blue */
-		struct bhs_ui_color col_high = { 0.1f, 0.2f, 0.5f, 1.0f };      /* Illuminated Blue */
-		struct bhs_ui_color col_grid = { 0.3f, 0.6f, 0.9f, 0.3f };      /* Subtle Wireframe */
-		struct bhs_ui_color col_rim  = { 0.0f, 0.8f, 1.0f, 1.0f };      /* Electric Rim Light */
-
-		uint32_t w = fabric->width;
-		uint32_t h = fabric->height;
-		struct bhs_vec3 light_dir = { 0.5f, 0.8f, 0.3f }; /* Fixed Directional Light */
-		
-		/* Normalize light dir manually */
-		double l_len = sqrt(light_dir.x*light_dir.x + light_dir.y*light_dir.y + light_dir.z*light_dir.z);
-		light_dir.x /= l_len; light_dir.y /= l_len; light_dir.z /= l_len;
-
-		/* Camera View Vector (Approximate based on Yaw/Pitch for Rim Light) */
-		struct bhs_vec3 view_dir = {
-			sinf(cam->yaw) * cosf(cam->pitch),
-			sinf(cam->pitch),
-			cosf(cam->yaw) * cosf(cam->pitch)
-		}; /* This is camera forward. View dir is usually -Forward. */
-        (void)view_dir; /* Unused but kept for reference logic */
-
-		/* Iterate Quads (Cells) */
-		for (uint32_t y = 0; y < h - 1; y++) {
-			for (uint32_t x = 0; x < w - 1; x++) {
-				/* Vertex Indices */
-				uint32_t i00 = y * w + x;
-				uint32_t i10 = y * w + (x + 1);
-				uint32_t i11 = (y + 1) * w + (x + 1);
-				uint32_t i01 = (y + 1) * w + x;
-
-				struct bhs_fabric_vertex *v00 = &fabric->vertices[i00];
-				struct bhs_fabric_vertex *v10 = &fabric->vertices[i10];
-				struct bhs_fabric_vertex *v11 = &fabric->vertices[i11];
-				struct bhs_fabric_vertex *v01 = &fabric->vertices[i01];
-
-				/* Project Points */
-				float sx00, sy00, sx10, sy10, sx11, sy11, sx01, sy01;
-				
-				/* Mapping: Fabric(x,y,z) -> Visual(x,z,y) due to embedding orientation */
-				/* Fabric Z is deformation (depth) -> Visual Y (Up/Down) */
-				project_point(cam, v00->cur.x, v00->cur.z, v00->cur.y, width, height, &sx00, &sy00);
-				project_point(cam, v10->cur.x, v10->cur.z, v10->cur.y, width, height, &sx10, &sy10);
-				project_point(cam, v11->cur.x, v11->cur.z, v11->cur.y, width, height, &sx11, &sy11);
-				project_point(cam, v01->cur.x, v01->cur.z, v01->cur.y, width, height, &sx01, &sy01);
-
-				/* 
-				 * Lighting Calculation (Lambert + Fresnel) 
-				 * Calculated for the quad center (flat shading) or average? 
-				 * Flat shading is faster and gives that "low poly" retro-futuristic look.
-				 */
-				double nx = (v00->normal.x + v10->normal.x + v11->normal.x + v01->normal.x) * 0.25;
-				double ny = (v00->normal.y + v10->normal.y + v11->normal.y + v01->normal.y) * 0.25;
-				double nz = (v00->normal.z + v10->normal.z + v11->normal.z + v01->normal.z) * 0.25;
-				
-				/* Remap normal to visual space: Fabric (x,y,z) -> Visual (x,z,y) ? 
-				   Wait, if Fabric Z is depth, and Visual Y is depth.
-				   Normal was computed in Fabric space. 
-				   tx_z was computed from Z difference (depth).
-				   So Normal.z is the component along depth axis.
-				   In Visual space, Y is depth. So we must swap Y and Z in normal too?
-				   Normal(x,y,z) -> Visual(x, z, y).
-				*/
-				double vis_nx = nx;
-				double vis_ny = nz; /* Depth component is Y in visual */
-				double vis_nz = ny; /* Plane component */
-
-				/* Diffuse: N dot L */
-				/* Light is coming from top-right-ish */
-				double diff = vis_nx*light_dir.x + vis_ny*light_dir.y + vis_nz*light_dir.z;
-				if (diff < 0) diff = 0;
-
-				/* Fresnel: 1 - (N dot V) */
-				/* View dir approx. Need simple approximation. N.y (Up) usually correlates. */
-				/* Let's use a simpler heuristic: Slope. The steeper the slope, the brighter the rim. */
-				/* In fabric space, steep slope means normal.z (depth) is small (horizontal). 
-				   Flat space means normal.z is 1.0.
-				   So 1.0 - normal.z gives slope intensity.
-				*/
-				double slope = 1.0 - fabs(v00->normal.z); /* Fabric Z is depth/up in its local frame? No, Z is depth. */
-				/* Wait, bhs_fabric.c fallback normal is (0,0,1). That means Z is UP/Normal to plane in Fabric Space logic. 
-				   Checking bhs_fabric.c:
-				   Fallback: v->normal.z = 1;
-				   So Z is the "height" of the fabric membrane.
-				   Steep well = Z component of normal drops, X/Y increase.
-				*/
-				double fresnel = slope * slope; /* Sharpen curve */
-
-				/* Compose Color */
-				struct bhs_ui_color quad_col = col_base;
-				
-				/* Add Diffuse Highlight */
-				quad_col.r += col_high.r * diff * 0.5f;
-				quad_col.g += col_high.g * diff * 0.5f;
-				quad_col.b += col_high.b * diff * 0.5f;
-
-				/* Add Fresnel/Rim (Electric Blue on edges) */
-				quad_col.r += col_rim.r * fresnel;
-				quad_col.g += col_rim.g * fresnel;
-				quad_col.b += col_rim.b * fresnel;
-
-				/* Clamp Alpha */
-				quad_col.a = 0.9f; /* Slightly transparent */
-
-				/* Draw Filled Quad */
-				bhs_ui_draw_quad_uv(ctx, NULL, 
-					sx00, sy00, 0,0, 
-					sx10, sy10, 1,0, 
-					sx11, sy11, 1,1, 
-					sx01, sy01, 0,1, 
-					quad_col);
-
-				/* Draw Wireframe (Overlay) */
-				/* Only draw grid lines if simple or near camera?
-				   Let's draw all for now, optimized by simple line draw.
-				*/
-				bhs_ui_draw_line(ctx, sx00, sy00, sx10, sy10, col_grid, 1.0f); /* Top */
-				bhs_ui_draw_line(ctx, sx00, sy00, sx01, sy01, col_grid, 1.0f); /* Left */
-				
-				/* Bottom and Right will be drawn by neighbor cells, avoiding duplication 
-				   Logic: Draw Top and Left for every cell.
-				   Last row/col needs specific handling or just ignore (open edge is fine visually).
-				*/
-			}
-		}
 	}
 
 	/* 2. Bodies */

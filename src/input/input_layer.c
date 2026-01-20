@@ -121,6 +121,7 @@ static void handle_camera_input(struct app_state *app, double dt)
  */
 static void handle_simulation_input(struct app_state *app, double dt)
 {
+	(void)dt; /* Agora não usado após remoção do grid control */
 	/* Toggle pause com Space */
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_SPACE)) {
 		app_toggle_pause(app);
@@ -144,16 +145,6 @@ static void handle_simulation_input(struct app_state *app, double dt)
 		app_set_time_scale(app, 2.0);
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_5))
 		app_set_time_scale(app, 4.0);
-		
-	/* Grid Size Control Keys: 9 and 0 */
-	if (bhs_ui_key_down(app->ui, BHS_KEY_9)) {
-		app->hud.fabric_size_val -= 0.5f * dt; /* Slow decrease */
-		if (app->hud.fabric_size_val < 0.0f) app->hud.fabric_size_val = 0.0f;
-	}
-	if (bhs_ui_key_down(app->ui, BHS_KEY_0)) {
-		app->hud.fabric_size_val += 0.5f * dt;
-		if (app->hud.fabric_size_val > 1.0f) app->hud.fabric_size_val = 1.0f;
-	}
 }
 
 /**

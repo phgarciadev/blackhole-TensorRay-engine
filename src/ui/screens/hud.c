@@ -11,10 +11,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 	if (state) {
 		state->show_fps = true;
 		state->vsync_enabled = true;
-		state->show_grid = false; /* Começa desligado */
-		state->fabric_slider_val = 0.259f; /* Default Scale (0.5 unit) */
-		state->fabric_size_val = 0.2f;     /* [NEW] Default Size (approx 100x100 if mapped) */
-		state->time_scale_val = 0.5f;      /* [NEW] Default Time Scale (1.0x mapped from 0.5) */
+		state->time_scale_val = 0.5f;      /* Default Time Scale (1.0x mapped from 0.5) */
 		state->active_menu_index = -1;
 		state->selected_body_index = -1;
 		state->req_delete_body = false;
@@ -86,7 +83,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			const struct bhs_planet_registry_entry *e = bhs_planet_registry_get_head();
 			while(e) { count++; e = e->next; }
 		} else {
-			count = 4; // Config menu items
+			count = 2; // Config menu items (FPS + VSync + TimeScale)
 		}
 		
 		float panel_h = 40.0f + (count * 28.0f);
@@ -116,38 +113,8 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			
 			y += 28.0f;
 			item_rect.y = y;
-			bhs_ui_checkbox(ctx, "Show Grid", item_rect,
-					&state->show_grid);
 
-			y += 28.0f;
-			item_rect.y = y;
-			/* Calculate real spacing for display: 0.1 * 500^val */
-			float display_spacing = 0.1f * powf(500.0f, state->fabric_slider_val);
-			char grid_label[64];
-			snprintf(grid_label, 64, "Grid Scale: %.2f", display_spacing);
-
-			bhs_ui_draw_text(ctx, grid_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
-			y += 12.0f;
-			item_rect.y = y;
-			bhs_ui_slider(ctx, item_rect, &state->fabric_slider_val);
-
-			y += 28.0f;
-			item_rect.y = y;
-			
-			/* [NEW] Grid Size Control */
-			int current_res = (int)(50 + state->fabric_size_val * 450.0f); /* 50..500 */
-			char size_label[64];
-			snprintf(size_label, 64, "Grid Size: %dx%d (%d verts)", current_res, current_res, current_res*current_res);
-			
-			bhs_ui_draw_text(ctx, size_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
-			y += 12.0f;
-			item_rect.y = y;
-			bhs_ui_slider(ctx, item_rect, &state->fabric_size_val);
-
-			y += 28.0f;
-			item_rect.y = y;
-
-			/* [NEW] Time Scale Control */
+			/* Time Scale Control */
 			/* Mapping: 0.0->0.1x, 0.5->1.0x, 1.0->10.0x (Logarithmic feel) */
 			/* Formula: 0.1 * 100^val */
 			float time_scale_disp = 0.1f * powf(100.0f, state->time_scale_val);

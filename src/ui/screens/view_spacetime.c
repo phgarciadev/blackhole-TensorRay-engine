@@ -41,7 +41,7 @@ void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	   If not exposed, I have to add an accessor: `bhs_ui_get_current_cmd_buffer(ctx)`.
 	*/
 	
-	/* Draw 2.5D Elements (Grid, Skybox, BH Quad) */
+	/* Draw 2.5D Elements (Skybox, BH Quad) */
 	/* Note: This function inside spacetime_renderer.c also iterates planets and draws 2D versions.
 	   We should DISABLE planet drawing there.
 	*/
