@@ -7,8 +7,8 @@
 #define BHS_SYSTEM_APPLICATION_H
 
 #include "engine/scene/scene.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/ui/lib.h"
+#include "gui/rhi/rhi.h"
 #include "src/ui/screens/hud.h"
 
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
 } bhs_app_t;
 
 /**
- * bhs_app_init - Inicializa TUDO (Logs, gui-framework, Engine, Simulação)
+ * bhs_app_init - Inicializa TUDO (Logs, gui, Engine, Simulação)
  * Retorna true se sucesso.
  */
 bool bhs_app_init(bhs_app_t *app);

@@ -7,7 +7,7 @@
 #include "src/engine/geometry/mesh_gen.h"
 #include "src/math/mat4.h"
 #include "engine/assets/image_loader.h" /* Utils if needed */
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include <stdlib.h>
 #include <string.h>
 

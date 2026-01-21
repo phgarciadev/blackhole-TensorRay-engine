@@ -3,7 +3,7 @@
 
 #include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
-#include "gui-framework/ui/lib.h"
+#include "gui/ui/lib.h"
 
 /**
  * @brief Renderiza a malha do espaço-tempo

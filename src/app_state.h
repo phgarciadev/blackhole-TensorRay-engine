@@ -19,8 +19,8 @@
 
 #include <stdbool.h>
 #include "engine/scene/scene.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/ui/lib.h"
+#include "gui/rhi/rhi.h"
 #include "src/ui/screens/hud.h"
 #include "src/ui/render/planet_renderer.h"
 #include "src/ui/render/planet_renderer.h"
@@ -72,7 +72,7 @@ enum app_scenario {
  */
 struct app_state {
 	/* ---- Subsistemas ---- */
-	bhs_ui_ctx_t ui;		/* gui-framework: Janela, GPU, Input */
+	bhs_ui_ctx_t ui;		/* gui: Janela, GPU, Input */
 	bhs_scene_t scene;		/* Engine: ECS, Physics, Bodies */
 
 	/* ---- Assets de Rendering ---- */
@@ -118,7 +118,7 @@ struct app_state {
  */
 
 /**
- * app_init - Inicializa TUDO: logs, gui-framework, engine, scene, câmera
+ * app_init - Inicializa TUDO: logs, gui, engine, scene, câmera
  * @app: Estado da aplicação (deve estar zerado)
  * @title: Título da janela
  * @width: Largura inicial
@@ -130,7 +130,7 @@ struct app_state {
  * Ordem de inicialização:
  * 1. Logging
  * 2. Scene/Engine memory
- * 3. gui-framework/UI (Window + Vulkan)
+ * 3. gui/UI (Window + Vulkan)
  * 4. Assets (texturas)
  * 5. Camera (valores padrão)
  * 6. HUD state
@@ -158,7 +158,7 @@ void app_run(struct app_state *app);
  *
  * Ordem de cleanup (inversa do init):
  * 1. Texturas
- * 2. UI/gui-framework
+ * 2. UI/gui
  * 3. Scene/Engine
  * 4. Logging
  */

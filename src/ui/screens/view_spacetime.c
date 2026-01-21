@@ -36,7 +36,7 @@ void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	   `bhs_planet_pass_draw` requires `bhs_gpu_cmd_buffer_t`.
 	   We need to extract it from `ctx` or let `ctx` execute explicit callbacks.
 	   Currently `bhs_gpu_cmd_buffer_t` is NOT exposed via `bhs_ui_ctx_t` publicly in simple headers?
-	   Let's check `gui-framework/ui/lib.h`.
+	   Let's check `gui/ui/lib.h`.
 	
 	   If not exposed, I have to add an accessor: `bhs_ui_get_current_cmd_buffer(ctx)`.
 	*/

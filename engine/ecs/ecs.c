@@ -4,7 +4,7 @@
  */
 
 #include "engine/ecs/ecs.h"
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

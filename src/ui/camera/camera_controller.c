@@ -5,7 +5,7 @@
 
 #include "camera_controller.h"
 #include <math.h>
-#include "gui-framework/ui/lib.h"
+#include "gui/ui/lib.h"
 
 void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
 				  double dt)

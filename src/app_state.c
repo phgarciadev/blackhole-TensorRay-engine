@@ -12,9 +12,9 @@
 #include "simulation/scenario_mgr.h"
 #include "simulation/systems/systems.h" // [NEW] Logic Systems
 
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include <math.h> /* [NEW] for powf/fabs */
-#include "gui-framework/rhi/renderer.h"
+#include "gui/rhi/rhi.h"
 #include "engine/assets/image_loader.h"
 #include "src/simulation/data/planet.h" /* Registry is here */
 
@@ -72,8 +72,8 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		goto err_scene;
 	}
 
-	/* 2. gui-framework/UI (Window + Vulkan) */
-	BHS_LOG_INFO("Inicializando gui-framework/UI...");
+	/* 2. gui/UI (Window + Vulkan) */
+	BHS_LOG_INFO("Inicializando gui/UI...");
 	struct bhs_ui_config config = {
 		.title = title ? title : "BlackHole TensorRay",
 		.width = width > 0 ? width : 1280,

@@ -4,8 +4,8 @@
  */
 
 #include "src/system/application.h"
-#include "gui-framework/log.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/log.h"
+#include "gui/rhi/rhi.h"
 #include "engine/assets/image_loader.h"
 #include "src/simulation/simulation_init.h"
 #include <stdio.h>
@@ -32,8 +32,8 @@ bool bhs_app_init(bhs_app_t *app)
     BHS_LOG_INFO("Initializing Simulation...");
     bhs_simulation_init(app->scene);
 
-    // 3. UI gui-framework (Window + Vulkan)
-    BHS_LOG_INFO("Initializing gui-framework/UI...");
+    // 3. UI gui (Window + Vulkan)
+    BHS_LOG_INFO("Initializing gui/UI...");
     struct bhs_ui_config config = {
 		.title = "Black Hole Simulator - Spacetime View",
 		.width = 1280,

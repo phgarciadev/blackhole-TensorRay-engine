@@ -1,7 +1,7 @@
 #ifndef BHS_UI_RENDER_PLANET_RENDERER_H
 #define BHS_UI_RENDER_PLANET_RENDERER_H
 
-#include "gui-framework/ui/lib.h"
+#include "gui/ui/lib.h"
 #include "engine/scene/scene.h"
 #include "src/ui/camera/camera.h"
 #include "src/ui/screens/view_spacetime.h" /* For texture cache */

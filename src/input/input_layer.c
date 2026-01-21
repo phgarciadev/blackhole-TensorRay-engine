@@ -24,8 +24,8 @@
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
 #include "math/units.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/log.h"
+#include "gui/ui/lib.h"
+#include "gui/log.h"
 
 #include <math.h>
 #include <stdio.h>

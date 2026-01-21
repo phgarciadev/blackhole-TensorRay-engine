@@ -3,8 +3,8 @@
 
 #include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/ui/lib.h"
+#include "gui/rhi/rhi.h"
 
 /* === View === */
 

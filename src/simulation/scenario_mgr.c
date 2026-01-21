@@ -11,7 +11,7 @@
 #include "src/simulation/presets/presets.h"
 
 #include "engine/scene/scene.h"
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include "math/vec4.h"
 
 #include <stdio.h>
