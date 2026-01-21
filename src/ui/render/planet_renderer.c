@@ -247,11 +247,13 @@ static int compare_items(const void *a, const void *b)
 	return 0;
 }
 
+	
 void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			  bhs_gpu_cmd_buffer_t cmd,
 			  bhs_scene_t scene,
 			  const bhs_camera_t *cam,
 			  const bhs_view_assets_t *assets,
+			  bhs_visual_mode_t mode,
 			  float output_width, float output_height)
 {
 	if (!pass || !cmd || !scene) return;
@@ -287,22 +289,14 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	
 	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
 	
-	/* Proj Matrix */
+	/* Proj Matrix & Scale Settings */
 	float focal_length = cam->fov;
 	if (focal_length < 1.0f) focal_length = 1.0f;
 	
 	float fov_y = 2.0f * atanf((output_height * 0.5f) / focal_length);
 	float aspect = output_width / output_height;
 	
-	/* 
-	 * [FIX] Z-BUFFER PRECISION
-	 * Previous: Near 1000.0, Far 1.0e14. Ratio: 1e11. Too high for float24/32 depth.
-	 * New: Near 1.0e7 (10,000 km), Far 1.0e14. Ratio: 1e7. Much better.
-	 * Since we are drawing planets and stars, nothing should be closer than 10k km usually.
-	 */
 	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1.0e7f, 1.0e14f);
-	
-	/* Pre-multiply ViewProj for Packed PC */
 	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
 	
 	/* Light Pos (Sun at 0,0,0) */
@@ -312,26 +306,52 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	int count = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
 	
-	/* Allocate Sort Array (Stack if small, Heap if large) */
-	/* Usually < 100 bodies. Stack 64 ok? 
-	   Let's check code standards. VLA is acceptable in kernel for small sizes, 
-	   or just static limit.
-	*/
+	/* Allocate Sort Array */
 	struct render_item sort_list[128]; 
 	int render_count = 0;
+
+	/* Pre-calc mode params to avoid switch inside loop */
+	float rad_mult = 1.0f;
+	float pos_scale = 1.0f;
+	bool use_gravity_well = false;
+	
+	switch(mode) {
+		case BHS_VISUAL_MODE_SCIENTIFIC:
+			rad_mult = 1.0f;
+			pos_scale = 1.0f;
+			use_gravity_well = false; /* Flat plane */
+			break;
+		case BHS_VISUAL_MODE_DIDACTIC:
+			rad_mult = 80.0f;
+			pos_scale = 1.0f;
+			use_gravity_well = true;
+			break;
+		case BHS_VISUAL_MODE_CINEMATIC:
+			rad_mult = 300.0f; /* Even bigger */
+			pos_scale = 0.1f;  /* Bring them closer (10x smaller orbits) */
+			use_gravity_well = true;
+			break;
+	}
 
 	for (int i = 0; i < count; i++) {
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		if (render_count >= 128) break;
 
-		/* Calculate Distance Squared to Camera */
-		/* Remember visual mapping logic from earlier */
-		float visual_y = calculate_gravity_depth((float)b->state.pos.x, (float)b->state.pos.z, bodies, count);
+		/* Determine Visual Position based on Mode */
+		float b_px = (float)b->state.pos.x * pos_scale;
+		float b_pz = (float)b->state.pos.z * pos_scale;
+		float b_py = 0.0f;
 		
-		double rel_x = b->state.pos.x - cam->x;
-		double rel_y = visual_y - cam->y;
-		double rel_z = b->state.pos.z - cam->z;
+		if (use_gravity_well) {
+			b_py = calculate_gravity_depth(b_px, b_pz, bodies, count);
+			/* Cosmetic adjustment: In cinematic, exaggerate depth? */
+			if (mode == BHS_VISUAL_MODE_CINEMATIC) b_py *= 2.0f;
+		}
+
+		double rel_x = b_px - cam->x;
+		double rel_y = b_py - cam->y;
+		double rel_z = b_pz - cam->z;
 		
 		float dist_sq = (float)(rel_x*rel_x + rel_y*rel_y + rel_z*rel_z);
 		
@@ -360,19 +380,27 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		}
 		bhs_gpu_cmd_bind_texture(cmd, 0, 0, tex, pass->sampler);
 		
-		/* RTC Position */
-		float visual_y = calculate_gravity_depth((float)b->state.pos.x, (float)b->state.pos.z, bodies, count);
+		/* Reconstruct Visual Position (Duplicated calc, but cheap) */
+		/* Ideally store in sort_list but struct size constraint. It's fine. */
+		float b_px = (float)b->state.pos.x * pos_scale;
+		float b_pz = (float)b->state.pos.z * pos_scale;
+		float b_py = 0.0f;
 		
-		double rel_x = b->state.pos.x - cam->x;
-		double rel_y = visual_y - cam->y;
-		double rel_z = b->state.pos.z - cam->z;
+		if (use_gravity_well) {
+			b_py = calculate_gravity_depth(b_px, b_pz, bodies, count);
+			if (mode == BHS_VISUAL_MODE_CINEMATIC) b_py *= 2.0f;
+		}
+		
+		double rel_x = b_px - cam->x;
+		double rel_y = b_py - cam->y;
+		double rel_z = b_pz - cam->z;
 		
 		float tx = (float)rel_x;
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
 
-		/* VISUAL SCALE: Uniform 80x */
-		float radius = (float)b->state.radius * 80.0f;
+		/* Apply Scale */
+		float radius = (float)b->state.radius * rad_mult;
 		
 		/* Rotation Params */
 		float angle = (float)b->state.current_rotation_angle;

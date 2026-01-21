@@ -342,7 +342,6 @@ void app_run(struct app_state *app)
             }
         }
 
-		app->phys_ms = (get_time_seconds() - t0) * 1000.0;
 
 		/* Rendering */
 		t0 = get_time_seconds();
@@ -356,17 +355,13 @@ void app_run(struct app_state *app)
 		/* [NEW] Dispatch Compute Pass */
 		bhs_gpu_texture_t bh_tex = NULL;
 		if (app->bh_pass && app->scenario == APP_SCENARIO_KERR_BLACKHOLE) {
-			/* Resize check */
 			bhs_blackhole_pass_resize(app->bh_pass, win_w, win_h);
-			
-			/* Dispatch */
 			bhs_gpu_cmd_buffer_t cmd = bhs_ui_get_current_cmd(app->ui);
 			bhs_blackhole_pass_dispatch(app->bh_pass, cmd, app->scene, &app->camera);
-			
 			bh_tex = bhs_blackhole_pass_get_output(app->bh_pass);
 		}
 
-		/* Desenha cena */
+		/* Desenha cena (Updated with Visual Mode) */
 		bhs_view_assets_t assets = {
 			.bg_texture = app->bg_tex,
 			.sphere_texture = app->sphere_tex,
@@ -375,16 +370,15 @@ void app_run(struct app_state *app)
 			.tex_cache_count = app->tex_cache_count,
 			.render_3d_active = (app->planet_pass != NULL)
 		};
-		/* app_run call update */
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
-					win_w, win_h, &assets, app->planet_pass);
+					win_w, win_h, &assets,
+					app->hud.visual_mode, app->planet_pass);
 
 		/* HUD */
 		bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
 
 		/* Status bar */
-		const char *status = app->sim_status == APP_SIM_PAUSED 
-			? "PAUSED" : "Running";
+		const char *status = app->sim_status == APP_SIM_PAUSED ? "PAUSED" : "Running";
 		char status_buf[128];
 		snprintf(status_buf, sizeof(status_buf),
 			 "Status: %s | Time Scale: %.1fx | S=Save L=Load Space=Pause",

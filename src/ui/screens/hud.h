@@ -5,13 +5,17 @@
 
 #include "engine/scene/scene.h"
 #include "src/simulation/data/planet.h" // Added as per instruction
+#include "src/ui/screens/view_spacetime.h" /* Enum bhs_visual_mode_t */
 
 typedef struct {
 	bool show_fps;
 	bool vsync_enabled;
 	float time_scale_val;    /* [NEW] Slider 0..1 (Logarithmic) */
-	int active_menu_index; /* -1 = none, 0=Config, 1=Add */
+	int active_menu_index; /* -1 = none, 0=Config, 1=Add, 2=Visual */
 	int add_menu_category; /* -1 = Root, 0=Planets, 1=Suns, 2=Moons, 3=BlackHoles */
+	
+	/* Visualization Mode */
+	bhs_visual_mode_t visual_mode;
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */

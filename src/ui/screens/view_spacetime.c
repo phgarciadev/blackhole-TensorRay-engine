@@ -25,44 +25,22 @@ void bhs_camera_update_view(bhs_camera_t *cam, bhs_ui_ctx_t ctx, double dt)
 void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			     const bhs_camera_t *cam, int width, int height,
 			     const bhs_view_assets_t *assets,
+			     bhs_visual_mode_t mode,
 			     struct bhs_planet_pass *planet_pass)
 {
 	if (!ctx) return;
 
-	/* 1. Reset & Begin Frame in Renderer if needed? 
-	   Renderer handles command buffer? Yes. 
-	   We need to piggyback on the main command buffer.
-	   Wait, UI lib obfuscates the command buffer. `bhs_ui_ctx_t`.
-	   `bhs_planet_pass_draw` requires `bhs_gpu_cmd_buffer_t`.
-	   We need to extract it from `ctx` or let `ctx` execute explicit callbacks.
-	   Currently `bhs_gpu_cmd_buffer_t` is NOT exposed via `bhs_ui_ctx_t` publicly in simple headers?
-	   Let's check `gui/ui/lib.h`.
-	
-	   If not exposed, I have to add an accessor: `bhs_ui_get_current_cmd_buffer(ctx)`.
-	*/
-	
 	/* Draw 2.5D Elements (Skybox, BH Quad) */
-	/* Note: This function inside spacetime_renderer.c also iterates planets and draws 2D versions.
-	   We should DISABLE planet drawing there.
-	*/
 	bhs_spacetime_renderer_draw(ctx, scene, cam, width, height, assets);
 
 	/* Draw 3D Elements */
 	if (planet_pass) {
 		bhs_gpu_cmd_buffer_t cmd = (bhs_gpu_cmd_buffer_t)bhs_ui_get_current_cmd(ctx);
 		if (cmd) {
-			/* Start Render Pass? 
-			   UI is likely already inside a RenderPass (the Swapchain one).
-			   The 3D pipeline expects to run inside A render pass.
-			   Since we share the framebuffer, we should inherit it.
-			   
-			   [FIX] Flush UI batch so it doesn't get drawn with the WRONG pipeline later.
-			*/
 			bhs_ui_flush(ctx);
 
-			bhs_planet_pass_draw(planet_pass, cmd, scene, cam, assets, (float)width, (float)height);
+			bhs_planet_pass_draw(planet_pass, cmd, scene, cam, assets, mode, (float)width, (float)height);
 			
-			/* [FIX] Restore UI Pipeline State because planet_pass hijacked it */
 			bhs_ui_reset_render_state(ctx);
 		}
 	}

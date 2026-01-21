@@ -6,6 +6,13 @@
 #include "gui/ui/lib.h"
 #include "gui/rhi/rhi.h"
 
+/* Render Modes */
+typedef enum {
+	BHS_VISUAL_MODE_SCIENTIFIC = 0,
+	BHS_VISUAL_MODE_DIDACTIC = 1,
+	BHS_VISUAL_MODE_CINEMATIC = 2
+} bhs_visual_mode_t;
+
 /* === View === */
 
 /* Proxy to bhs_camera_init */
@@ -40,6 +47,7 @@ typedef struct bhs_view_assets {
 void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			     const bhs_camera_t *cam, int width, int height,
 			     const bhs_view_assets_t *assets,
+			     bhs_visual_mode_t mode,
 			     struct bhs_planet_pass *planet_pass);
 
 #endif /* BHS_UX_UI_VIEW_SPACETIME_H */

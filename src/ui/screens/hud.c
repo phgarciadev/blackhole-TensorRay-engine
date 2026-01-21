@@ -3,8 +3,8 @@
 #include "src/simulation/data/planet.h"
 #include <stdio.h>
 
-static const char *MENU_ITEMS[] = { "Config", "Add" };
-static const int MENU_COUNT = 2;
+static const char *MENU_ITEMS[] = { "Config", "Add", "View" };
+static const int MENU_COUNT = 3;
 
 static bool is_inside(int mx, int my, float x, float y, float w, float h);
 
@@ -75,6 +75,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->req_delete_body = false;
 		state->req_add_body_type = -1;
 		state->req_add_registry_entry = NULL;
+		state->visual_mode = BHS_VISUAL_MODE_DIDACTIC;
 	}
 }
 
@@ -265,6 +266,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 				       "required)\n");
 			}
 		}
+/* ... inside logic ... */
 		/* INDEX 1: ADD */
 		else if (state->active_menu_index == 1) {
 			bhs_ui_draw_text(ctx, "Inject Body", panel_rect.x + item_pad,
@@ -331,6 +333,44 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 					entry = entry->next;
 				}
 			}
+		}
+		/* INDEX 2: VIEW (SCALES) */
+		else if (state->active_menu_index == 2) {
+			bhs_ui_draw_text(ctx, "Visual Scale", panel_rect.x + item_pad,
+					 y, font_header, BHS_UI_COLOR_GRAY);
+			y += 25.0f * ui_scale;
+			
+			const char *modes[] = { "Scientific (Real)", "Didactic (Teaching)", "Cinematic (Epic)" };
+			bhs_visual_mode_t vals[] = { BHS_VISUAL_MODE_SCIENTIFIC, BHS_VISUAL_MODE_DIDACTIC, BHS_VISUAL_MODE_CINEMATIC };
+			
+			for (int k = 0; k < 3; k++) {
+				bool selected = (state->visual_mode == vals[k]);
+				struct bhs_ui_rect btn_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+				
+				/* Highlight selected */
+				if (selected) {
+					bhs_ui_draw_rect(ctx, btn_rect, (struct bhs_ui_color){ 0.0f, 0.4f, 0.5f, 0.5f });
+				}
+				
+				if (bhs_ui_button(ctx, modes[k], btn_rect)) {
+					state->visual_mode = vals[k];
+					/* Auto-close? No, let user switch and see.*/
+				}
+				y += row_spacing;
+			}
+			
+			/* Descrição do modo atual */
+			y += 5.0f * ui_scale;
+			bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y, panel_rect.x + panel_rect.width - item_pad, y, BHS_UI_COLOR_GRAY, 1.0f);
+			y += 10.0f * ui_scale;
+			
+			const char *desc = "";
+			switch(state->visual_mode) {
+				case BHS_VISUAL_MODE_SCIENTIFIC: desc = "True Physics.\nPlanets are dots.\nSpace is empty."; break;
+				case BHS_VISUAL_MODE_DIDACTIC:   desc = "Balanced.\nVisible orbits.\nReadable sizes."; break;
+				case BHS_VISUAL_MODE_CINEMATIC:  desc = "Hollywood.\nMassive planets.\nClose Stars.\nNot physics."; break;
+			}
+			bhs_ui_draw_text(ctx, desc, panel_rect.x + item_pad, y, font_label, BHS_UI_COLOR_GRAY);
 		}
 	}
 

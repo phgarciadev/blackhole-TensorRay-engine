@@ -34,6 +34,7 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			  bhs_scene_t scene,
 			  const bhs_camera_t *cam,
 			  const bhs_view_assets_t *assets,
+			  bhs_visual_mode_t mode,
 			  float output_width, float output_height);
 
 #endif
