@@ -473,7 +473,16 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             y += line_h;
 
             DRAW_PROP("Source:", "%s", state->attractor_name);
-            DRAW_PROP("Dist:", "%.2e m", state->attractor_dist);
+            
+            double d_val = state->attractor_dist;
+            /* Smart Units: AU > Mkm > km */
+            if (d_val >= 149597870700.0 * 0.01) { /* > 0.01 AU (~1.5 Mkm) */
+                DRAW_PROP("Dist:", "%.3f AU", d_val / 149597870700.0);
+            } else if (d_val >= 1.0e9) { /* > 1 Mkm */
+                DRAW_PROP("Dist:", "%.2f Mkm", d_val / 1.0e9);
+            } else {
+                 DRAW_PROP("Dist:", "%.0f km", d_val / 1000.0);
+            }
         }
 
 		y += 20.0f * ui_scale; /* Spacing before buttons */
