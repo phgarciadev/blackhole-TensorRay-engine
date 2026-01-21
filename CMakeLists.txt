@@ -89,6 +89,18 @@ include(PlatformValidation)    # Validação e Warnings (Ex: Mac+OpenGL)
 include(CompilerWarnings)
 include(Sanitizers)
 include(ShaderCompiler)
+include(Bindgen)
+
+# --- Rust Bindings ---
+# Gera include/bindings.rs a partir de rust/wrapper.h
+# Invocavel via 'make rust-binds' (se usar Makefile wrapper que chama cmake build)
+# ou ninja rust-binds / make rust-binds (direto no build dir)
+bhs_add_bindings(
+    TARGET rust-binds
+    WRAPPER "${CMAKE_SOURCE_DIR}/rust/wrapper.h"
+    OUTPUT "${CMAKE_SOURCE_DIR}/include/bindings.rs"
+    INCLUDES "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/math" "${CMAKE_SOURCE_DIR}/engine" "${CMAKE_SOURCE_DIR}/gui"
+)
 
 # Opções de Build
 option(BHS_ENABLE_TESTING "Habilitar testes unitários" ON)

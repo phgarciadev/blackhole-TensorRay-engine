@@ -322,13 +322,13 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			use_gravity_well = false; /* Flat plane */
 			break;
 		case BHS_VISUAL_MODE_DIDACTIC:
-			rad_mult = 80.0f;
-			pos_scale = 1.0f;
+			rad_mult = 60.0f; /* Slightly smaller than before to reduce clutter */
+			pos_scale = 5.0f; /* Spread out 5x so Mercury isn't inside Sun */
 			use_gravity_well = true;
 			break;
 		case BHS_VISUAL_MODE_CINEMATIC:
-			rad_mult = 300.0f; /* Even bigger */
-			pos_scale = 0.1f;  /* Bring them closer (10x smaller orbits) */
+			rad_mult = 200.0f; /* Huge, but not 300x huge */
+			pos_scale = 4.0f;  /* 4x distance gives breathing room for the massive radii */
 			use_gravity_well = true;
 			break;
 	}

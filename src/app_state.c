@@ -335,7 +335,14 @@ void app_run(struct app_state *app)
 
                 if (best_idx != -1) {
                     snprintf(app->hud.attractor_name, 64, "%s", bodies[best_idx].name);
-                    app->hud.attractor_dist = best_dist;
+                    
+                    /* [FIX] Surface-to-Surface Distance (Wall-to-Wall) */
+                    double r_attractor = bodies[best_idx].state.radius;
+                    double r_self = me->state.radius;
+                    double surf_dist = best_dist - r_attractor - r_self;
+                    
+                    if (surf_dist < 0.0) surf_dist = 0.0;
+                    app->hud.attractor_dist = surf_dist;
                 } else {
                     app->hud.attractor_name[0] = '\0';
                 }
