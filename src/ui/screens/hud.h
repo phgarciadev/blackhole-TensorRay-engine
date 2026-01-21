@@ -16,6 +16,7 @@ typedef struct {
 	
 	/* Visualization Mode */
 	bhs_visual_mode_t visual_mode;
+	bool top_down_view; /* [NEW] */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */

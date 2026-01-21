@@ -112,6 +112,29 @@ static void project_point(const bhs_camera_t *c, float x, float y, float z,
  */
 static void handle_camera_input(struct app_state *app, double dt)
 {
+	/* Sync HUD State with Camera State */
+	if (app->hud.top_down_view != app->camera.is_top_down_mode) {
+		app->camera.is_top_down_mode = app->hud.top_down_view;
+
+		if (app->camera.is_top_down_mode) {
+			/* Entering Top-Down: Reset to high altitude, looking down */
+			app->camera.x = 0.0;
+			app->camera.z = 0.0;
+			app->camera.y = 1.0e13; /* ~66 AU - Good overview */
+			app->camera.pitch = -1.57079632679f; /* -90 degrees */
+			app->camera.yaw = 0.0f;
+		} else {
+			/* Exiting: Restore comfortable pitch */
+			app->camera.pitch = -0.3f;
+		}
+	}
+
+	/* Force pitch lock if in mode (redundant safety) */
+	if (app->camera.is_top_down_mode) {
+		app->camera.pitch = -1.57079632679f;
+		/* We don't lock X/Z so user can pan */
+	}
+
 	/* Delega pro camera_controller existente */
 	bhs_camera_controller_update(&app->camera, app->ui, dt);
 }

@@ -76,6 +76,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->req_add_body_type = -1;
 		state->req_add_registry_entry = NULL;
 		state->visual_mode = BHS_VISUAL_MODE_DIDACTIC;
+		state->top_down_view = false;
 	}
 }
 
@@ -203,8 +204,10 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		if (state->active_menu_index == 1) {
 			const struct bhs_planet_registry_entry *e = bhs_planet_registry_get_head();
 			while(e) { count++; e = e->next; }
+		} else if (state->active_menu_index == 2) {
+			count = 5; /* 3 Modes + TopDown Toggle + Extra space */
 		} else {
-			count = 2; // Config menu items
+			count = 4; /* Config: FPS, TimeText, Slider, VSync */
 		}
 		
 		float row_h = 28.0f * layout.ui_scale;
@@ -358,6 +361,12 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 				}
 				y += row_spacing;
 			}
+			
+			/* Top Down Camera Toggle */
+			y += 5.0f * ui_scale;
+			struct bhs_ui_rect td_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+			bhs_ui_checkbox(ctx, "Top Down Camera", td_rect, &state->top_down_view);
+			y += row_spacing;
 			
 			/* Descrição do modo atual */
 			y += 5.0f * ui_scale;
