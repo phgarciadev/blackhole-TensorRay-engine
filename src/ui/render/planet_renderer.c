@@ -230,6 +230,23 @@ void bhs_planet_pass_destroy(bhs_planet_pass_t pass)
 	free(pass);
 }
 
+/* Helper for sorting */
+struct render_item {
+	int index;
+	float dist_sq;
+};
+
+static int compare_items(const void *a, const void *b)
+{
+	const struct render_item *ia = (const struct render_item *)a;
+	const struct render_item *ib = (const struct render_item *)b;
+	/* Sort FAR to NEAR (Descending distance) */
+	/* If dist_sq is greater, it comes FIRST. */
+	if (ia->dist_sq > ib->dist_sq) return -1;
+	if (ia->dist_sq < ib->dist_sq) return 1;
+	return 0;
+}
+
 void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			  bhs_gpu_cmd_buffer_t cmd,
 			  bhs_scene_t scene,
@@ -248,13 +265,6 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
 	
 	/* View/Proj Matrices */
-	/* 
-	 * MANUAL VIEW MATRIX CONSTRUCTION
-	 * Goal: Match 'spacetime_renderer.c' logic exactly.
-	 * Logic: 1. Translate (RTC handled via Model) -> 2. Yaw (Y) -> 3. Pitch (X)
-	 * Standard Matrix Multiplication: M = P * V * M
-	 * V = R_pitch * R_yaw
-	 */
 	
 	float cy = cosf(cam->yaw);
 	float sy = sinf(cam->yaw);
@@ -262,9 +272,6 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	float sp = sinf(cam->pitch);
 	
 	/* Rotation Yaw (Y-Axis) */
-	/* Matches spacetime: x' = x*cy - z*sy; z' = x*sy + z*cy */
-	/* Column 0 (Input X): contributes to x' (cos) and z' (sin) */
-	/* Column 2 (Input Z): contributes to x' (-sin) and z' (cos) */
 	bhs_mat4_t m_yaw = bhs_mat4_identity();
 	m_yaw.m[0] = cy;   /* Row 0, Col 0: x->x */
 	m_yaw.m[2] = sy;   /* Row 2, Col 0: x->z (z' = x*sy...) */
@@ -272,29 +279,13 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	m_yaw.m[10] = cy;  /* Row 2, Col 2: z->z */
 	
 	/* Rotation Pitch (X-Axis) */
-	/* Matches spacetime: y' = y*cp - z*sp; z' = y*sp + z*cp */
-	/* Column 1 (Input Y): contributes to y' (cos) and z' (sin) */
-	/* Column 2 (Input Z): contributes to y' (-sin) and z' (cos) */
 	bhs_mat4_t m_pitch = bhs_mat4_identity();
 	m_pitch.m[5] = cp;   /* Row 1, Col 1: y->y */
 	m_pitch.m[6] = sp;   /* Row 2, Col 1: y->z (z' = y*sp...) */
 	m_pitch.m[9] = -sp;  /* Row 1, Col 2: z->y (y' = ... - z*sp) */
 	m_pitch.m[10] = cp;  /* Row 2, Col 2: z->z */
 	
-	/* Combined View Matrix: V = Pitch * Yaw */
-	/* Since we are using Column-Major (OpenGL/Vulkan standard), 
-	   and we want to apply Yaw THEN Pitch on the vector v:
-	   v' = P * Y * v
-	   So Matrix = P * Y
-	*/
 	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
-	
-	/* NO Z-FLIP NEEDED.
-	   spacetime_renderer projects z' directly. 
-	   It treats +Z as forward depth.
-	   Vulkan expects +Z as depth.
-	   So this matrix is natively compatible.
-	*/
 	
 	/* Proj Matrix */
 	float focal_length = cam->fov;
@@ -303,8 +294,13 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	float fov_y = 2.0f * atanf((output_height * 0.5f) / focal_length);
 	float aspect = output_width / output_height;
 	
-	/* Far Plane: 1e14 (100 Trillion m) to cover Solar System */
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1000.0f, 1.0e14f);
+	/* 
+	 * [FIX] Z-BUFFER PRECISION
+	 * Previous: Near 1000.0, Far 1.0e14. Ratio: 1e11. Too high for float24/32 depth.
+	 * New: Near 1.0e7 (10,000 km), Far 1.0e14. Ratio: 1e7. Much better.
+	 * Since we are drawing planets and stars, nothing should be closer than 10k km usually.
+	 */
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1.0e7f, 1.0e14f);
 	
 	/* Pre-multiply ViewProj for Packed PC */
 	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
@@ -312,14 +308,46 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	/* Light Pos (Sun at 0,0,0) */
 	float light_pos[3] = { 0.0f, 0.0f, 0.0f };
 	
-	/* Iterate Bodies */
+	/* Collect Bodies */
 	int count = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
 	
+	/* Allocate Sort Array (Stack if small, Heap if large) */
+	/* Usually < 100 bodies. Stack 64 ok? 
+	   Let's check code standards. VLA is acceptable in kernel for small sizes, 
+	   or just static limit.
+	*/
+	struct render_item sort_list[128]; 
+	int render_count = 0;
+
 	for (int i = 0; i < count; i++) {
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
+		if (render_count >= 128) break;
+
+		/* Calculate Distance Squared to Camera */
+		/* Remember visual mapping logic from earlier */
+		float visual_y = calculate_gravity_depth((float)b->state.pos.x, (float)b->state.pos.z, bodies, count);
 		
+		double rel_x = b->state.pos.x - cam->x;
+		double rel_y = visual_y - cam->y;
+		double rel_z = b->state.pos.z - cam->z;
+		
+		float dist_sq = (float)(rel_x*rel_x + rel_y*rel_y + rel_z*rel_z);
+		
+		sort_list[render_count].index = i;
+		sort_list[render_count].dist_sq = dist_sq;
+		render_count++;
+	}
+
+	/* Sort (Painter's Algorithm: Far -> Near) */
+	qsort(sort_list, render_count, sizeof(struct render_item), compare_items);
+	
+	/* Draw Sorted */
+	for (int k = 0; k < render_count; k++) {
+		int i = sort_list[k].index;
+		const struct bhs_body *b = &bodies[i];
+
 		/* Textura ... */
 		bhs_gpu_texture_t tex = assets->sphere_texture;
 		if (assets->tex_cache) {
@@ -342,9 +370,8 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		float tx = (float)rel_x;
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
+
 		/* VISUAL SCALE: Uniform 80x */
-		/* Limit determined by Mercury Orbit (58M km) vs Sun Radius (700k km). */
-		/* Max uniform scale is ~83x before Sun swallows Mercury. Using 80x. */
 		float radius = (float)b->state.radius * 80.0f;
 		
 		/* Rotation Params */
