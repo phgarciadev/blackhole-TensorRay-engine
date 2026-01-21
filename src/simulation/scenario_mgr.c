@@ -35,17 +35,17 @@ static void set_camera_for_scenario(struct app_state *app, enum scenario_type ty
 	case SCENARIO_SOLAR_SYSTEM:
 		/* Câmera acima do plano orbital, olhando pro centro */
 		app->camera.x = 0.0f;
-		app->camera.y = 80.0f;
-		app->camera.z = -120.0f;
+		app->camera.y = 8.0e10f; /* ~0.5 AU Up */
+		app->camera.z = -2.0e11f; /* ~1.3 AU Back */
 		app->camera.pitch = -0.4f;
 		app->camera.yaw = 0.0f;
-		app->camera.fov = 600.0f;
+		app->camera.fov = 1000.0f; /* Standard far plane needs check? 1000 FOV is focal length? */
 		break;
 
 	case SCENARIO_EARTH_SUN:
 		/* Câmera focada em observar a distância */
 		app->camera.x = 0.0f;
-		app->camera.y = 100.0f; /* Bem acima */
+		app->camera.y = 2.0e11f; /* Bem acima (1.3 AU) */
 		app->camera.z = 0.0f;
 		app->camera.pitch = -1.57f; /* Olhando para baixo (90 graus) */
 		app->camera.yaw = 0.0f;

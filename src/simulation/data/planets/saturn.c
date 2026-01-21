@@ -28,7 +28,7 @@ struct bhs_planet_desc bhs_saturn_get_desc(void)
 	d.type = BHS_PLANET_GAS_GIANT;
 	
 	/* Essencial */
-	d.mass = 5.6834e26;
+	d.mass = 5.68e26;
 	d.radius = 5.8232e7;
 	d.density = 687.0; /* Menor que a água! */
 	d.rotation_period = 10.7 * 3600.0;

@@ -78,7 +78,7 @@ static void project_point(const bhs_camera_t *c, float x, float y, float z,
 	float fov_y = 2.0f * atanf((sh * 0.5f) / focal_length);
 	float aspect = sw / sh;
 	
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 0.1f, 2000.0f);
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1000.0f, 1.0e14f);
 	
 	/* 3. ViewProj */
 	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
@@ -208,9 +208,9 @@ static void handle_object_interaction(struct app_state *app)
 
 			new_body = bhs_body_create_from_desc(&desc, pos);
 			
-			/* Use Canonical Unit Conversion (SI -> Sim) */
-			new_body.state.mass = BHS_KG_TO_SIM(new_body.state.mass);
-			new_body.state.radius = BHS_RADIUS_TO_SIM(new_body.state.radius);
+			/* Use Canonical Unit Conversion (SI -> Sim) - REMOVED for SI Scale */
+			new_body.state.mass = new_body.state.mass;
+			new_body.state.radius = new_body.state.radius;
 
 			if (new_body.state.mass < 1e-10)
 				new_body.state.mass = 1e-10;
@@ -228,12 +228,12 @@ static void handle_object_interaction(struct app_state *app)
 			double radius = 0.5;
 
 			if (app->hud.req_add_body_type == BHS_BODY_STAR) {
-				mass = 2.0;
-				radius = 1.0;
+				mass = 2.0e30; /* Solar Mass */
+				radius = 7.0e8; /* Solar Radius */
 				col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
 			} else if (app->hud.req_add_body_type == BHS_BODY_BLACKHOLE) {
-				mass = 10.0;
-				radius = 2.0;
+				mass = 1.0e31; /* 5 Solar Masses */
+				radius = 30000.0; /* Schwarzschild Radius approx */
 				col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
 			}
 
@@ -335,8 +335,7 @@ static void handle_object_interaction(struct app_state *app)
 				      (float)win_w, (float)win_h, &sx, &sy);
 
 			/* Raio de picking proporcional ao tamanho visual */
-			/* Heurística: 50px mínimo + proporcional à distância/raio */
-			float visual_radius = (float)b->state.radius * 30.0f;
+			float visual_radius = (float)b->state.radius * 80.0f;
 			float dist_to_cam = sqrtf(rtc_x*rtc_x + rtc_y*rtc_y + rtc_z*rtc_z);
 			float pick_radius = 30.0f; /* Base */
 			if (dist_to_cam > 0.1f) {

@@ -471,6 +471,8 @@ enum bhs_ui_key {
   BHS_KEY_DOWN = 108,
   BHS_KEY_LEFT = 105,
   BHS_KEY_RIGHT = 106,
+  BHS_KEY_LEFTSHIFT = 42,
+  BHS_KEY_RIGHTSHIFT = 54,
 };
 
 /* Mouse buttons: usa BHS_MOUSE_LEFT/RIGHT/MIDDLE de platform/platform.h */

@@ -34,8 +34,8 @@ struct bhs_planet_desc bhs_pluto_get_desc(void)
 	d.name = "Plutao";
 	d.type = BHS_PLANET_DWARF;
 	
-	d.mass = 1.303e22;
-	d.radius = 1.1883e6;
+	d.mass = 1.31e22;
+	d.radius = 1.188e6;
 	d.density = 1854.0;
 	d.rotation_period = -6.387 * 24 * 3600;
 	d.axis_tilt = 122.53 * (3.14159 / 180.0);
@@ -78,7 +78,7 @@ struct bhs_planet_desc bhs_ceres_get_desc(void)
 	d.name = "Ceres";
 	d.type = BHS_PLANET_DWARF;
 	
-	d.mass = 9.393e20;
+	d.mass = 9.4e20;
 	d.radius = 4.73e5;
 	d.density = 2161.0;
 	d.rotation_period = 9.074 * 3600;

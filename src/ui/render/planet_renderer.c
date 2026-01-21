@@ -303,7 +303,8 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	float fov_y = 2.0f * atanf((output_height * 0.5f) / focal_length);
 	float aspect = output_width / output_height;
 	
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 0.1f, 2000.0f);
+	/* Far Plane: 1e14 (100 Trillion m) to cover Solar System */
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1000.0f, 1.0e14f);
 	
 	/* Pre-multiply ViewProj for Packed PC */
 	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
@@ -341,7 +342,10 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		float tx = (float)rel_x;
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
-		float radius = (float)b->state.radius * 30.0f;
+		/* VISUAL SCALE: Uniform 80x */
+		/* Limit determined by Mercury Orbit (58M km) vs Sun Radius (700k km). */
+		/* Max uniform scale is ~83x before Sun swallows Mercury. Using 80x. */
+		float radius = (float)b->state.radius * 80.0f;
 		
 		/* Rotation Params */
 		float angle = (float)b->state.current_rotation_angle;

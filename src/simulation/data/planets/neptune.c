@@ -30,7 +30,7 @@ struct bhs_planet_desc bhs_neptune_get_desc(void)
 	d.type = BHS_PLANET_ICE_GIANT;
 	
 	/* Essencial */
-	d.mass = 1.02413e26;
+	d.mass = 1.02e26;
 	d.radius = 2.4622e7;
 	d.density = 1638.0;
 	d.rotation_period = 16.11 * 3600.0;

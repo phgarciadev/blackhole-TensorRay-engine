@@ -26,7 +26,7 @@ struct bhs_planet_desc bhs_mercury_get_desc(void)
 	d.type = BHS_PLANET_TERRESTRIAL;
 	
 	/* Essencial */
-	d.mass = 3.3011e23;
+	d.mass = 3.30e23;
 	d.radius = 2.4397e6;
 	d.density = 5427.0;
 	d.rotation_period = 58.646 * 24 * 3600;

@@ -35,7 +35,7 @@ void physics_system_update(bhs_world_handle world, double dt)
         state.bodies[i].pos = t->position;
         state.bodies[i].vel = p->velocity;
         state.bodies[i].mass = p->mass;
-        state.bodies[i].gm = p->mass; /* G=1 in Sim Units */
+        state.bodies[i].gm = p->mass * 6.67430e-11; /* G_SI */
         state.bodies[i].is_fixed = p->is_static;
         state.bodies[i].is_alive = true;
         

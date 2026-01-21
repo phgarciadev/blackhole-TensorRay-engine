@@ -21,7 +21,7 @@ struct bhs_planet_desc bhs_uranus_get_desc(void)
 	d.type = BHS_PLANET_ICE_GIANT;
 	
 	/* Essencial */
-	d.mass = 8.6810e25;
+	d.mass = 8.68e25;
 	d.radius = 2.5362e7;
 	d.density = 1271.0;
 	d.rotation_period = -17.24 * 3600.0; /* Retrógrado */

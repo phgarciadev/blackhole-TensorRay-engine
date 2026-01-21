@@ -205,7 +205,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		float dist = sqrtf(dx*dx + dy*dy + dz*dz);
 		if (dist < 0.1f) dist = 0.1f;
 		
-		float visual_radius = b->state.radius * 30.0f; /* Keep the 30x scale */
+		/* VISUAL SCALE: Uniform 80x */
+		float visual_radius = b->state.radius * 80.0f;
 		float s_radius = (visual_radius / dist) * cam->fov;
 		if (s_radius < 2.0f) s_radius = 2.0f;
 
@@ -214,15 +215,14 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		/* [FIX] Aggressive Refactor: NO 2D DRAWING for Celestial Bodies */
 		/* We only draw labels for planets/stars to help identification in 3D view */
 		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR || b->type == BHS_BODY_MOON) {
-			if (b->type == BHS_BODY_PLANET) {
-				const char *label = (b->name[0]) ? b->name : "Planet";
-				bhs_ui_draw_text(ctx, label, sx + 5, sy, 12.0f, BHS_UI_COLOR_WHITE);
-			}
+            /* Only draw text if visible on screen */
+            if (sx > 0 && sx < width && sy > 0 && sy < height) {
+    			const char *label = (b->name[0]) ? b->name : "Planet";
+	    		bhs_ui_draw_text(ctx, label, sx + 5, sy, 12.0f, BHS_UI_COLOR_WHITE);
+            }
 			/* NO 2D SPRITES - "Garantir ao supremo que o planeta tá só 3d" */
 		} else {
-             /* Other bodies (Asteroids, Ships?) can stay simple circles for now if needed, 
-                or remove them too if you want PURE 3D. 
-                Assuming we only care about major bodies. */
+             /* Other bodies (Asteroids, Ships?) can stay simple circles for now */
              bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
 		}
 	}

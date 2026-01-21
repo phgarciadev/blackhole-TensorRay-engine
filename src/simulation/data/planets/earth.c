@@ -30,7 +30,7 @@ struct bhs_planet_desc bhs_earth_get_desc(void)
 	d.type = BHS_PLANET_TERRESTRIAL;
 	
 	/* Essencial */
-	d.mass = 5.972e24;
+	d.mass = 5.97e24;
 	d.radius = 6.371e6;
 	d.density = 5514.0;
 	d.rotation_period = 23.9345 * 3600.0;

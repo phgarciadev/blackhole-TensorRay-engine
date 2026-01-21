@@ -27,7 +27,7 @@ struct bhs_planet_desc bhs_mars_get_desc(void)
 	d.type = BHS_PLANET_TERRESTRIAL;
 	
 	/* Essencial */
-	d.mass = 6.4171e23;
+	d.mass = 6.42e23;
 	d.radius = 3.3895e6;
 	d.density = 3933.0;
 	d.rotation_period = 88642.0; /* Sol marciano ~24h 37m */

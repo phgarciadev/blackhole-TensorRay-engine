@@ -53,7 +53,14 @@ void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
 
 	/* Keyboard Controls (Supplemental) */
 	/* Keyboard Controls (FPS Style: Move relative to Look) */
-	float move_speed = 30.0f * (float)dt;
+	/* SI Scale: 1 AU = 1.5e11m. Speed needs to be ~0.1 AU/sec to be usable */
+	/* Speed: 2.0e9 m/s (~6x Speed of Light) */
+	float move_speed = 2.0e9f * (float)dt;
+	
+	/* Shift Boost */
+	if (bhs_ui_key_down(ctx, BHS_KEY_LEFTSHIFT)) {
+		move_speed *= 10.0f; /* 60c */
+	}
 
 	/* Calculate Forward and Right vectors */
 	/* Forward: Z is forward (usually -Z in OpenGL, but here +Z seems to be 'into'
@@ -71,7 +78,7 @@ void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
 	/* Mouse Zoom (3D Directional) */
 	float scroll = bhs_ui_mouse_scroll(ctx);
 	if (scroll != 0.0f) {
-		float zoom_speed = 5.0f; /* Sensitivity */
+		float zoom_speed = 5.0e8f; /* Sensitivity */
 		
         /* Calculate 3D Forward Vector */
         /* Pitch affects how much we move in Y vs XZ plane */

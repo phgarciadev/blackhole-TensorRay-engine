@@ -30,7 +30,7 @@ struct bhs_planet_desc bhs_venus_get_desc(void)
 	d.type = BHS_PLANET_TERRESTRIAL;
 	
 	/* Essencial */
-	d.mass = 4.8675e24;
+	d.mass = 4.87e24;
 	d.radius = 6.0518e6;
 	d.density = 5243.0;
 	d.rotation_period = -243.025 * 24 * 3600; /* Retrógrado */

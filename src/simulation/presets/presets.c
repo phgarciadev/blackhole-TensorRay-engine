@@ -53,7 +53,7 @@ static struct bhs_body create_body_from_module(struct bhs_planet_desc desc,
 					       double central_mass_sim)
 {
 	/* Posição: distância orbital convertida para simulação */
-	double r = BHS_METERS_TO_SIM(desc.semimajor_axis);
+	double r = desc.semimajor_axis; /* Meters */
 	
 	struct bhs_vec3 pos = {
 		center_pos.x + r,
@@ -64,16 +64,18 @@ static struct bhs_body create_body_from_module(struct bhs_planet_desc desc,
 	/* Cria corpo base a partir do descritor */
 	struct bhs_body b = bhs_body_create_from_desc(&desc, pos);
 	
-	/* Aplica escalas de massa e raio - SEM OVERRIDES */
-	b.state.mass = BHS_KG_TO_SIM(b.state.mass);
-	b.state.radius = BHS_RADIUS_TO_SIM(b.state.radius);
+	/* Aplica escalas de massa e raio - REAL SCALE (SI) */
+	/* No conversion needed - simulation now uses SI meters/kg */
+	b.state.mass = b.state.mass;
+	b.state.radius = b.state.radius;
 	
 	printf("[PRESET] %s: M=%.2e, R=%.4f (real), Dist=%.1f\n", 
 		desc.name, b.state.mass, b.state.radius, r);
 
 	/* Velocidade orbital: v = sqrt(G × M_central / r) */
 	if (central_mass_sim > 0.0 && r > 0.0) {
-		double v = bhs_preset_orbital_velocity(central_mass_sim, r);
+		double G = 6.67430e-11;
+		double v = sqrt((G * central_mass_sim) / r);
 		/* Órbita no plano XZ (Y é "para cima") */
 		b.state.vel = (struct bhs_vec3){ 0, 0, v };
 	}
@@ -104,9 +106,10 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 	
 	struct bhs_body sun = bhs_body_create_from_desc(&d_sun, (struct bhs_vec3){0,0,0});
 	
-	/* Aplica escalas usando units.h - SEM overrides hardcoded */
-	sun.state.mass = BHS_KG_TO_SIM(sun.state.mass);
-	sun.state.radius = BHS_RADIUS_TO_SIM(sun.state.radius);
+	/* Aplica escalas usando units.h - REAL SCALE (SI) */
+	/* No conversion */
+	sun.state.mass = sun.state.mass;
+	sun.state.radius = sun.state.radius;
 	
 	printf("[PRESET] Sol (SIM):  M=%.2f, R=%.2f\n", 
 		sun.state.mass, sun.state.radius);
@@ -152,9 +155,9 @@ void bhs_preset_earth_sun_only(bhs_scene_t scene)
 	struct bhs_planet_desc d_sun = bhs_sun_get_desc();
 	struct bhs_body sun = bhs_body_create_from_desc(&d_sun, (struct bhs_vec3){0,0,0});
 	
-	/* Escalas */
-	sun.state.mass = BHS_KG_TO_SIM(sun.state.mass);
-	sun.state.radius = BHS_RADIUS_TO_SIM(sun.state.radius);
+	/* Escalas - REAL SCALE (SI) */
+	sun.state.mass = sun.state.mass;
+	sun.state.radius = sun.state.radius;
 	sun.is_fixed = true;
 	
 	bhs_scene_add_body_struct(scene, sun);

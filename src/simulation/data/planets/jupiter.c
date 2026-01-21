@@ -36,7 +36,7 @@ struct bhs_planet_desc bhs_jupiter_get_desc(void)
 	d.type = BHS_PLANET_GAS_GIANT;
 	
 	/* Essencial */
-	d.mass = 1.8982e27;
+	d.mass = 1.90e27;
 	d.radius = 6.9911e7;
 	d.density = 1326.0;
 	d.rotation_period = 9.925 * 3600.0; /* ~10h */

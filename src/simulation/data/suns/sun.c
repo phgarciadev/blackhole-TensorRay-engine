@@ -34,8 +34,8 @@ static struct bhs_vec3 sun_surface_color(struct bhs_vec3 p)
  */
 static const struct bhs_sun_desc THE_SUN = {
     .name = "Sol",
-    .mass = 1.9885e30,
-    .radius = 6.957e8,
+    .mass = 1.989e30,
+    .radius = 6.9634e8,
     .temperature = 5772.0,
     .luminosity = 3.828e26,
     .age = 4.6e9,
