@@ -3,7 +3,7 @@
  * @brief Implementação de Buraco Negro (Singularidade)
  */
 
-#include "planet.h"
+#include "src/simulation/data/planet.h"
 #include <math.h>
 
 static struct bhs_vec3 blackhole_surface_color(struct bhs_vec3 p)

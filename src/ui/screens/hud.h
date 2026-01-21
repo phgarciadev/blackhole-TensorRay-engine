@@ -11,6 +11,7 @@ typedef struct {
 	bool vsync_enabled;
 	float time_scale_val;    /* [NEW] Slider 0..1 (Logarithmic) */
 	int active_menu_index; /* -1 = none, 0=Config, 1=Add */
+	int add_menu_category; /* -1 = Root, 0=Planets, 1=Suns, 2=Moons, 3=BlackHoles */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */

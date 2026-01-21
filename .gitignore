@@ -41,6 +41,7 @@ blackhole_sim
 build/
 bin/
 target/
+build_verify/
 
 # IDEs and Tools
 .vscode/

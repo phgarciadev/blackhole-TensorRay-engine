@@ -13,6 +13,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->vsync_enabled = true;
 		state->time_scale_val = 0.5f;      /* Default Time Scale (1.0x mapped from 0.5) */
 		state->active_menu_index = -1;
+		state->add_menu_category = -1;
 		state->selected_body_index = -1;
 		state->req_delete_body = false;
 		state->req_add_body_type = -1;
@@ -142,21 +143,66 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			bhs_ui_draw_text(ctx, "Inject Body", panel_rect.x + 10,
 					 y, 14.0f, BHS_UI_COLOR_GRAY);
 			y += 25.0f;
-			
-			/* Iterate over the dynamic registry */
-			const struct bhs_planet_registry_entry *entry = bhs_planet_registry_get_head();
-			while (entry) {
-				struct bhs_ui_rect btn_rect = { panel_rect.x + 10, y, 180, 24 };
-				
-				if (bhs_ui_button(ctx, entry->name, btn_rect)) {
-					state->req_add_registry_entry = entry;
-					/* We use PLANET type generically, specific logic in main loop will handle it */
-					state->req_add_body_type = BHS_BODY_PLANET; 
-					state->active_menu_index = -1; /* Close menu */
+
+			/* Root Menu: Categories */
+			if (state->add_menu_category == -1) {
+				const char *categories[] = { "Planets >", "Suns >", "Moons >", "Black Holes >" };
+				for (int i = 0; i < 4; i++) {
+					struct bhs_ui_rect btn_rect = { panel_rect.x + 10, y, 180, 24 };
+					if (bhs_ui_button(ctx, categories[i], btn_rect)) {
+						state->add_menu_category = i;
+					}
+					y += 28.0f;
 				}
-				
+			}
+			/* Sub Menu: Items */
+			else {
+				/* Back Button */
+				struct bhs_ui_rect back_rect = { panel_rect.x + 10, y, 180, 24 };
+				if (bhs_ui_button(ctx, "< Back", back_rect)) {
+					state->add_menu_category = -1;
+				}
 				y += 28.0f;
-				entry = entry->next;
+
+				/* Iterate Registry and Filter */
+				const struct bhs_planet_registry_entry *entry = bhs_planet_registry_get_head();
+				while (entry) {
+					/* Filter by Category */
+					bool show = false;
+					if (entry->getter) {
+						struct bhs_planet_desc d = entry->getter();
+						switch (state->add_menu_category) {
+						case 0: /* Planets */
+							show = (d.type == BHS_PLANET_TERRESTRIAL || 
+								d.type == BHS_PLANET_GAS_GIANT || 
+								d.type == BHS_PLANET_ICE_GIANT || 
+								d.type == BHS_PLANET_DWARF);
+							break;
+						case 1: /* Suns */
+							show = (d.type == BHS_STAR_MAIN_SEQ);
+							break;
+						case 2: /* Moons */
+							/* No explicit moon type in detailed enum yet, assuming none match or explicit if added */
+							show = false;
+							break;
+						case 3: /* BlackHoles */
+							show = (d.type == BHS_BLACK_HOLE);
+							break;
+						}
+					}
+
+					if (show) {
+						struct bhs_ui_rect btn_rect = { panel_rect.x + 10, y, 180, 24 };
+						if (bhs_ui_button(ctx, entry->name, btn_rect)) {
+							state->req_add_registry_entry = entry;
+							state->req_add_body_type = BHS_BODY_PLANET; /* Simplified for main loop */
+							state->active_menu_index = -1; /* Close menu */
+							state->add_menu_category = -1; /* Reset */
+						}
+						y += 28.0f;
+					}
+					entry = entry->next;
+				}
 			}
 		}
 	}

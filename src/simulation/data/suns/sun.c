@@ -3,7 +3,7 @@
  * @brief Implementação do Sol
  */
 
-#include "planet.h"
+#include "src/simulation/data/planet.h"
 #include <math.h>
 
 /* Visual: Plasma Solar simples */

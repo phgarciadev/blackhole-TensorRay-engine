@@ -3,7 +3,7 @@
  * @brief Implementação de Urano
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 static struct bhs_vec3 uranus_surface_color(struct bhs_vec3 p)

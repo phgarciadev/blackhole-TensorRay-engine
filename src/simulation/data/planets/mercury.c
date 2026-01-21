@@ -3,7 +3,7 @@
  * @brief Implementação de Mercúrio
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 static struct bhs_vec3 mercury_surface_color(struct bhs_vec3 p)

@@ -3,7 +3,7 @@
  * @brief Implementação de Marte
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 static struct bhs_vec3 mars_surface_color(struct bhs_vec3 p)

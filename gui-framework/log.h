@@ -25,6 +25,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -243,3 +248,7 @@ void bhs_log_output_v(bhs_log_level level, bhs_log_channel channel,
 #endif
 
 #endif /* BHS_GUI_FRAMEWORK_LOG_H */
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif

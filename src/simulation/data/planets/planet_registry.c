@@ -3,7 +3,7 @@
  * @brief Implementação do Registro Dinâmico de Planetas
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <stddef.h>
 #include <stdlib.h> /* malloc */
 

@@ -3,7 +3,7 @@
  * @brief Implementação de Saturno
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 static struct bhs_vec3 saturn_surface_color(struct bhs_vec3 p)

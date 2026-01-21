@@ -1,5 +1,41 @@
 cmake_minimum_required(VERSION 3.16)
 
+# ==============================================================================
+# Forçar Clang como compilador padrão
+# ==============================================================================
+
+# C (Padrão Kernel Style)
+if(NOT DEFINED CMAKE_C_COMPILER)
+    find_program(CLANG_C_BIN clang)
+    if(CLANG_C_BIN)
+        set(CMAKE_C_COMPILER "${CLANG_C_BIN}" CACHE STRING "C compiler" FORCE)
+        message(STATUS "Forçando Clang para C: ${CMAKE_C_COMPILER}")
+    else()
+        message(WARNING "Clang não encontrado! Usando padrão do sistema.")
+    endif()
+endif()
+
+# C++ (Bosta, mas as vezes necessário)
+if(NOT DEFINED CMAKE_CXX_COMPILER)
+    find_program(CLANG_CXX_BIN clang++)
+    if(CLANG_CXX_BIN)
+        set(CMAKE_CXX_COMPILER "${CLANG_CXX_BIN}" CACHE STRING "C++ compiler" FORCE)
+        message(STATUS "Forçando Clang para C++: ${CMAKE_CXX_COMPILER}")
+    else()
+        message(WARNING "Clang++ não encontrado! Usando padrão do sistema.")
+    endif()
+endif()
+
+# Objective-C/C++ (Apple Clang no macOS)
+if(APPLE)
+    if(NOT DEFINED CMAKE_OBJC_COMPILER)
+        set(CMAKE_OBJC_COMPILER "${CMAKE_C_COMPILER}" CACHE STRING "ObjC compiler" FORCE)
+    endif()
+    if(NOT DEFINED CMAKE_OBJCXX_COMPILER)
+        set(CMAKE_OBJCXX_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "ObjC++ compiler" FORCE)
+    endif()
+endif()
+
 # Projeto: Black Hole Simulator
 # Lema: "Se não roda em hardware de 2010, você está fazendo errado."
 project(BlackHoleSimulator

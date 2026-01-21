@@ -7,12 +7,12 @@
 
 static bhs_world_handle g_world = NULL;
 
-void bhs_world_init()
+void bhs_world_init(void)
 {
 	g_world = bhs_ecs_create_world();
 }
 
-bhs_world_handle bhs_world_get()
+bhs_world_handle bhs_world_get(void)
 {
 	return g_world;
 }

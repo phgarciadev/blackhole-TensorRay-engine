@@ -3,7 +3,7 @@
  * @brief Implementação de Planetas Anões (Plutão e Ceres)
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 /* --- PLUTÃO --- */

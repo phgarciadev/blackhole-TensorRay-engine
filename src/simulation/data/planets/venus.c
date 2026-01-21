@@ -3,7 +3,7 @@
  * @brief Implementação de Vênus
  */
 
-#include "planet.h"
+#include "../planet.h"
 #include <math.h>
 
 static struct bhs_vec3 venus_surface_color(struct bhs_vec3 p)
