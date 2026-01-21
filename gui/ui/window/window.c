@@ -28,14 +28,15 @@ static void ui_event_callback(bhs_window_t window,
     break;
 
   case BHS_EVENT_WINDOW_RESIZE:
+    /* 
+     * [FIX] Apenas armazena as novas dimensões e seta flag.
+     * NÃO recria recursos aqui - isso bloqueia o callback e causa 
+     * "aplicativo não respondendo" quando múltiplos eventos chegam.
+     * A recriação real acontece no begin_frame.
+     */
     ctx->width = event->resize.width;
     ctx->height = event->resize.height;
-
-    /* Avisa renderer para recriar swapchain */
-    if (ctx->swapchain) {
-      bhs_gpu_swapchain_resize(ctx->swapchain, (uint32_t)ctx->width,
-                               (uint32_t)ctx->height);
-    }
+    ctx->resize_pending = true;
     break;
 
   case BHS_EVENT_KEY_DOWN:

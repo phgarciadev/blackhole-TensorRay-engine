@@ -260,8 +260,6 @@ void app_run(struct app_state *app)
 			frame_time = MAX_FRAME_TIME;
 
 		/* Acumular tempo para fixed timestep */
-		accumulator += frame_time * app->time_scale;
-
 		/* Begin frame */
 		if (bhs_ui_begin_frame(app->ui) != BHS_UI_OK)
 			continue; /* Frame perdido, vida que segue */

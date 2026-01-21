@@ -17,13 +17,23 @@ typedef struct {
     float font_size_tab;
     float logo_width;
     float tab_start_x;
+    /* [FIX] Adicionando dimensões do info panel pra consistência */
+    float info_panel_w;
+    float info_panel_h;
+    float info_panel_margin;
 } bhs_ui_layout_t;
 
-static bhs_ui_layout_t get_ui_layout(int win_h) {
+static bhs_ui_layout_t get_ui_layout(int win_w, int win_h) {
     bhs_ui_layout_t l;
-    /* Base Scale */
-    l.ui_scale = (float)win_h / 1080.0f;
-    if (l.ui_scale < 0.8f) l.ui_scale = 0.8f;
+    /* 
+     * [FIX] Base Scale: considera AMBAS dimensões
+     * Usa a menor razão pra não distorcer em janelas estreitas/largas
+     * (tipo quando tu mete a janela em metade da tela no Hyprland)
+     */
+    float scale_h = (float)win_h / 1080.0f;
+    float scale_w = (float)win_w / 1920.0f;
+    l.ui_scale = (scale_h < scale_w) ? scale_h : scale_w;
+    if (l.ui_scale < 0.5f) l.ui_scale = 0.5f;  /* Mínimo mais baixo pra janelas pequenas */
     if (l.ui_scale > 2.0f) l.ui_scale = 2.0f;
 
     /* Metrics */
@@ -34,19 +44,21 @@ static bhs_ui_layout_t get_ui_layout(int win_h) {
 
     /* robust "CSS-like" columns */
     /* Logo Column: Fixed minimum width to guarantee space */
-    /* Logo Column: Fixed minimum width to guarantee space */
-    /* [ADJUSTED] Aumentei o mínimo pra 200 pra garantir que o separador não fique grudado */
     float min_logo_w = 200.0f * l.ui_scale; 
     
     /* Calculate text width heuristic */
     int logo_len = 13; // "RiemannEngine"
-    /* [ADJUSTED] O fator 0.7 era muito otimista. 0.9 é mais seguro (melhor sobrar que faltar) */
-    float text_w = logo_len * (l.font_size_logo * 0.9f); 
+    float text_w = logo_len * l.font_size_logo;  /* Fonte monospaced: 1 char = font_size */ 
     
     l.logo_width = (text_w > min_logo_w) ? text_w : min_logo_w;
 
     /* Layout: [Pad] [Logo] [Pad] [Line] [Pad] [Tabs...] */
     l.tab_start_x = l.padding_x + l.logo_width + (15.0f * l.ui_scale) + (1.0f * l.ui_scale) + (15.0f * l.ui_scale);
+    
+    /* [FIX] Info Panel - valores centralizados aqui pra draw e input usarem o mesmo */
+    l.info_panel_w = 250.0f * l.ui_scale;
+    l.info_panel_h = 420.0f * l.ui_scale;
+    l.info_panel_margin = 20.0f * l.ui_scale;
     
     return l;
 }
@@ -72,7 +84,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	(void)window_h;
 	
     /* --- LAYOUT CALCULATION --- */
-    bhs_ui_layout_t layout = get_ui_layout(window_h);
+    bhs_ui_layout_t layout = get_ui_layout(window_w, window_h);
     float ui_scale = layout.ui_scale; /* Keep for local usage if needed */
 
     struct bhs_ui_color theme_bg = { 0.05f, 0.05f, 0.05f, 0.95f };
@@ -116,7 +128,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
         /* Tab Width: Text + Padding (CSS: padding: 0 20px) */
         float item_padding = 20.0f * ui_scale;
-        float text_w = len * (layout.font_size_tab * 0.65f);
+        float text_w = len * layout.font_size_tab;  /* Fonte monospaced */
 		float width = text_w + (item_padding * 2.0f);
         
 		struct bhs_ui_rect item_rect = { x_cursor, 0, width, layout.top_bar_height };
@@ -181,7 +193,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
         for(int j=0; j<state->active_menu_index; ++j) {
             int len = 0; while (MENU_ITEMS[j][len] != '\0') len++;
              /* Same width calc as Draw */
-            float w = (len * (layout.font_size_tab * 0.65f)) + (40.0f * layout.ui_scale);
+            float w = (len * layout.font_size_tab) + (40.0f * layout.ui_scale);
             dropdown_x += w;
         }
             
@@ -206,20 +218,26 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			(struct bhs_ui_color){ 0.1f, 0.1f, 0.1f, 0.98f },
 			theme_border); /* Border */
 
-		float y = layout.top_bar_height + (15.0f * layout.ui_scale);
+		float y = layout.top_bar_height + (15.0f * ui_scale);
+		float item_pad = 10.0f * ui_scale;  /* Padding interno do dropdown */
+		float item_w = panel_rect.width - (item_pad * 2.0f);  /* Largura dos itens */
+		float item_h = 24.0f * ui_scale;  /* Altura dos botoes/checkboxes */
+		float font_header = 14.0f * ui_scale;  /* Fonte dos titulos */
+		float font_label = 12.0f * ui_scale;   /* Fonte dos labels menores */
+		float row_spacing = 28.0f * ui_scale;  /* Espacamento entre linhas */
 
 		/* INDEX 0: CONFIG */
 		if (state->active_menu_index == 0) {
-			bhs_ui_draw_text(ctx, "Appearance", panel_rect.x + 10,
-					 y, 14.0f, BHS_UI_COLOR_GRAY);
-			y += 25.0f;
+			bhs_ui_draw_text(ctx, "Appearance", panel_rect.x + item_pad,
+					 y, font_header, BHS_UI_COLOR_GRAY);
+			y += 25.0f * ui_scale;
 
-			struct bhs_ui_rect item_rect = { panel_rect.x + 10, y,
-							 180, 24 };
+			struct bhs_ui_rect item_rect = { panel_rect.x + item_pad, y,
+							 item_w, item_h };
 			bhs_ui_checkbox(ctx, "Show FPS", item_rect,
 					&state->show_fps);
 			
-			y += 28.0f;
+			y += row_spacing;
 			item_rect.y = y;
 
 			/* Time Scale Control */
@@ -229,13 +247,15 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			char time_label[64];
 			snprintf(time_label, 64, "Time Speed: %.2fx", time_scale_disp);
 			
-			bhs_ui_draw_text(ctx, time_label, panel_rect.x + 10, y - 5, 12.0f, BHS_UI_COLOR_GRAY);
-			y += 12.0f;
+			bhs_ui_draw_text(ctx, time_label, panel_rect.x + item_pad, y - 5.0f * ui_scale, font_label, BHS_UI_COLOR_GRAY);
+			y += 12.0f * ui_scale;
 			item_rect.y = y;
+			item_rect.height = item_h * 0.8f;  /* Slider um pouco mais baixo */
 			bhs_ui_slider(ctx, item_rect, &state->time_scale_val);
 
-			y += 28.0f;
+			y += row_spacing;
 			item_rect.y = y;
+			item_rect.height = item_h;  /* Restaura altura */
 
 			bool vsync_prev = state->vsync_enabled;
 			bhs_ui_checkbox(ctx, "Enable VSync", item_rect,
@@ -247,29 +267,29 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		}
 		/* INDEX 1: ADD */
 		else if (state->active_menu_index == 1) {
-			bhs_ui_draw_text(ctx, "Inject Body", panel_rect.x + 10,
-					 y, 14.0f, BHS_UI_COLOR_GRAY);
-			y += 25.0f;
+			bhs_ui_draw_text(ctx, "Inject Body", panel_rect.x + item_pad,
+					 y, font_header, BHS_UI_COLOR_GRAY);
+			y += 25.0f * ui_scale;
 
 			/* Root Menu: Categories */
 			if (state->add_menu_category == -1) {
 				const char *categories[] = { "Planets >", "Suns >", "Moons >", "Black Holes >" };
 				for (int i = 0; i < 4; i++) {
-					struct bhs_ui_rect btn_rect = { panel_rect.x + 10, y, 180, 24 };
+					struct bhs_ui_rect btn_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 					if (bhs_ui_button(ctx, categories[i], btn_rect)) {
 						state->add_menu_category = i;
 					}
-					y += 28.0f;
+					y += row_spacing;
 				}
 			}
 			/* Sub Menu: Items */
 			else {
 				/* Back Button */
-				struct bhs_ui_rect back_rect = { panel_rect.x + 10, y, 180, 24 };
+				struct bhs_ui_rect back_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 				if (bhs_ui_button(ctx, "< Back", back_rect)) {
 					state->add_menu_category = -1;
 				}
-				y += 28.0f;
+				y += row_spacing;
 
 				/* Iterate Registry and Filter */
 				const struct bhs_planet_registry_entry *entry = bhs_planet_registry_get_head();
@@ -299,14 +319,14 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 					}
 
 					if (show) {
-						struct bhs_ui_rect btn_rect = { panel_rect.x + 10, y, 180, 24 };
+						struct bhs_ui_rect btn_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 						if (bhs_ui_button(ctx, entry->name, btn_rect)) {
 							state->req_add_registry_entry = entry;
 							state->req_add_body_type = BHS_BODY_PLANET; /* Simplified for main loop */
 							state->active_menu_index = -1; /* Close menu */
 							state->add_menu_category = -1; /* Reset */
 						}
-						y += 28.0f;
+						y += row_spacing;
 					}
 					entry = entry->next;
 				}
@@ -316,26 +336,39 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 	/* 4. Info Panel (Expanded & Polished) */
 	if (state->selected_body_index != -1) {
-		/* Aumentar altura do painel para caber dados */
-		struct bhs_ui_rect info_rect = { (float)window_w - 270, 50, 250, 420 };
-		
+		/* [FIX] Usando valores do layout pra consistência com hit test */
+		struct bhs_ui_rect info_rect = {
+			(float)window_w - layout.info_panel_w - layout.info_panel_margin,
+			layout.top_bar_height + 10.0f * ui_scale,
+			layout.info_panel_w,
+			layout.info_panel_h
+		};
         /* Sleek Dark Panel */
         bhs_ui_panel(ctx, info_rect,
 			     (struct bhs_ui_color){ 0.05f, 0.05f, 0.05f, 0.95f },
 			     (struct bhs_ui_color){ 0.2f, 0.2f, 0.2f, 1.0f });
 
-		float y = info_rect.y + 15.0f;
-		float x = info_rect.x + 15.0f;
-        float w = info_rect.width - 30.0f;
+		float pad = 15.0f * ui_scale;  /* Padding interno */
+		float y = info_rect.y + pad;
+		float x = info_rect.x + pad;
+        float w = info_rect.width - (pad * 2.0f);
 		const struct bhs_body *b = &state->selected_body_cache;
 
+		/* Font sizes escalados */
+		float font_title = 14.0f * ui_scale;
+		float font_name = 16.0f * ui_scale;
+		float font_prop = 13.0f * ui_scale;
+		float font_section = 12.0f * ui_scale;
+		float prop_offset = 80.0f * ui_scale;  /* Offset pra valor das props */
+		float line_h = 18.0f * ui_scale;  /* Altura de linha */
+
 		/* Header */
-		bhs_ui_draw_text(ctx, "OBJECT INSPECTOR", x, y, 14.0f, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f}); // Cyan Header
-		y += 20.0f;
+		bhs_ui_draw_text(ctx, "OBJECT INSPECTOR", x, y, font_title, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f});
+		y += 20.0f * ui_scale;
         
         /* High-tech Separator Line */
-        bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.3f}, 1.0f);
-		y += 15.0f;
+        bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.3f}, 1.0f * ui_scale);
+		y += 15.0f * ui_scale;
 
 		/* --- UNIVERSAL DATA --- */
 		char buf[128];
@@ -344,17 +377,17 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		if (b->name[0] != '\0') type_str = b->name;
 		
         /* Name (Large) */
-		bhs_ui_draw_text(ctx, type_str, x, y, 16.0f, BHS_UI_COLOR_WHITE);
-		y += 25.0f;
+		bhs_ui_draw_text(ctx, type_str, x, y, font_name, BHS_UI_COLOR_WHITE);
+		y += 25.0f * ui_scale;
 
-        /* Helper to draw property row */
+        /* Helper to draw property row - agora usando variaveis escaladas */
+        #undef DRAW_PROP
         #define DRAW_PROP(label, val_fmt, ...) \
             do { \
-                bhs_ui_draw_text(ctx, label, x, y, 13.0f, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f}); \
+                bhs_ui_draw_text(ctx, label, x, y, font_prop, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f}); \
                 snprintf(buf, sizeof(buf), val_fmt, __VA_ARGS__); \
-                /* Rough right align? No, stick to left with offset for now, cleaner code */ \
-                bhs_ui_draw_text(ctx, buf, x + 80, y, 13.0f, BHS_UI_COLOR_WHITE); \
-                y += 18.0f; \
+                bhs_ui_draw_text(ctx, buf, x + prop_offset, y, font_prop, BHS_UI_COLOR_WHITE); \
+                y += line_h; \
             } while(0)
 
         // Basic Physics
@@ -362,14 +395,14 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		DRAW_PROP("Radius:", "%.2e m", b->state.radius);
 		DRAW_PROP("Pos:", "(%.1f, %.1f)", b->state.pos.x, b->state.pos.z);
 		DRAW_PROP("Vel:", "(%.2f, %.2f)", b->state.vel.x, b->state.vel.z);
-		y += 10.0f;
+		y += 10.0f * ui_scale;
 
         /* Separator */
-        bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 1.0f}, 1.0f);
-        y += 10.0f;
+        bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 1.0f}, 1.0f * ui_scale);
+        y += 10.0f * ui_scale;
         
-        bhs_ui_draw_text(ctx, "PROPERTIES", x, y, 12.0f, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
-		y += 18.0f;
+        bhs_ui_draw_text(ctx, "PROPERTIES", x, y, font_section, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
+		y += line_h;
 
 		/* --- TYPE SPECIFIC --- */
 		if (b->type == BHS_BODY_PLANET) {
@@ -390,34 +423,35 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             DRAW_PROP("Horizon:", "%.2f", b->prop.bh.event_horizon_r);
 		}
 		
-        /* [NEW] Strongest Attractor Display */
+        /* Strongest Attractor Display */
         if (state->attractor_name[0] != '\0') {
-            y += 10.0f;
-            bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 1.0f}, 1.0f);
-            y += 10.0f;
+            y += 10.0f * ui_scale;
+            bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 1.0f}, 1.0f * ui_scale);
+            y += 10.0f * ui_scale;
 
-            bhs_ui_draw_text(ctx, "MAJOR FORCE", x, y, 12.0f, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
-            y += 18.0f;
+            bhs_ui_draw_text(ctx, "MAJOR FORCE", x, y, font_section, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
+            y += line_h;
 
             DRAW_PROP("Source:", "%s", state->attractor_name);
             DRAW_PROP("Dist:", "%.2e m", state->attractor_dist);
         }
 
-		y += 20.0f; /* Spacing before buttons */
+		y += 20.0f * ui_scale; /* Spacing before buttons */
 
 		/* Delete Button (Styled) */
-		struct bhs_ui_rect del_rect = { x, y, w, 28 };
+		float btn_h = 28.0f * ui_scale;
+		struct bhs_ui_rect del_rect = { x, y, w, btn_h };
         /* Background */
 		bhs_ui_draw_rect(ctx, del_rect, (struct bhs_ui_color){ 0.4f, 0.1f, 0.1f, 1.0f });
         /* Border */
-        bhs_ui_draw_rect_outline(ctx, del_rect, (struct bhs_ui_color){ 0.8f, 0.2f, 0.2f, 1.0f }, 1.0f);
+        bhs_ui_draw_rect_outline(ctx, del_rect, (struct bhs_ui_color){ 0.8f, 0.2f, 0.2f, 1.0f }, 1.0f * ui_scale);
         
         /* Centered Text */
-        /* Hardcoded Approx Center: Rect Width ~220, Text "DELETE" ~40 -> x+90 */
-		if (bhs_ui_button(ctx, "", del_rect)) { // Empty label to handle click, manual draw text
+		if (bhs_ui_button(ctx, "", del_rect)) {
 			state->req_delete_body = true;
 		}
-        bhs_ui_draw_text(ctx, "DELETE BODY", x + (w/2) - 40, y + 6, 13.0f, BHS_UI_COLOR_WHITE);
+		float text_w = 11.0f * (font_prop * 0.65f);  /* Aprox largura de "DELETE BODY" */
+        bhs_ui_draw_text(ctx, "DELETE BODY", x + (w - text_w) / 2.0f, y + btn_h * 0.25f, font_prop, BHS_UI_COLOR_WHITE);
 	}
 
 
@@ -435,10 +469,7 @@ static bool is_inside(int mx, int my, float x, float y, float w, float h)
 bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
 			   int win_w, int win_h)
 {
-	(void)win_h;
-    
-    bhs_ui_layout_t layout = get_ui_layout(win_h);
-    /* No manual scale calc needed */
+    bhs_ui_layout_t layout = get_ui_layout(win_w, win_h);
 
 	/* 1. Top Bar */
 	if (is_inside(mx, my, 0, 0, (float)win_w, layout.top_bar_height))
@@ -452,7 +483,7 @@ bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
         for(int j=0; j<state->active_menu_index; ++j) {
             int len = 0; while (MENU_ITEMS[j][len] != '\0') len++;
              /* Same width calc as Draw */
-            float w = (len * (layout.font_size_tab * 0.65f)) + (40.0f * layout.ui_scale);
+            float w = (len * layout.font_size_tab) + (40.0f * layout.ui_scale);
             dropdown_x += w;
         }
 
@@ -461,13 +492,15 @@ bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
 			return true;
 	}
 
-	/* 3. Info Panel (Expanded) */
+	/* 3. Info Panel - [FIX] usando mesmos valores do draw */
 	if (state->selected_body_index != -1) {
-		/* Rect: win_w - 260, 40, 240, 350 */
-		if (is_inside(mx, my, (float)win_w - 260.0f, 40.0f, 240.0f,
-			      350.0f))
+		float panel_x = (float)win_w - layout.info_panel_w - layout.info_panel_margin;
+		float panel_y = layout.top_bar_height + 10.0f * layout.ui_scale;
+		if (is_inside(mx, my, panel_x, panel_y, 
+			      layout.info_panel_w, layout.info_panel_h))
 			return true;
 	}
 
 	return false;
 }
+

@@ -183,22 +183,33 @@ bool bhs_ui_checkbox(bhs_ui_ctx_t ctx, const char *label,
   BHS_ASSERT(ctx != NULL);
   BHS_ASSERT(checked != NULL);
 
+  /* 
+   * [FIX] Valores proporcionais ao rect.height
+   * Antes era tudo hardcoded (4, 8, 14.0f) - nao escalava
+   */
+  float h = rect.height;
+  float pad = h * 0.15f;  /* Padding do checkmark */
+  float gap = h * 0.35f;  /* Gap entre box e label */
+  float font = h * 0.6f;  /* Font size proporcional */
+  float text_y_offset = h * 0.15f;  /* Centraliza texto verticalmente */
+
   /* Checkbox Square */
-  struct bhs_ui_rect box = {rect.x, rect.y, rect.height, rect.height};
+  struct bhs_ui_rect box = {rect.x, rect.y, h, h};
   bhs_ui_draw_rect(ctx, box, (struct bhs_ui_color){0.1f, 0.1f, 0.1f, 1.0f});
   bhs_ui_draw_rect_outline(ctx, box,
                            (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f}, 1.0f);
 
-  /* Check Mark (X procedimental ou rect) */
+  /* Check Mark */
   if (*checked)
     bhs_ui_draw_rect(ctx,
-                     (struct bhs_ui_rect){box.x + 4, box.y + 4, box.width - 8,
-                                          box.height - 8},
+                     (struct bhs_ui_rect){box.x + pad, box.y + pad, 
+                                          box.width - pad * 2.0f,
+                                          box.height - pad * 2.0f},
                      (struct bhs_ui_color){0.4f, 0.7f, 1.0f, 1.0f});
 
   /* Label */
   if (label)
-    bhs_ui_draw_text(ctx, label, rect.x + rect.height + 8, rect.y + 4, 14.0f,
+    bhs_ui_draw_text(ctx, label, rect.x + h + gap, rect.y + text_y_offset, font,
                      BHS_UI_COLOR_WHITE);
 
   /* Logic */
@@ -240,9 +251,14 @@ bool bhs_ui_button(bhs_ui_ctx_t ctx, const char *label,
   bhs_ui_draw_rect(ctx, rect, bg);
   bhs_ui_draw_rect_outline(ctx, rect, BHS_UI_COLOR_WHITE, 1.0f);
 
-  if (label)
-    bhs_ui_draw_text(ctx, label, rect.x + 8, rect.y + 8, 16.0f,
+  /* [FIX] Valores proporcionais ao rect.height */
+  if (label) {
+    float pad = rect.height * 0.3f;
+    float font = rect.height * 0.65f;
+    float text_y = rect.y + (rect.height - font) * 0.4f;  /* Centraliza */
+    bhs_ui_draw_text(ctx, label, rect.x + pad, text_y, font,
                      BHS_UI_COLOR_WHITE);
+  }
 
   return hovered && bhs_ui_mouse_clicked(ctx, 0);
 }

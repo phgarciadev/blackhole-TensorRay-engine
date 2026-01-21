@@ -84,6 +84,7 @@ struct bhs_ui_ctx_impl {
   int32_t width;
   int32_t height;
   bool should_close;
+  bool resize_pending;  /* [FIX] Frame deve ser pulado após resize */
 
   /* === Input state === */
   struct {

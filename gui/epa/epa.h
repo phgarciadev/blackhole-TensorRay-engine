@@ -1,5 +1,5 @@
 /**
- * @file lib.h
+ * @file epa.h (Engine platform abstraction)
  * @brief Abstração de plataforma - janelas, eventos, input
  *
  * Essa API define a interface comum entre todas as plataformas:

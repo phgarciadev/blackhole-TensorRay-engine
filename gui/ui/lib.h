@@ -55,6 +55,7 @@ typedef struct bhs_font_atlas_impl *bhs_font_atlas_t;
 
 enum bhs_ui_error {
   BHS_UI_OK = 0,
+  BHS_UI_SKIP = 1,         /* [FIX] Frame deve ser pulado (ex: resize) */
   BHS_UI_ERR_NOMEM = -1,   /* Sem memória (CPU ou GPU) */
   BHS_UI_ERR_INIT = -2,    /* Falha na inicialização */
   BHS_UI_ERR_WINDOW = -3,  /* Falha ao criar janela */

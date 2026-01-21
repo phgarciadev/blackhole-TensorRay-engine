@@ -165,6 +165,37 @@ int bhs_ui_begin_frame(bhs_ui_ctx_t ctx) {
   /* Processa eventos */
   bhs_ui_window_poll_events(ctx);
 
+  /* [FIX] Se houve resize durante frame anterior, recria recursos agora */
+  if (ctx->resize_pending) {
+    ctx->resize_pending = false;
+    
+    /* Recria swapchain */
+    if (ctx->swapchain) {
+      bhs_gpu_swapchain_resize(ctx->swapchain, (uint32_t)ctx->width,
+                               (uint32_t)ctx->height);
+    }
+    
+    /* Recria depth texture */
+    if (ctx->depth_texture && ctx->device) {
+      bhs_gpu_texture_destroy(ctx->depth_texture);
+      ctx->depth_texture = NULL;
+      
+      struct bhs_gpu_texture_config depth_cfg = {
+        .width = (uint32_t)ctx->width,
+        .height = (uint32_t)ctx->height,
+        .depth = 1,
+        .format = BHS_FORMAT_DEPTH32_FLOAT,
+        .usage = BHS_TEXTURE_DEPTH_STENCIL,
+        .mip_levels = 1,
+        .array_layers = 1,
+        .label = "UI Depth Buffer (Resized)",
+      };
+      bhs_gpu_texture_create(ctx->device, &depth_cfg, &ctx->depth_texture);
+    }
+    
+    return BHS_UI_SKIP;  /* [FIX] Retorna SKIP para não tentar desenhar sem imagem */
+  }
+
   /* Adquire imagem */
   bhs_gpu_texture_t tex = NULL;
   int ret = bhs_gpu_swapchain_next_texture(ctx->swapchain, &tex);
