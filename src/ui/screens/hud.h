@@ -21,6 +21,10 @@ typedef struct {
 	bool req_delete_body;
 	int req_add_body_type; /* -1 = none */
 	const struct bhs_planet_registry_entry *req_add_registry_entry; /* NULL = none */
+
+    /* Data for Object Inspector (Calculated in app_state) */
+    char attractor_name[64];
+    double attractor_dist;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

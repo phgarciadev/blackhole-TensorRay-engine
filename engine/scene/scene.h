@@ -140,4 +140,13 @@ struct bhs_body bhs_body_create_blackhole_simple(struct bhs_vec3 pos,
 struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc, 
 					  struct bhs_vec3 pos);
 
+/* New Specialized Factories */
+#include "src/simulation/data/sun.h"
+#include "src/simulation/data/blackhole.h"
+
+struct bhs_body bhs_body_create_from_sun_desc(const struct bhs_sun_desc *desc, 
+                                              struct bhs_vec3 pos);
+struct bhs_body bhs_body_create_from_bh_desc(const struct bhs_blackhole_desc *desc, 
+                                             struct bhs_vec3 pos);
+
 #endif

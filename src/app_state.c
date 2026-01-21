@@ -292,10 +292,57 @@ void app_run(struct app_state *app)
 			app->accumulated_time += PHYSICS_DT;
 		}
 
-		/* [NEW] Sync Time Scale from HUD */
+	/* [NEW] Sync Time Scale from HUD */
 		/* Mapping: 0.1 * 100^val */
 		float target_timescale = 0.1f * powf(100.0f, app->hud.time_scale_val);
 		app_set_time_scale(app, (double)target_timescale);
+
+        /* [NEW] Object Inspector: Calculate Strongest Attractor */
+        if (app->hud.selected_body_index != -1) {
+            int count = 0;
+            const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &count);
+            
+            // Validate index
+            if (app->hud.selected_body_index < count) {
+                const struct bhs_body *me = &bodies[app->hud.selected_body_index];
+                
+                double max_force = -1.0;
+                int best_idx = -1;
+                double best_dist = 0.0;
+
+                for (int i = 0; i < count; i++) {
+                    if (i == app->hud.selected_body_index) continue; // Don't attract yourself
+                    if (!bodies[i].is_alive) continue;
+
+                    // Only Stars and Black Holes are "Astros" for this check
+                    if (bodies[i].type != BHS_BODY_STAR && bodies[i].type != BHS_BODY_BLACKHOLE) 
+                        continue;
+
+                    double dx = bodies[i].state.pos.x - me->state.pos.x;
+                    double dy = bodies[i].state.pos.y - me->state.pos.y;
+                    double dz = bodies[i].state.pos.z - me->state.pos.z;
+                    double dist_sq = dx*dx + dy*dy + dz*dz;
+
+                    if (dist_sq < 0.0001) continue; // Avoid singularity
+
+                    // Force is proportional to Mass / Dist^2 (ignoring G and my mass as constants for comparison)
+                    double force = bodies[i].state.mass / dist_sq;
+
+                    if (force > max_force) {
+                        max_force = force;
+                        best_idx = i;
+                        best_dist = sqrt(dist_sq);
+                    }
+                }
+
+                if (best_idx != -1) {
+                    snprintf(app->hud.attractor_name, 64, "%s", bodies[best_idx].name);
+                    app->hud.attractor_dist = best_dist;
+                } else {
+                    app->hud.attractor_name[0] = '\0';
+                }
+            }
+        }
 
 		app->phys_ms = (get_time_seconds() - t0) * 1000.0;
 

@@ -5,6 +5,8 @@
 
 #include "engine/scene/scene.h"
 #include "src/simulation/data/planet.h"
+#include "src/simulation/data/sun.h"
+#include "src/simulation/data/blackhole.h"
 #include <string.h>
 
 struct bhs_body bhs_body_create_planet_simple(struct bhs_vec3 pos, double mass,
@@ -158,4 +160,83 @@ struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc,
 	b.is_fixed = (b.type == BHS_BODY_STAR && pos.x == 0 && pos.y == 0);
 
 	return b;
+}
+
+struct bhs_body bhs_body_create_from_sun_desc(const struct bhs_sun_desc *desc, 
+                                              struct bhs_vec3 pos)
+{
+    struct bhs_body b = { 0 };
+
+    strncpy(b.name, desc->name, sizeof(b.name) - 1);
+    
+    /* Universal State */
+    b.state.pos = pos;
+    b.state.mass = desc->mass;
+    b.state.radius = desc->radius;
+    b.state.rot_axis = (struct bhs_vec3){ 
+        sin(desc->axis_tilt), 0.0, cos(desc->axis_tilt) 
+    };
+    
+    if (desc->rotation_period != 0.0) {
+        b.state.rot_speed = (2.0 * 3.14159) / desc->rotation_period;
+    } else {
+        b.state.rot_speed = 0.0;
+    }
+
+    b.state.moment_inertia = 0.07 * b.state.mass * desc->radius * desc->radius;
+    b.state.shape = BHS_SHAPE_SPHERE;
+    b.state.acc = (struct bhs_vec3){ 0, 0, 0 };
+    b.state.vel = (struct bhs_vec3){ 0, 0, 0 };
+
+    /* Type Specifics */
+    b.type = BHS_BODY_STAR;
+    b.prop.star.luminosity = desc->luminosity;
+    b.prop.star.temp_effective = desc->temperature;
+    b.prop.star.age = desc->age;
+    b.prop.star.metallicity = desc->metallicity;
+    strncpy(b.prop.star.spectral_type, desc->spectral_type, 7);
+    
+    /* Mapping enum from one header to another (could be unified but keeping explicit) */
+    /* Assuming simplistic mapping for now */
+    b.prop.star.stage = (int)desc->stage; 
+
+    /* Visuals */
+    b.color = desc->base_color;
+    b.is_alive = true;
+    b.is_fixed = false; /* Caller determines if fixed, typically */
+
+    return b;
+}
+
+struct bhs_body bhs_body_create_from_bh_desc(const struct bhs_blackhole_desc *desc,
+                                             struct bhs_vec3 pos)
+{
+    struct bhs_body b = { 0 };
+
+    strncpy(b.name, desc->name, sizeof(b.name) - 1);
+
+    /* Universal State */
+    b.state.pos = pos;
+    b.state.mass = desc->mass;
+    b.state.radius = desc->event_horizon_r; /* Visual horizon */
+    b.state.rot_axis = (struct bhs_vec3){ 0, 1, 0 };
+    b.state.rot_speed = 0.0; /* Complex for BH, simplified */
+    
+    b.state.moment_inertia = 0.4 * b.state.mass * desc->event_horizon_r * desc->event_horizon_r;
+    b.state.shape = BHS_SHAPE_SPHERE;
+    b.state.acc = (struct bhs_vec3){ 0, 0, 0 };
+    b.state.vel = (struct bhs_vec3){ 0, 0, 0 };
+
+    /* Type Specifics */
+    b.type = BHS_BODY_BLACKHOLE;
+    b.prop.bh.spin_factor = desc->spin;
+    b.prop.bh.event_horizon_r = desc->event_horizon_r;
+    b.prop.bh.accretion_disk_mass = desc->accretion_disk_mass;
+
+    /* Visuals */
+    b.color = desc->base_color;
+    b.is_alive = true;
+    b.is_fixed = false;
+
+    return b;
 }
