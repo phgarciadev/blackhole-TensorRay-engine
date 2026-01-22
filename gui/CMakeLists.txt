@@ -2,34 +2,83 @@
 
 add_library(bhs_gui STATIC)
 
-# Coletar fontes recursivamente (excluindo testes)
-file(GLOB_RECURSE gui_SOURCES "*.c")
-list(FILTER gui_SOURCES EXCLUDE REGEX "tests/.*")
-list(FILTER gui_SOURCES EXCLUDE REGEX "rhi_vulkan.c") # Código legado/morto
+# --- 1. Fontes Core (Log e UI genérica) ---
+set(gui_SOURCES
+    "log.c"
+    "ui/context.c"
+    "ui/layout.c"
+    "ui/theme.c"
+    "ui/widgets.c"
+    "ui/window/window.c"
+    "ui/render/render2d.c"
+)
+
+# --- 2. Seleção de RHI (API Gráfica) ---
+message(STATUS "[GUI] Selecionando Backend RHI: ${GPU_API}")
+
+if(GPU_API STREQUAL "vulkan")
+    file(GLOB rhi_SOURCES "rhi/vulkan/*.c")
+    # Remover rhi_vulkan.c se ele for realmente legado/morto
+    list(FILTER rhi_SOURCES EXCLUDE REGEX "rhi_vulkan.c") 
+    
+    find_package(Vulkan REQUIRED)
+    target_link_libraries(bhs_gui PRIVATE Vulkan::Vulkan)
+
+elseif(GPU_API STREQUAL "webgpu")
+    file(GLOB rhi_SOURCES "rhi/webgpu/*.c")
+    # WebGPU deps? (dawn, emscripten, etc)
+
+elseif(GPU_API STREQUAL "opengl")
+    file(GLOB rhi_SOURCES "rhi/opengl/*.c")
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(bhs_gui PRIVATE OpenGL::GL)
+
+elseif(GPU_API STREQUAL "dx11" OR GPU_API STREQUAL "dx")
+    file(GLOB rhi_SOURCES "rhi/dx/*.c")
+
+elseif(GPU_API STREQUAL "metal")
+    file(GLOB rhi_SOURCES "rhi/metal/*.c")
+endif()
+
+list(APPEND gui_SOURCES ${rhi_SOURCES})
+
+# --- 3. Seleção de EPA (Abstração de Plataforma) ---
+message(STATUS "[GUI] Selecionando Backend EPA: ${PLATFORM}")
+
+if(PLATFORM MATCHES "WAYLAND")
+    file(GLOB epa_SOURCES "epa/wayland/*.c")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-cursor xkbcommon)
+    target_link_libraries(bhs_gui PRIVATE ${WAYLAND_LIBRARIES})
+    target_include_directories(bhs_gui PRIVATE ${WAYLAND_INCLUDE_DIRS})
+
+elseif(PLATFORM MATCHES "X11")
+    file(GLOB epa_SOURCES "epa/x11/*.c")
+    find_package(X11 REQUIRED)
+    target_link_libraries(bhs_gui PRIVATE X11::X11)
+    target_include_directories(bhs_gui PRIVATE ${X11_INCLUDE_DIRS})
+
+elseif(PLATFORM STREQUAL "WINDOWS")
+    file(GLOB epa_SOURCES "epa/win32/*.c")
+
+elseif(PLATFORM STREQUAL "MACOS")
+    file(GLOB epa_SOURCES "epa/cocoa/*.m" "epa/cocoa/*.c")
+
+elseif(PLATFORM STREQUAL "NAVIGATOR")
+    file(GLOB epa_SOURCES "epa/navigator/*.c")
+endif()
+
+list(APPEND gui_SOURCES ${epa_SOURCES})
 
 target_sources(bhs_gui PRIVATE ${gui_SOURCES})
 
-# Includes
+# Includes Públicos
 target_include_directories(bhs_gui PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
 
-# Dependências
-# Dependências de Sistema
-find_package(Vulkan REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-cursor xkbcommon)
-
-target_link_libraries(bhs_gui 
-    PUBLIC 
-        bhs_math
-    PRIVATE
-        Vulkan::Vulkan
-        ${WAYLAND_LIBRARIES}
-)
-
-target_include_directories(bhs_gui PRIVATE ${WAYLAND_INCLUDE_DIRS})
+target_link_libraries(bhs_gui PUBLIC bhs_math)
 
 add_library(BHS::gui ALIAS bhs_gui)
 

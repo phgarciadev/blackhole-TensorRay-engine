@@ -17,4 +17,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 const bhs_camera_t *cam, int width, int height,
 				 const void *assets);
 
+/* [NEW] Exporting project point for hit testing in other modules */
+void bhs_project_point(const bhs_camera_t *cam, float x, float y, float z,
+			  float sw, float sh, float *ox, float *oy);
+
 #endif /* BHS_CMD_UI_RENDER_SPACETIME_RENDERER_H */

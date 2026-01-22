@@ -6,10 +6,11 @@
 #include "spacetime_renderer.h"
 #include <math.h>
 #include <string.h>
+#include "src/simulation/data/orbit_marker.h" /* [NEW] Marcadores de órbita */
 
 /* Helper: Projeta world -> screen */
 /* Helper: Projeta world -> screen */
-static void project_point(const bhs_camera_t *cam, float x, float y, float z,
+void bhs_project_point(const bhs_camera_t *cam, float x, float y, float z,
 			  float sw, float sh, float *ox, float *oy)
 {
 	/* 1. Translação (World -> Camera Space) */
@@ -246,8 +247,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				
 				/* Projeta pro screen space */
 				float sx1, sy1, sx2, sy2;
-				project_point(cam, start_x, depth1, start_z, (float)width, (float)height, &sx1, &sy1);
-				project_point(cam, end_x, depth2, end_z, (float)width, (float)height, &sx2, &sy2);
+				bhs_project_point(cam, start_x, depth1, start_z, (float)width, (float)height, &sx1, &sy1);
+				bhs_project_point(cam, end_x, depth2, end_z, (float)width, (float)height, &sx2, &sy2);
 				
 				/* Desenha a linha vermelha */
 				bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, red, 2.5f);
@@ -289,8 +290,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				
 				/* Projeta pro screen space */
 				float sx1, sy1, sx2, sy2;
-				project_point(cam, x1, depth, z1, (float)width, (float)height, &sx1, &sy1);
-				project_point(cam, x2, depth, z2, (float)width, (float)height, &sx2, &sy2);
+				bhs_project_point(cam, x1, depth, z1, (float)width, (float)height, &sx1, &sy1);
+				bhs_project_point(cam, x2, depth, z2, (float)width, (float)height, &sx2, &sy2);
 				
 				/* Clipping simples: só desenha se os pontos estão dentro da tela */
 				bool on_screen1 = (sx1 > -100 && sx1 < width + 100 && sy1 > -100 && sy1 < height + 100);
@@ -303,8 +304,49 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		}
 	}
 
+	/* [NEW] 2.7. Orbit Completion Markers (Marcadores Roxos de Órbita Completa) */
+	if (assets && assets->orbit_markers && assets->orbit_markers->marker_count > 0) {
+		/* Roxo vibrante pro marcador */
+		struct bhs_ui_color purple = { 0.6f, 0.2f, 0.8f, 1.0f };
+		struct bhs_ui_color purple_outline = { 0.9f, 0.6f, 1.0f, 0.9f };
+
+		const struct bhs_orbit_marker_system *sys = assets->orbit_markers;
+
+		for (int i = 0; i < sys->marker_count; i++) {
+			const struct bhs_orbit_marker *m = &sys->markers[i];
+			if (!m->active) continue;
+
+			/* Projeta posição do marcador */
+			float sx, sy;
+			bhs_project_point(cam, (float)m->position.x, 0.0f, (float)m->position.z,
+				      (float)width, (float)height, &sx, &sy);
+
+			/* Só desenha se visível na tela */
+			if (sx < -50 || sx > width + 50 || sy < -50 || sy > height + 50)
+				continue;
+
+			/* Desenha diamante roxo (losango) */
+			float size = 10.0f;
+			bhs_ui_draw_circle_fill(ctx, sx, sy, size, purple);
+			
+			/* Borda brilhante */
+			bhs_ui_draw_circle_fill(ctx, sx, sy, size + 2.0f, (struct bhs_ui_color){0.9f, 0.6f, 1.0f, 0.3f});
+
+			/* Número da órbita pequeno ao lado */
+			char orbit_text[16];
+			snprintf(orbit_text, sizeof(orbit_text), "#%d", m->orbit_number);
+			bhs_ui_draw_text(ctx, orbit_text, sx + size + 3.0f, sy - 5.0f,
+					 10.0f, purple_outline);
+		}
+	}
+
 	for (int i = 0; i < n_bodies; i++) {
 		const struct bhs_body *b = &bodies[i];
+
+		/* [NEW] Isolamento: se ativo, pula corpos que não são o selecionado */
+		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index)
+			continue;
+
 		float sx, sy;
 
         /* Visual Mapping:
@@ -317,7 +359,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		/* Calculate depth based on gravity well logic */
 		float visual_y = calculate_gravity_depth(visual_x, visual_z, bodies, n_bodies);
 
-		project_point(cam, visual_x, visual_y, visual_z, width, height, &sx, &sy);
+		bhs_project_point(cam, visual_x, visual_y, visual_z, width, height, &sx, &sy);
 		
 		/* ... [Using same projection/scaling logic as before] ... */
 		float dx = visual_x - cam->x;

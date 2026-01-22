@@ -38,69 +38,9 @@
  */
 
 #include "src/math/mat4.h"
+#include "src/ui/render/spacetime_renderer.h"
 
-/**
- * Projeta ponto 3D para coordenadas de tela
- * ATUALIZADO: Usa mesma lógica do planet_renderer.c
- */
-static void project_point(const bhs_camera_t *c, float x, float y, float z,
-			  float sw, float sh, float *ox, float *oy)
-{
-	/* Ponto já está em coordenadas RTC (relativo à câmera) */
-	
-	/* 1. View Matrix (igual planet_renderer.c) */
-	float cy = cosf(c->yaw);
-	float sy = sinf(c->yaw);
-	float cp = cosf(c->pitch);
-	float sp = sinf(c->pitch);
-	
-	/* Yaw (Y-Axis) */
-	bhs_mat4_t m_yaw = bhs_mat4_identity();
-	m_yaw.m[0] = cy;
-	m_yaw.m[2] = sy;
-	m_yaw.m[8] = -sy;
-	m_yaw.m[10] = cy;
-	
-	/* Pitch (X-Axis) */
-	bhs_mat4_t m_pitch = bhs_mat4_identity();
-	m_pitch.m[5] = cp;
-	m_pitch.m[6] = sp;
-	m_pitch.m[9] = -sp;
-	m_pitch.m[10] = cp;
-	
-	/* View = Pitch * Yaw */
-	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
-	
-	/* 2. Projection Matrix */
-	float focal_length = c->fov;
-	if (focal_length < 1.0f) focal_length = 1.0f;
-	
-	float fov_y = 2.0f * atanf((sh * 0.5f) / focal_length);
-	float aspect = sw / sh;
-	
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1000.0f, 1.0e14f);
-	
-	/* 3. ViewProj */
-	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
-	
-	/* 4. Transformar ponto */
-	struct bhs_v4 pos = { x, y, z, 1.0f };
-	struct bhs_v4 clip = bhs_mat4_mul_v4(mat_vp, pos);
-	
-	/* 5. Perspective divide */
-	if (fabsf(clip.w) < 0.001f) {
-		*ox = sw * 0.5f;
-		*oy = sh * 0.5f;
-		return;
-	}
-	
-	float ndc_x = clip.x / clip.w;
-	float ndc_y = clip.y / clip.w;
-	
-	/* 6. NDC -> Screen (Vulkan: Y já está invertido na projection) */
-	*ox = (ndc_x + 1.0f) * 0.5f * sw;
-	*oy = (ndc_y + 1.0f) * 0.5f * sh;
-}
+/* Helper projection removed - now using shared bhs_project_point from spacetime_renderer.h */
 
 /* ============================================================================
  * HANDLERS ESPECÍFICOS
@@ -352,9 +292,9 @@ static void handle_object_interaction(struct app_state *app)
 			float rtc_y = visual_y - (float)app->camera.y;
 			float rtc_z = visual_z - (float)app->camera.z;
 
-			/* Projeta usando as coordenadas RTC */
+			/* Projeta usando coordenadas absolutas (project_point interna cuida da camera) */
 			float sx, sy;
-			project_point(&app->camera, rtc_x, rtc_y, rtc_z,
+			bhs_project_point(&app->camera, visual_x, visual_y, visual_z,
 				      (float)win_w, (float)win_h, &sx, &sy);
 
 			/* Raio de picking proporcional ao tamanho visual */
@@ -369,7 +309,7 @@ static void handle_object_interaction(struct app_state *app)
 			if (pick_radius < 15.0f) pick_radius = 15.0f;
 			if (pick_radius > 200.0f) pick_radius = 200.0f;
 
-			float d2 = (sx - mx) * (sx - mx) + (sy - my) * (sy - my);
+			float d2 = (sx - (float)mx) * (sx - (float)mx) + (sy - (float)my) * (sy - (float)my);
 			float radius_sq = pick_radius * pick_radius;
 
 			if (d2 < radius_sq && d2 < best_dist) {
@@ -378,7 +318,23 @@ static void handle_object_interaction(struct app_state *app)
 			}
 		}
 
-		app->hud.selected_body_index = best_idx;
+		/* [NEW] Picking de Marcadores de Órbita (se não clicou em corpo próximo) */
+		int best_marker = bhs_orbit_markers_get_at_screen(&app->orbit_markers, 
+								(float)mx, (float)my, 
+								&app->camera, win_w, win_h);
+
+		/* Prioridade: se clicou em corpo, limpa marcador. Se clicou em marcador e não em corpo, seleciona. */
+		if (best_idx != -1) {
+			app->hud.selected_body_index = best_idx;
+			app->hud.selected_marker_index = -1;
+		} else if (best_marker != -1) {
+			app->hud.selected_marker_index = best_marker;
+			app->hud.selected_body_index = -1;
+		} else {
+			/* Clicou no vazio: limpa ambos */
+			app->hud.selected_body_index = -1;
+			app->hud.selected_marker_index = -1;
+		}
 	}
 
 	/* Atualiza cache do corpo selecionado */

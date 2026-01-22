@@ -338,6 +338,10 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		if (render_count >= 128) break;
 
+		/* [NEW] Isolamento: se ativo, pula corpos que não são o selecionado */
+		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index)
+			continue;
+
 		/* Determine Visual Position based on Mode */
 		float b_px = (float)b->state.pos.x * pos_scale;
 		float b_pz = (float)b->state.pos.z * pos_scale;

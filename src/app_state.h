@@ -25,6 +25,7 @@
 #include "src/ui/render/planet_renderer.h"
 #include "src/ui/render/planet_renderer.h"
 #include "src/ui/camera/camera.h"
+#include "src/simulation/data/orbit_marker.h"  /* [NEW] Sistema de marcadores */
 
 
 /* ============================================================================
@@ -101,6 +102,9 @@ struct app_state {
 
 	/* ---- Estado de UI ---- */
 	bhs_hud_state_t hud;		/* HUD: menus, seleção, etc */
+
+	/* ---- [NEW] Sistema de Marcadores de Órbita ---- */
+	struct bhs_orbit_marker_system orbit_markers;
 
 	/* ---- Timing / Profiling ---- */
 	double last_frame_time;		/* Timestamp do último frame */

@@ -18,11 +18,13 @@ typedef struct {
 	bhs_visual_mode_t visual_mode;
 	bool top_down_view;	/* [NEW] */
 	bool show_gravity_line; /* [NEW] Show line to strongest attractor */
-	bool show_orbit_trail;  /* [NEW] Show blue orbit path */
+	bool show_orbit_trail;	/* [NEW] Show blue orbit path */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */
 	struct bhs_body selected_body_cache; /* Para exibir info sem lock */
+	bool isolate_view; /* [NEW] Mostrar apenas o planeta selecionado */
+	int selected_marker_index; /* [NEW] -1 = none, seleciona um marco roxo */
 
 	/* Requests to Main Loop */
 	bool req_delete_body;
@@ -36,6 +38,9 @@ typedef struct {
 
 	/* [NEW] Tempo simulado em segundos desde J2000.0 (passado pelo app_state) */
 	double sim_time_seconds;
+	
+	/* [NEW] Acesso ao sistema de marcadores para exibição de detalhes */
+	const struct bhs_orbit_marker_system *orbit_markers_ptr;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

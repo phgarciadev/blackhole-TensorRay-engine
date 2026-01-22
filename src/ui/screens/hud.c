@@ -3,6 +3,7 @@
 #include "src/simulation/data/planet.h"
 #include "math/units.h" /* [NEW] Para bhs_sim_time_to_date */
 #include <stdio.h>
+#include "src/simulation/data/orbit_marker.h" /* [NEW] */
 
 static const char *MENU_ITEMS[] = { "Config", "Add", "View", "Refs" };
 static const int MENU_COUNT = 4;
@@ -80,6 +81,8 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->top_down_view = false;
 		state->show_gravity_line = false;
 		state->show_orbit_trail = false;
+		state->isolate_view = false;
+		state->selected_marker_index = -1;
 	}
 }
 
@@ -456,7 +459,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	}
 
 	/* 4. Info Panel (Expanded & Polished) */
-	if (state->selected_body_index != -1) {
+	if (state->selected_body_index != -1 || state->selected_marker_index != -1) {
 		/* [FIX] Usando valores do layout pra consistência com hit test */
 		struct bhs_ui_rect info_rect = {
 			(float)window_w - layout.info_panel_w - layout.info_panel_margin,
@@ -473,8 +476,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		float y = info_rect.y + pad;
 		float x = info_rect.x + pad;
         float w = info_rect.width - (pad * 2.0f);
-		const struct bhs_body *b = &state->selected_body_cache;
-
+		
 		/* Font sizes escalados */
 		float font_title = 14.0f * ui_scale;
 		float font_name = 16.0f * ui_scale;
@@ -482,6 +484,56 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		float font_section = 12.0f * ui_scale;
 		float prop_offset = 80.0f * ui_scale;  /* Offset pra valor das props */
 		float line_h = 18.0f * ui_scale;  /* Altura de linha */
+
+		/* Macro para desenhar propriedades (reutilizável) */
+		char buf[128];
+		#undef DRAW_PROP
+		#define DRAW_PROP(label, val_fmt, ...) \
+			do { \
+				bhs_ui_draw_text(ctx, label, x, y, font_prop, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f}); \
+				snprintf(buf, sizeof(buf), val_fmt, __VA_ARGS__); \
+				bhs_ui_draw_text(ctx, buf, x + prop_offset, y, font_prop, BHS_UI_COLOR_WHITE); \
+				y += line_h; \
+			} while(0)
+
+		/* CASO A: Marcador de Órbita Selecionado */
+		if (state->selected_marker_index != -1 && state->orbit_markers_ptr) {
+			const struct bhs_orbit_marker *m = &state->orbit_markers_ptr->markers[state->selected_marker_index];
+			
+			/* Header */
+			bhs_ui_draw_text(ctx, "ORBIT EVENT", x, y, font_title, (struct bhs_ui_color){0.6f, 0.2f, 0.8f, 1.0f});
+			y += 20.0f * ui_scale;
+			bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.6f, 0.2f, 0.8f, 0.3f}, 1.0f * ui_scale);
+			y += 15.0f * ui_scale;
+
+			/* Nome (Planeta que completou) */
+			bhs_ui_draw_text(ctx, m->planet_name, x, y, font_name, BHS_UI_COLOR_WHITE);
+			y += 25.0f * ui_scale;
+
+			/* Detalhes do Marco */
+			DRAW_PROP("Orbit #:", "%d", m->orbit_number);
+			
+			int yr, mo, dy, hr, mi, sc;
+			bhs_sim_time_to_date(m->timestamp_seconds, &yr, &mo, &dy, &hr, &mi, &sc);
+			DRAW_PROP("Date:", "%04d-%02d-%02d", yr, mo, dy);
+			DRAW_PROP("Time:", "%02d:%02d:%02d UTC", hr, mi, sc);
+			
+			y += 10.0f * ui_scale;
+			bhs_ui_draw_text(ctx, "MEASUREMENTS", x, y, font_section, (struct bhs_ui_color){0.6f, 0.2f, 0.8f, 0.8f});
+			y += line_h;
+
+			DRAW_PROP("Period:", "%.3f days", m->orbital_period_measured / 86400.0);
+			DRAW_PROP("Pos X:", "%.2e m", m->position.x);
+			DRAW_PROP("Pos Z:", "%.2e m", m->position.z);
+			
+			y += 30.0f * ui_scale;
+			bhs_ui_draw_text(ctx, "Clicavel p/ inspecionar", x, y, font_section * 0.8f, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 0.8f});
+			
+			return; /* Sai aqui se for marcador */
+		}
+
+		/* CASO B: Corpo Celeste Selecionado (Código original migrado para dentro do if) */
+		const struct bhs_body *b = &state->selected_body_cache;
 
 		/* Header */
 		bhs_ui_draw_text(ctx, "OBJECT INSPECTOR", x, y, font_title, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f});
@@ -492,8 +544,6 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		y += 15.0f * ui_scale;
 
 		/* --- UNIVERSAL DATA --- */
-		char buf[128];
-		
 		const char* type_str = "Unknown";
 		if (b->name[0] != '\0') type_str = b->name;
 		
@@ -582,6 +632,11 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		}
 		float text_w = 11.0f * (font_prop * 0.65f);  /* Aprox largura de "DELETE BODY" */
         bhs_ui_draw_text(ctx, "DELETE BODY", x + (w - text_w) / 2.0f, y + btn_h * 0.25f, font_prop, BHS_UI_COLOR_WHITE);
+
+		/* [NEW] Checkbox para Isolamento Visual */
+		y += btn_h + 10.0f * ui_scale;
+		struct bhs_ui_rect iso_rect = { x, y, w, 24.0f * ui_scale };
+		bhs_ui_checkbox(ctx, "Isolar Visao", iso_rect, &state->isolate_view);
 	}
 
 

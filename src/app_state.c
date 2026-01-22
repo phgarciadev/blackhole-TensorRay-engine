@@ -234,6 +234,9 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	app->scenario = APP_SCENARIO_NONE;
 	app->should_quit = false;
 
+	/* 6.1. [NEW] Inicializa sistema de marcadores de órbita */
+	bhs_orbit_markers_init(&app->orbit_markers);
+
 	/* 7. Timing */
 	app->last_frame_time = get_time_seconds();
 	app->frame_count = 0;
@@ -355,6 +358,15 @@ void app_run(struct app_state *app)
 				}
 			}
 
+			/* [NEW] Atualiza sistema de marcadores de órbita */
+			{
+				int count = 0;
+				const struct bhs_body *bodies =
+					bhs_scene_get_bodies(app->scene, &count);
+				bhs_orbit_markers_update(&app->orbit_markers, bodies,
+							 count, app->accumulated_time);
+			}
+
 			accumulator -= PHYSICS_DT;
 			app->accumulated_time += PHYSICS_DT;
 			physics_steps++;
@@ -465,7 +477,11 @@ void app_run(struct app_state *app)
 			.show_gravity_line = app->hud.show_gravity_line,
 			.selected_body_index = app->hud.selected_body_index,
 			/* Orbit Trail */
-			.show_orbit_trail = app->hud.show_orbit_trail
+			.show_orbit_trail = app->hud.show_orbit_trail,
+			/* [NEW] Isolated View - propaga o índice se isolamento ativo */
+			.isolated_body_index = app->hud.isolate_view ? app->hud.selected_body_index : -1,
+			/* [NEW] Sistema de marcadores de órbita */
+			.orbit_markers = &app->orbit_markers
 		};
 		bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
 					win_w, win_h, &assets,
@@ -473,6 +489,7 @@ void app_run(struct app_state *app)
 
 		/* HUD */
 		app->hud.sim_time_seconds = app->accumulated_time; /* Sync J2000 time */
+		app->hud.orbit_markers_ptr = &app->orbit_markers;   /* [NEW] Passa marcadores */
 		bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
 
 		/* Status bar */
