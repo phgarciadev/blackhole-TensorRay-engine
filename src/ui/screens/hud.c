@@ -1,10 +1,11 @@
 #include "hud.h"
 #include <math.h> /* [NEW] for powf */
 #include "src/simulation/data/planet.h"
+#include "math/units.h" /* [NEW] Para bhs_sim_time_to_date */
 #include <stdio.h>
 
-static const char *MENU_ITEMS[] = { "Config", "Add", "View" };
-static const int MENU_COUNT = 3;
+static const char *MENU_ITEMS[] = { "Config", "Add", "View", "Refs" };
+static const int MENU_COUNT = 4;
 
 static bool is_inside(int mx, int my, float x, float y, float w, float h);
 
@@ -68,7 +69,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 	if (state) {
 		state->show_fps = true;
 		state->vsync_enabled = true;
-		state->time_scale_val = 0.5f;      /* Default Time Scale (1.0x mapped from 0.5) */
+		state->time_scale_val = 0.28f;    /* Default ~1 day/min (Formula: 0.1 * 3650^val) */
 		state->active_menu_index = -1;
 		state->add_menu_category = -1;
 		state->selected_body_index = -1;
@@ -77,6 +78,8 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->req_add_registry_entry = NULL;
 		state->visual_mode = BHS_VISUAL_MODE_DIDACTIC;
 		state->top_down_view = false;
+		state->show_gravity_line = false;
+		state->show_orbit_trail = false;
 	}
 }
 
@@ -167,22 +170,20 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
     
     /* 4. Telemetry (Top Right) */
     if (state->show_fps) {
-        char fps_text[64]; /* Increased buffer size for safety */
-        /* Assume fixed 60 for now per original code, or fetch from engine if available later */
-		snprintf(fps_text, 64, "FPS: 60 | T=%.1fs", 124.5); /* Placeholder time */ 
-        /* Right aligned with proper dynamic margin */
-        /* width approx: 20 chars * font_size * 0.6 */
-        /* width approx: 20 chars * font_size * 0.6 */
+        /* Calcula dias/min atual */
+        float days_per_min = 0.1f * powf(3650.0f, state->time_scale_val);
         
-        /* [FIX] O cálculo anterior (22.0 * 0.6) dava uma largura de ~13u * scale, o que era pouco. 
-         * O texto real tem uns 20 chars. 
-         * Ajustando fator para 0.85f (fonte monospace aproximada) se não corta o final.
-         * E usando strlen real (aprox 25 chars margem segurança).
-         */
-        float fps_w = 25.0f * (layout.font_size_tab * 0.85f); 
+        char telemetry_text[128];
+        if (days_per_min < 1.0f) {
+            snprintf(telemetry_text, 128, "Speed: %.1f dias/min", days_per_min);
+        } else {
+            snprintf(telemetry_text, 128, "Speed: %.0f dias/min", days_per_min);
+        }
+        
+        float text_w = 25.0f * (layout.font_size_tab * 0.85f); 
         float margin_right = 20.0f * layout.ui_scale;
         
-        bhs_ui_draw_text(ctx, fps_text, (float)window_w - fps_w - margin_right, 
+        bhs_ui_draw_text(ctx, telemetry_text, (float)window_w - text_w - margin_right, 
                          17.0f * layout.ui_scale, layout.font_size_tab, theme_text_normal);
     }
 
@@ -245,11 +246,17 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			item_rect.y = y;
 
 			/* Time Scale Control */
-			/* Mapping: 0.0->0.1x, 0.5->1.0x, 1.0->10.0x (Logarithmic feel) */
-			/* Formula: 0.1 * 100^val */
-			float time_scale_disp = 0.1f * powf(100.0f, state->time_scale_val);
+			/* Nova formula: dias terrestres por minuto real */
+			/* 0.1 * 3650^val = dias/min (val=0 -> 0.1, val=1 -> 365) */
+			float days_per_min = 0.1f * powf(3650.0f, state->time_scale_val);
 			char time_label[64];
-			snprintf(time_label, 64, "Time Speed: %.2fx", time_scale_disp);
+			if (days_per_min < 1.0f) {
+				snprintf(time_label, 64, "Speed: %.1f dias/min", days_per_min);
+			} else if (days_per_min < 30.0f) {
+				snprintf(time_label, 64, "Speed: %.0f dias/min", days_per_min);
+			} else {
+				snprintf(time_label, 64, "Speed: %.0f dias/min", days_per_min);
+			}
 			
 			bhs_ui_draw_text(ctx, time_label, panel_rect.x + item_pad, y - 5.0f * ui_scale, font_label, BHS_UI_COLOR_GRAY);
 			y += 12.0f * ui_scale;
@@ -367,6 +374,16 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			struct bhs_ui_rect td_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 			bhs_ui_checkbox(ctx, "Top Down Camera", td_rect, &state->top_down_view);
 			y += row_spacing;
+
+			/* Gravity Line Toggle */
+			struct bhs_ui_rect gl_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+			bhs_ui_checkbox(ctx, "Gravity Line", gl_rect, &state->show_gravity_line);
+			y += row_spacing;
+
+			/* Orbit Trail Toggle */
+			struct bhs_ui_rect ot_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+			bhs_ui_checkbox(ctx, "Orbit Trail", ot_rect, &state->show_orbit_trail);
+			y += row_spacing;
 			
 			/* Descrição do modo atual */
 			y += 5.0f * ui_scale;
@@ -380,6 +397,61 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 				case BHS_VISUAL_MODE_CINEMATIC:  desc = "Hollywood.\nMassive planets.\nClose Stars.\nNot physics."; break;
 			}
 			bhs_ui_draw_text(ctx, desc, panel_rect.x + item_pad, y, font_label, BHS_UI_COLOR_GRAY);
+		}
+		/* INDEX 3: REFS (References - Temporal) */
+		else if (state->active_menu_index == 3) {
+			bhs_ui_draw_text(ctx, "Reference Frame", panel_rect.x + item_pad,
+					 y, font_header, BHS_UI_COLOR_GRAY);
+			y += 25.0f * ui_scale;
+
+			/* Epoch Info */
+			bhs_ui_draw_text(ctx, "Epoch: J2000.0", panel_rect.x + item_pad, y, 
+					 font_label, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f});
+			y += 18.0f * ui_scale;
+			bhs_ui_draw_text(ctx, "Start: 2000-01-01 12:00 UTC", panel_rect.x + item_pad, y, 
+					 font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f});
+			y += 25.0f * ui_scale;
+
+			/* Separador */
+			bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y, 
+					 panel_rect.x + panel_rect.width - item_pad, y, 
+					 BHS_UI_COLOR_GRAY, 1.0f);
+			y += 15.0f * ui_scale;
+
+			/* Current Date Header */
+			bhs_ui_draw_text(ctx, "CURRENT DATE (UTC)", panel_rect.x + item_pad, y, 
+					 font_header, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f});
+			y += 25.0f * ui_scale;
+
+			/* Converte segundos desde J2000 para data */
+			int yr, mo, dy, hr, mi, sc;
+			bhs_sim_time_to_date(state->sim_time_seconds, &yr, &mo, &dy, &hr, &mi, &sc);
+
+			/* Data formatada */
+			char date_buf[64];
+			snprintf(date_buf, sizeof(date_buf), "%04d-%02d-%02d", yr, mo, dy);
+			bhs_ui_draw_text(ctx, date_buf, panel_rect.x + item_pad, y, 
+					 20.0f * ui_scale, BHS_UI_COLOR_WHITE);
+			y += 28.0f * ui_scale;
+
+			/* Hora formatada */
+			char time_buf[64];
+			snprintf(time_buf, sizeof(time_buf), "%02d:%02d:%02d UTC", hr, mi, sc);
+			bhs_ui_draw_text(ctx, time_buf, panel_rect.x + item_pad, y, 
+					 16.0f * ui_scale, (struct bhs_ui_color){0.8f, 0.8f, 0.8f, 1.0f});
+			y += 30.0f * ui_scale;
+
+			/* Tempo decorrido */
+			double days_elapsed = state->sim_time_seconds / 86400.0;
+			double years_elapsed = days_elapsed / 365.25;
+			char elapsed_buf[64];
+			if (years_elapsed >= 1.0) {
+				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.2f years since J2000", years_elapsed);
+			} else {
+				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.1f days since J2000", days_elapsed);
+			}
+			bhs_ui_draw_text(ctx, elapsed_buf, panel_rect.x + item_pad, y, 
+					 font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f});
 		}
 	}
 

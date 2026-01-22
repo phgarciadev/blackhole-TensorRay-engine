@@ -193,8 +193,13 @@ static inline void app_set_time_scale(struct app_state *app, double scale)
 		return;
 	if (scale < 0.1)
 		scale = 0.1;
-	if (scale > 100.0)
-		scale = 100.0;
+	/*
+	 * MAX: 1e6 = ~694 dias/minuto = ~1.9 anos por minuto real.
+	 * Suficiente pra ver órbitas planetárias em segundos.
+	 * O limite anterior de 100x era completamente inútil pra astronomia.
+	 */
+	if (scale > 1.0e6)
+		scale = 1.0e6;
 	app->time_scale = scale;
 }
 

@@ -92,6 +92,9 @@ struct bhs_body_state {
 	int shape;
 };
 
+/* Orbit Trail - buffer circular de posições históricas */
+#define BHS_MAX_TRAIL_POINTS 512
+
 struct bhs_body {
 	struct bhs_body_state state;
 	enum bhs_body_type type;
@@ -104,6 +107,11 @@ struct bhs_body {
 	bool is_fixed;
 	bool is_alive;
 	char name[32];
+	
+	/* [NEW] Orbit Trail Data */
+	float trail_positions[BHS_MAX_TRAIL_POINTS][3]; /* x, y, z */
+	int trail_head;   /* Próximo índice a escrever */
+	int trail_count;  /* Quantos pontos válidos (max = BHS_MAX_TRAIL_POINTS) */
 };
 
 /* API */

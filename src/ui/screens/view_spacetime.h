@@ -40,6 +40,13 @@ typedef struct bhs_view_assets {
 	
 	/* 3D Renderer Status */
 	bool render_3d_active;
+
+    /* Gravity Line Visualization */
+    bool show_gravity_line;
+    int selected_body_index; /* -1 = no selection, show all lines */
+    
+    /* Orbit Trail Visualization */
+    bool show_orbit_trail;
 } bhs_view_assets_t;
 
 /* Proxy to renderer */

@@ -10,24 +10,26 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Softening para evitar singularidade */
-#define SOFTENING_SQ  (0.25 * 0.25)  /* 0.5 unidades de simulação */
+/* 
+ * Softening para evitar singularidade
+ * Para unidades SI astronômicas (metros), precisamos de um softening
+ * proporcional à escala. 0.01 AU = 1.5e9 metros é razoável.
+ */
+#define SOFTENING_DIST  (1.5e9)  /* 0.01 AU em metros */
+#define SOFTENING_SQ    (SOFTENING_DIST * SOFTENING_DIST)
 
 /*
  * Limiar de massa para considerar correções relativísticas.
- * Corpos com GM > 1.0 são considerados "muito massivos" (buracos negros, estrelas)
- * e recebem correção 1PN para seus satélites.
+ * Em SI, GM do Sol ≈ 1.32e20 m³/s². Só aplicar 1PN para objetos
+ * comparáveis a estrelas de nêutrons ou buracos negros.
+ * Para o Sol normal, 1PN é desprezível e pode causar instabilidade.
  */
-#define RELATIVISTIC_MASS_THRESHOLD 1.0
+#define RELATIVISTIC_MASS_THRESHOLD 1.0e25  /* GM muito alto (BH) */
 
 /*
- * Velocidade da luz em unidades de simulação.
- * Com G=1 e M☉=20, as velocidades orbitais são ~0.6 (v_orb = sqrt(M/r))
- * A velocidade da luz deve ser muito maior para que correções 1PN sejam pequenas.
- * Usando c = 100 (arbitrário mas razoável para visualização).
- * Para realismo físico completo, c deveria ser ~5000 para escala do sistema solar.
+ * Velocidade da luz em SI (m/s)
  */
-#define C_SIM 100.0
+#define C_SIM 299792458.0
 
 /* ============================================================================
  * CÁLCULO DE ACELERAÇÕES (COM CORREÇÃO 1PN)
@@ -72,14 +74,18 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 			double soft_dist = sqrt(soft_sq);
 			double inv_dist3 = 1.0 / (soft_dist * soft_dist * soft_dist);
 
-			/*
+		/*
 			 * ================ GRAVIDADE NEWTONIANA ================
 			 * F_ij = G * m_i * m_j / r³ * r_vec
 			 * a_i = F_ij / m_i = G * m_j / r³ * r_vec = GM_j / r³ * r_vec
 			 * a_j = -F_ij / m_j = -GM_i / r³ * r_vec
+			 * 
+			 * NOTA: Mesmo que bi seja fixo (Sol), bj (planetas) AINDA
+			 * precisa sentir a gravidade do Sol! O is_fixed só impede
+			 * que o corpo fixo se mova, não que ele exerça gravidade.
 			 */
 			
-			/* Aceleração de i devido a j */
+			/* Aceleração de i devido a j (só se i não é fixo) */
 			if (!bi->is_fixed) {
 				double factor_i = bj->gm * inv_dist3;
 				struct bhs_vec3 a_i = {
@@ -89,11 +95,7 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 				};
 				bhs_kahan_vec3_add(&acc_kahan[i], a_i);
 
-				/*
-				 * ================ CORREÇÃO 1PN ================
-				 * Aplica correção relativística se j é muito massivo
-				 * (buraco negro ou estrela) e i está numa órbita relativística.
-				 */
+				/* Correção 1PN (só pra buracos negros muito massivos) */
 				if (bj->gm > RELATIVISTIC_MASS_THRESHOLD) {
 					struct bhs_vec3 rel_pos = { dx, dy, dz };
 					struct bhs_vec3 a_1pn = bhs_compute_1pn_correction(
@@ -101,8 +103,10 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 					bhs_kahan_vec3_add(&acc_kahan[i], a_1pn);
 				}
 			}
-
-			/* Aceleração de j devido a i (ação e reação) */
+			
+			/* Aceleração de j devido a i (só se j não é fixo) */
+			/* ISSO É CRÍTICO: mesmo que bi (Sol) seja fixo, 
+			 * bj (Terra) ainda precisa sentir a gravidade! */
 			if (!bj->is_fixed) {
 				double factor_j = bi->gm * inv_dist3;
 				struct bhs_vec3 a_j = {

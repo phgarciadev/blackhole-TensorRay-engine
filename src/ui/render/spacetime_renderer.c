@@ -182,6 +182,127 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	int n_bodies = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
 
+	/* 2.5. Gravity Lines (Drawn on top of background, behind body labels) */
+	if (assets && assets->show_gravity_line && n_bodies > 0) {
+		/* 
+		 * Lógica: 
+		 * - Se selected_body_index == -1: desenha linhas de TODOS os planetas pro atrator
+		 * - Se selected_body_index >= 0: desenha SÓ a linha do planeta selecionado
+		 */
+		
+		/* Primeiro, encontra o atrator principal (Sol/BH com maior massa) */
+		int attractor_idx = -1;
+		double attractor_mass = 0.0;
+		for (int i = 0; i < n_bodies; i++) {
+			if (bodies[i].type == BHS_BODY_STAR || bodies[i].type == BHS_BODY_BLACKHOLE) {
+				if (bodies[i].state.mass > attractor_mass) {
+					attractor_mass = bodies[i].state.mass;
+					attractor_idx = i;
+				}
+			}
+		}
+		
+		if (attractor_idx >= 0) {
+			const struct bhs_body *attractor = &bodies[attractor_idx];
+			
+			/* Cor vermelha pra linha */
+			struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
+			
+			for (int i = 0; i < n_bodies; i++) {
+				/* Pula o próprio atrator */
+				if (i == attractor_idx) continue;
+				
+				/* Se há seleção, só desenha a linha do selecionado */
+				if (assets->selected_body_index >= 0 && i != assets->selected_body_index)
+					continue;
+				
+				/* Só planetas têm linhas pro Sol */
+				if (bodies[i].type != BHS_BODY_PLANET) continue;
+				
+				const struct bhs_body *planet = &bodies[i];
+				
+				/* Calcula direção planet -> attractor */
+				double vx = attractor->state.pos.x - planet->state.pos.x;
+				double vy = attractor->state.pos.y - planet->state.pos.y;
+				double vz = attractor->state.pos.z - planet->state.pos.z;
+				double dist = sqrt(vx*vx + vy*vy + vz*vz);
+				
+				if (dist < 0.0001) continue;
+				
+				/* Normaliza */
+				vx /= dist; vy /= dist; vz /= dist;
+				
+				/* Ponto inicial: superfície do planeta (direção do atrator) */
+				float start_x = (float)(planet->state.pos.x + vx * planet->state.radius);
+				float start_z = (float)(planet->state.pos.z + vz * planet->state.radius);
+				
+				/* Ponto final: superfície do atrator (direção do planeta) */
+				float end_x = (float)(attractor->state.pos.x - vx * attractor->state.radius);
+				float end_z = (float)(attractor->state.pos.z - vz * attractor->state.radius);
+				
+				/* Calcula depth visual (pra alinhar com a malha de gravidade) */
+				float depth1 = calculate_gravity_depth(start_x, start_z, bodies, n_bodies);
+				float depth2 = calculate_gravity_depth(end_x, end_z, bodies, n_bodies);
+				
+				/* Projeta pro screen space */
+				float sx1, sy1, sx2, sy2;
+				project_point(cam, start_x, depth1, start_z, (float)width, (float)height, &sx1, &sy1);
+				project_point(cam, end_x, depth2, end_z, (float)width, (float)height, &sx2, &sy2);
+				
+				/* Desenha a linha vermelha */
+				bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, red, 2.5f);
+			}
+		}
+	}
+
+	/* 2.6. Orbit Trails (Blue path showing planet movement history) */
+	if (assets && assets->show_orbit_trail && n_bodies > 0) {
+		struct bhs_ui_color trail_color = { 0.2f, 0.5f, 1.0f, 0.6f }; /* Azul semi-transparente */
+		
+		for (int i = 0; i < n_bodies; i++) {
+			const struct bhs_body *planet = &bodies[i];
+			
+			/* Só planetas têm trails */
+			if (planet->type != BHS_BODY_PLANET) continue;
+			
+			/* Mesma lógica de filtro: se há seleção, só desenha trail do selecionado */
+			if (assets->selected_body_index >= 0 && i != assets->selected_body_index)
+				continue;
+			
+			/* Precisa de pelo menos 2 pontos para desenhar linha */
+			if (planet->trail_count < 2) continue;
+			
+			/* Desenha segmentos conectando pontos históricos */
+			for (int j = 0; j < planet->trail_count - 1; j++) {
+				/* Calcula índices no buffer circular */
+				int start_idx = (planet->trail_head - planet->trail_count + j + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
+				int end_idx = (start_idx + 1) % BHS_MAX_TRAIL_POINTS;
+				
+				float x1 = planet->trail_positions[start_idx][0];
+				float z1 = planet->trail_positions[start_idx][2];
+				float x2 = planet->trail_positions[end_idx][0];
+				float z2 = planet->trail_positions[end_idx][2];
+				
+				/* Trilhas flat (Y=0) - não seguir curvatura da gravidade */
+				/* Isso evita gaps causados por projeção incorreta de Y negativo */
+				float depth = 0.0f;
+				
+				/* Projeta pro screen space */
+				float sx1, sy1, sx2, sy2;
+				project_point(cam, x1, depth, z1, (float)width, (float)height, &sx1, &sy1);
+				project_point(cam, x2, depth, z2, (float)width, (float)height, &sx2, &sy2);
+				
+				/* Clipping simples: só desenha se os pontos estão dentro da tela */
+				bool on_screen1 = (sx1 > -100 && sx1 < width + 100 && sy1 > -100 && sy1 < height + 100);
+				bool on_screen2 = (sx2 > -100 && sx2 < width + 100 && sy2 > -100 && sy2 < height + 100);
+				
+				if (on_screen1 || on_screen2) {
+					bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, trail_color, 1.5f);
+				}
+			}
+		}
+	}
+
 	for (int i = 0; i < n_bodies; i++) {
 		const struct bhs_body *b = &bodies[i];
 		float sx, sy;
