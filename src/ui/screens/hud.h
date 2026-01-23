@@ -38,9 +38,10 @@ typedef struct {
 
 	/* [NEW] Tempo simulado em segundos desde J2000.0 (passado pelo app_state) */
 	double sim_time_seconds;
-	
+
 	/* [NEW] Acesso ao sistema de marcadores para exibição de detalhes */
 	const struct bhs_orbit_marker_system *orbit_markers_ptr;
+	float orbit_history_scroll; /* [NEW] Estado de rolagem do histórico */
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

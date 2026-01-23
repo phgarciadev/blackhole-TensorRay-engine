@@ -312,9 +312,34 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 		const struct bhs_orbit_marker_system *sys = assets->orbit_markers;
 
+		/* [FIX] Para evitar a poluição de pontos roxos ("stacking"), 
+		 * vamos descobrir qual o orbit_number mais alto de cada planeta.
+		 */
+		int latest_orbit[128]; /* MAX_BODIES */
+		for(int i=0; i<128; i++) latest_orbit[i] = -1;
+
 		for (int i = 0; i < sys->marker_count; i++) {
 			const struct bhs_orbit_marker *m = &sys->markers[i];
 			if (!m->active) continue;
+			if (m->planet_index >= 0 && m->planet_index < 128) {
+				if (m->orbit_number > latest_orbit[m->planet_index]) {
+					latest_orbit[m->planet_index] = m->orbit_number;
+				}
+			}
+		}
+
+		for (int i = 0; i < sys->marker_count; i++) {
+			const struct bhs_orbit_marker *m = &sys->markers[i];
+			if (!m->active) continue;
+
+			/* [FIX] Só desenha se for a órbita mais recente do planeta */
+			if (m->planet_index >= 0 && m->planet_index < 128) {
+				if (m->orbit_number != latest_orbit[m->planet_index]) continue;
+			}
+
+			/* [FIX] Respeita o isolamento visual */
+			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index)
+				continue;
 
 			/* Projeta posição do marcador */
 			float sx, sy;

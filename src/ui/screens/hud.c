@@ -83,6 +83,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_orbit_trail = false;
 		state->isolate_view = false;
 		state->selected_marker_index = -1;
+		state->orbit_history_scroll = 0.0f;
 	}
 }
 
@@ -526,9 +527,63 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			DRAW_PROP("Pos X:", "%.2e m", m->position.x);
 			DRAW_PROP("Pos Z:", "%.2e m", m->position.z);
 			
-			y += 30.0f * ui_scale;
-			bhs_ui_draw_text(ctx, "Clicavel p/ inspecionar", x, y, font_section * 0.8f, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 0.8f});
 			
+			/* Seção de HISTÓRICO */
+			y += 20.0f * ui_scale;
+			bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 0.8f}, 1.0f * ui_scale);
+			y += 10.0f * ui_scale;
+			bhs_ui_draw_text(ctx, "ORBIT HISTORY", x, y, font_section, (struct bhs_ui_color){0.6f, 0.2f, 0.8f, 0.8f});
+			y += line_h + 5.0f * ui_scale;
+
+			/* Área rolável */
+			float history_y_start = y;
+			float history_h_max = info_rect.y + info_rect.height - y - 10.0f * ui_scale;
+			
+			/* Lógica de Scroll do mouse */
+			int mx, my;
+			bhs_ui_mouse_pos(ctx, &mx, &my);
+			if (is_inside(mx, my, info_rect.x, history_y_start, info_rect.width, history_h_max)) {
+				float scroll = bhs_ui_mouse_scroll(ctx);
+				if (fabsf(scroll) > 0.1f) {
+					state->orbit_history_scroll += scroll * 20.0f * ui_scale;
+				}
+			}
+
+			/* Iterar todos os marcadores do mesmo planeta */
+			int count_found = 0;
+			if (state->orbit_markers_ptr) {
+				for (int i = 0; i < state->orbit_markers_ptr->marker_count; i++) {
+					const struct bhs_orbit_marker *hist = &state->orbit_markers_ptr->markers[i];
+					if (!hist->active || hist->planet_index != m->planet_index) continue;
+
+					/* Calcula Y com scroll */
+					float entry_y = y + state->orbit_history_scroll;
+					
+					/* Clipping simples */
+					if (entry_y >= history_y_start && entry_y < history_y_start + history_h_max - 15.0f * ui_scale) {
+						int hyr, hmo, hdy, hhr, hmi, hsc;
+						bhs_sim_time_to_date(hist->timestamp_seconds, &hyr, &hmo, &hdy, &hhr, &hmi, &hsc);
+						
+						char entry_buf[128];
+						snprintf(entry_buf, sizeof(entry_buf), "#%d | %04d-%02d-%02d | %.1f d", 
+							 hist->orbit_number, hyr, hmo, hdy, hist->orbital_period_measured / 86400.0);
+						
+						bhs_ui_draw_text(ctx, entry_buf, x, entry_y, font_section * 0.9f, 
+								 (hist->orbit_number == m->orbit_number) ? BHS_UI_COLOR_WHITE : (struct bhs_ui_color){0.6f, 0.6f, 0.61f, 1.0f});
+					}
+					
+					y += 15.0f * ui_scale; /* Mantém o y "virtual" crescendo */
+					count_found++;
+				}
+			}
+
+			/* Clamping do scroll */
+			float total_content_h = count_found * 15.0f * ui_scale;
+			float min_scroll = -(total_content_h - history_h_max);
+			if (min_scroll > 0) min_scroll = 0;
+			if (state->orbit_history_scroll < min_scroll) state->orbit_history_scroll = min_scroll;
+			if (state->orbit_history_scroll > 0) state->orbit_history_scroll = 0;
+
 			return; /* Sai aqui se for marcador */
 		}
 
