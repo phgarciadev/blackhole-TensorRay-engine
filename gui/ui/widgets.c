@@ -251,11 +251,11 @@ bool bhs_ui_button(bhs_ui_ctx_t ctx, const char *label,
   bhs_ui_draw_rect(ctx, rect, bg);
   bhs_ui_draw_rect_outline(ctx, rect, BHS_UI_COLOR_WHITE, 1.0f);
 
-  /* [FIX] Valores proporcionais ao rect.height */
+  /* [FIX] Valores proporcionais ao rect.height - Reduzido pra ficar "premium" */
   if (label) {
-    float pad = rect.height * 0.3f;
-    float font = rect.height * 0.65f;
-    float text_y = rect.y + (rect.height - font) * 0.4f;  /* Centraliza */
+    float pad = rect.height * 0.2f;
+    float font = rect.height * 0.40f;
+    float text_y = rect.y + (rect.height - font) * 0.5f;  /* Centraliza melhor */
     bhs_ui_draw_text(ctx, label, rect.x + pad, text_y, font,
                      BHS_UI_COLOR_WHITE);
   }

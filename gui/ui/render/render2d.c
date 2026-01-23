@@ -284,6 +284,11 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx)
 		return BHS_UI_ERR_GPU;
 	}
 
+	/* 7. [NEW] Font System Initialization */
+	if (bhs_font_system_init(ctx) != BHS_UI_OK) {
+		fprintf(stderr, "[ui] aviso: falha ao inicializar sistema de fontes\n");
+	}
+
 	return BHS_UI_OK;
 }
 
@@ -305,6 +310,9 @@ void bhs_ui_render_shutdown_internal(bhs_ui_ctx_t ctx)
 	bhs_gpu_buffer_unmap(ctx->index_buffer);
 	bhs_gpu_buffer_destroy(ctx->vertex_buffer);
 	bhs_gpu_buffer_destroy(ctx->index_buffer);
+
+	/* [NEW] Font System Shutdown */
+	bhs_font_system_shutdown(ctx);
 }
 
 void bhs_ui_render_begin(bhs_ui_ctx_t ctx)
@@ -470,6 +478,8 @@ void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture_void, float x,
 	i[4] = idx + 3;
 	i[5] = idx + 0;
 
+	ctx->vertex_count += 4;
+	ctx->index_count += 6;
 	ctx->current_batch.count += 6;
 }
 
@@ -535,8 +545,6 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture, float x, float y,
 	bhs_ui_draw_texture_uv(ctx, texture, x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f,
 			       color);
 }
-
-#include "gui/ui/render/font.h"
 
 /* Compatibility helpers */
 void bhs_ui_draw_rect(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
@@ -661,61 +669,106 @@ void bhs_ui_draw_line(bhs_ui_ctx_t ctx, float x1, float y1, float x2, float y2,
 	ctx->current_batch.count += 6;
 }
 
+/* Helper: Decodifica UTF-8 básico */
+static uint32_t utf8_decode(const char **ptr)
+{
+	const uint8_t *p = (const uint8_t *)*ptr;
+	uint32_t cp = 0;
+	int len = 0;
+
+	if (p[0] < 0x80) {
+		cp = p[0];
+		len = 1;
+	} else if ((p[0] & 0xE0) == 0xC0) {
+		cp = ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
+		len = 2;
+	} else if ((p[0] & 0xF0) == 0xE0) {
+		cp = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+		len = 3;
+	} else if ((p[0] & 0xF8) == 0xF0) {
+		cp = ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) |
+		     ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
+		len = 4;
+	} else {
+		cp = p[0];
+		len = 1;
+	}
+	*ptr += len;
+	return cp;
+}
+
 void bhs_ui_draw_text(bhs_ui_ctx_t ctx, const char *text, float x, float y,
 		      float size, struct bhs_ui_color color)
 {
 	BHS_ASSERT(ctx != NULL);
-	if (!text)
+	if (!text || !ctx->font.initialized)
 		return;
 
 	float start_x = x;
-	float scale = size / 8.0f; /* Fonte base é 8x8 */
+	float scale = size / 64.0f; /* Atlas foi gerado a 64px */
 
 	while (*text) {
-		char c = *text;
+		uint32_t cp = utf8_decode(&text);
 
-		if (c == '\n') {
+		if (cp == '\n') {
 			x = start_x;
-			y += size; /* Line height = size */
-			text++;
+			y += size;
 			continue;
 		}
 
-		if (c >= 0x20 && c <= 0x7E) {
-			/* Desenha caractere pixel a pixel (Bitmap) */
-			/* É ineficiente desenhar 64 quads por letra? Sim.
-       * Funciona sem carregar textura de fonte? Sim.
-       * É "Kernel Style" no sentido de "Faça funcionar simples"? Sim.
-       */
-			const uint8_t *glyph = bhs_font_8x8[c - 0x20];
-			for (int row = 0; row < 8; row++) {
-				for (int col = 0; col < 8; col++) {
-					if (glyph[row] & (1 << (7 - col))) {
-						bhs_ui_draw_rect(
-							ctx,
-							(struct bhs_ui_rect){
-								x + col * scale,
-								y + row * scale,
-								scale, scale },
-							color);
-					}
-				}
-			}
-		}
+		if (cp >= 32 && cp < 256) {
+			const struct bhs_glyph_info *glyph = bhs_font_system_get_glyph(ctx, (char)cp);
+			if (glyph) {
+				float gw = (float)glyph->width * scale;
+				float gh = (float)glyph->height * scale;
+				float gx = x + (float)glyph->bearing_x * scale;
+				float gy = y + (64.0f - (float)glyph->bearing_y) * scale;
 
-		x += size; /* Avança cursor (monospaced) */
-		text++;
+				bhs_ui_draw_texture_uv(ctx, ctx->font.atlas_tex, gx, gy, gw, gh,
+						       glyph->u0, glyph->v0, glyph->u1, glyph->v1,
+						       color);
+				
+				x += (float)glyph->advance * scale;
+			}
+		} else {
+			/* Espaço para caracteres desconhecidos ou fora do atlas */
+			x += size * 0.4f; 
+		}
 	}
+}
+
+float bhs_ui_measure_text(bhs_ui_ctx_t ctx, const char *text, float size)
+{
+	BHS_ASSERT(ctx != NULL);
+	if (!text || !ctx->font.initialized)
+		return 0.0f;
+
+	float width = 0.0f;
+	float current_x = 0.0f;
+	float scale = size / 64.0f;
+
+	while (*text) {
+		uint32_t cp = utf8_decode(&text);
+		if (cp == '\n') {
+			if (current_x > width) width = current_x;
+			current_x = 0.0f;
+		} else if (cp >= 32 && cp < 256) {
+			const struct bhs_glyph_info *glyph = bhs_font_system_get_glyph(ctx, (char)cp);
+			if (glyph) {
+				current_x += (float)glyph->advance * scale;
+			}
+		} else {
+			current_x += size * 0.4f;
+		}
+	}
+
+	if (current_x > width) width = current_x;
+	return width;
 }
 
 void bhs_ui_clear(bhs_ui_ctx_t ctx, struct bhs_ui_color color)
 {
 	BHS_ASSERT(ctx != NULL);
-
-	/* Renderiza um Quad Fullscreen para limpeza manual do framebuffer.
-   * Útil quando LoadOp=CLEAR não é suficiente ou quando se deseja limpar
-   * apenas uma região específica pós-renderpass.
-   */
 	bhs_ui_draw_rect(ctx,
 			 (struct bhs_ui_rect){ 0, 0, (float)ctx->width,
 					       (float)ctx->height },

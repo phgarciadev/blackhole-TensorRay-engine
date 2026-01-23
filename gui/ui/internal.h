@@ -16,7 +16,7 @@
 
 #include "gui/ui/lib.h"
 #include "gui/epa/epa.h"
-#include "gui/rhi/rhi.h"
+#include "gui/ui/render/font_system.h"
 
 /* ============================================================================
  * CONSTANTES INTERNAS
@@ -102,6 +102,9 @@ struct bhs_ui_ctx_impl {
     uint64_t hot_id;    /* Widget sob o mouse */
     uint64_t active_id; /* Widget sendo clicado */
   } widget;
+
+  /* === Font state === */
+  struct bhs_font_system font;
 
   /* === Layout state === */
   struct bhs_layout_ctx layout;

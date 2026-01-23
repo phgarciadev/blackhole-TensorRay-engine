@@ -319,6 +319,11 @@ void bhs_ui_draw_text(bhs_ui_ctx_t ctx, const char *text, float x, float y,
                       float size, struct bhs_ui_color color);
 
 /**
+ * @brief Mede as dimensões de um texto com o sistema de fontes atual
+ */
+float bhs_ui_measure_text(bhs_ui_ctx_t ctx, const char *text, float size);
+
+/**
  * bhs_ui_draw_texture - Desenha textura (quad texturizado)
  *
  * Fundamental para o Viewport do simulador.

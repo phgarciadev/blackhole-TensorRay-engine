@@ -38,7 +38,8 @@
  */
 enum app_sim_state {
 	APP_SIM_RUNNING,
-	APP_SIM_PAUSED
+	APP_SIM_PAUSED,
+	APP_SIM_START_SCREEN /* [NEW] Tela de boot estilizada */
 };
 
 /**

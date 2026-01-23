@@ -2,6 +2,8 @@
 
 add_library(bhs_gui STATIC)
 
+find_package(PkgConfig REQUIRED)
+
 # --- 1. Fontes Core (Log e UI genérica) ---
 set(gui_SOURCES
     "log.c"
@@ -11,6 +13,7 @@ set(gui_SOURCES
     "ui/widgets.c"
     "ui/window/window.c"
     "ui/render/render2d.c"
+    "ui/render/font_system.c"
 )
 
 # --- 2. Seleção de RHI (API Gráfica) ---
@@ -23,6 +26,12 @@ if(GPU_API STREQUAL "vulkan")
     
     find_package(Vulkan REQUIRED)
     target_link_libraries(bhs_gui PRIVATE Vulkan::Vulkan)
+
+    # --- Font System Dependencies ---
+    pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
+    pkg_check_modules(FREETYPE REQUIRED freetype2)
+    target_link_libraries(bhs_gui PRIVATE ${FONTCONFIG_LIBRARIES} ${FREETYPE_LIBRARIES})
+    target_include_directories(bhs_gui PRIVATE ${FONTCONFIG_INCLUDE_DIRS} ${FREETYPE_INCLUDE_DIRS})
 
 elseif(GPU_API STREQUAL "webgpu")
     file(GLOB rhi_SOURCES "rhi/webgpu/*.c")
@@ -47,7 +56,6 @@ message(STATUS "[GUI] Selecionando Backend EPA: ${PLATFORM}")
 
 if(PLATFORM MATCHES "WAYLAND")
     file(GLOB epa_SOURCES "epa/wayland/*.c")
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-cursor xkbcommon)
     target_link_libraries(bhs_gui PRIVATE ${WAYLAND_LIBRARIES})
     target_include_directories(bhs_gui PRIVATE ${WAYLAND_INCLUDE_DIRS})

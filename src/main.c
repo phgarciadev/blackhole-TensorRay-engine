@@ -31,9 +31,9 @@ int main(int argc, char **argv)
 
 	/* 2. Load Initial Scenario */
 	const char *scene_env = getenv("BHS_DEBUG_SCENE");
-	enum scenario_type scenario = SCENARIO_DEBUG;
-
+	
 	if (scene_env) {
+		enum scenario_type scenario = SCENARIO_DEBUG;
 		switch (scene_env[0]) {
 		case '0':
 			scenario = SCENARIO_EMPTY;
@@ -54,9 +54,11 @@ int main(int argc, char **argv)
 			scenario = SCENARIO_BINARY_STAR;
 			break;
 		}
+		scenario_load(&app, scenario);
+	} else {
+		/* [NEW] Por padrão, mostra a tela de início */
+		app.sim_status = APP_SIM_START_SCREEN;
 	}
-
-	scenario_load(&app, scenario);
 
 	/* 3. Run Loop */
 	app_run(&app);
