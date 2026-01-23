@@ -138,6 +138,25 @@ static void handle_global_input(struct app_state *app)
 /**
  * Processa interação com objetos (seleção e deleção)
  */
+/* Helper duplicate from renderers to ensure consistency in picking */
+static float fast_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
+{
+	if (!bodies || n_bodies == 0) return 0.0f;
+	float potential = 0.0f;
+	for (int i = 0; i < n_bodies; i++) {
+		if (bodies[i].type != BHS_BODY_PLANET && bodies[i].type != BHS_BODY_STAR && bodies[i].type != BHS_BODY_BLACKHOLE) continue;
+		float dx = x - bodies[i].state.pos.x;
+		float dz = z - bodies[i].state.pos.z;
+		float dist = sqrtf(dx*dx + dz*dz + 0.1f);
+		double eff_mass = bodies[i].state.mass;
+		if (bodies[i].type == BHS_BODY_PLANET) eff_mass *= 5000.0;
+		potential -= (eff_mass) / dist;
+	}
+	float depth = potential * 5.0f;
+	if (depth < -50.0f) depth = -50.0f;
+	return depth;
+}
+
 static void handle_object_interaction(struct app_state *app)
 {
 	int win_w, win_h;
@@ -248,7 +267,7 @@ static void handle_object_interaction(struct app_state *app)
 		bhs_ui_mouse_pos(app->ui, &mx, &my);
 
 		/* Verifica se click foi na HUD */
-		if (bhs_hud_is_mouse_over(&app->hud, mx, my, win_w, win_h))
+		if (bhs_hud_is_mouse_over(app->ui, &app->hud, mx, my, win_w, win_h))
 			return; /* Ignora picking */
 
 		int n_bodies;
@@ -258,6 +277,28 @@ static void handle_object_interaction(struct app_state *app)
 		int best_idx = -1;
 		float best_dist = 1e9f;
 
+		/* [FIX] Sync with Visual Mode */
+		float rad_mult = 1.0f;
+		float pos_scale = 1.0f;
+		bool use_gravity_well = false;
+		
+		switch(app->hud.visual_mode) {
+			case BHS_VISUAL_MODE_DIDACTIC:
+				rad_mult = 60.0f;
+				pos_scale = 5.0f;
+				use_gravity_well = true;
+				break;
+			case BHS_VISUAL_MODE_CINEMATIC:
+				rad_mult = 200.0f;
+				pos_scale = 4.0f;
+				use_gravity_well = true;
+				break;
+			case BHS_VISUAL_MODE_SCIENTIFIC:
+			default:
+				/* Defaults are 1.0f/1.0f/false */
+				break;
+		}
+
 		for (int i = 0; i < n_bodies; i++) {
 			const struct bhs_body *b = &bodies[i];
 			
@@ -266,53 +307,71 @@ static void handle_object_interaction(struct app_state *app)
 			    b->type != BHS_BODY_STAR && 
 			    b->type != BHS_BODY_MOON) continue;
 
-			/* Calcula visual_y igual planet_renderer.c */
-			float visual_y = 0.0f;
-			float visual_x = (float)b->state.pos.x;
-			float visual_z = (float)b->state.pos.z;
-			
-			/* Gravity depth (igual calculate_gravity_depth) */
-			float potential = 0.0f;
-			for (int j = 0; j < n_bodies; j++) {
-				float dx = visual_x - (float)bodies[j].state.pos.x;
-				float dz = visual_z - (float)bodies[j].state.pos.z;
-				float dist = sqrtf(dx*dx + dz*dz + 0.1f);
-				
-				double eff_mass = bodies[j].state.mass;
-				if (bodies[j].type == BHS_BODY_PLANET) {
-					eff_mass *= 5000.0;
-				}
-				potential -= eff_mass / dist;
+			/* [NEW] Isolamento check */
+			if (app->hud.isolate_view && app->hud.selected_body_index != -1) {
+				if (i != app->hud.selected_body_index) continue;
 			}
-			visual_y = potential * 5.0f;
-			if (visual_y < -50.0f) visual_y = -50.0f;
 
-			/* Coordenadas RTC (Relative To Camera) - igual planet_renderer */
-			float rtc_x = visual_x - (float)app->camera.x;
-			float rtc_y = visual_y - (float)app->camera.y;
-			float rtc_z = visual_z - (float)app->camera.z;
+            /* [FIX] Apply Visual Scaling */
+			float visual_x = (float)b->state.pos.x * pos_scale;
+			float visual_z = (float)b->state.pos.z * pos_scale;
+			float visual_y = 0.0f;
+			
+			if (use_gravity_well) {
+				visual_y = fast_gravity_depth(visual_x, visual_z, bodies, n_bodies);
+				if (app->hud.visual_mode == BHS_VISUAL_MODE_CINEMATIC) 
+					visual_y *= 2.0f;
+			}
 
-			/* Projeta usando coordenadas absolutas (project_point interna cuida da camera) */
+			/* Projeta usando coordenadas absolutas */
 			float sx, sy;
 			bhs_project_point(&app->camera, visual_x, visual_y, visual_z,
 				      (float)win_w, (float)win_h, &sx, &sy);
 
-			/* Raio de picking proporcional ao tamanho visual */
-			float visual_radius = (float)b->state.radius * 80.0f;
-			float dist_to_cam = sqrtf(rtc_x*rtc_x + rtc_y*rtc_y + rtc_z*rtc_z);
-			float pick_radius = 30.0f; /* Base */
+            /* Só processa se estiver na tela */
+            if (sx < -100 || sx > win_w + 100 || sy < -100 || sy > win_h + 100) continue;
+
+			/* Visual Size / Distance */
+			float dx = visual_x - app->camera.x;
+			float dy = visual_y - app->camera.y;
+			float dz = visual_z - app->camera.z;
+			float dist_to_cam = sqrtf(dx*dx + dy*dy + dz*dz);
+			
+			/* Body Picking Radius */
+			float visual_radius = (float)b->state.radius * rad_mult;
+			float s_radius = 2.0f;
 			if (dist_to_cam > 0.1f) {
-				/* Projeta o raio visual para pixels (aproximado) */
-				float projected_r = (visual_radius / dist_to_cam) * app->camera.fov;
-				if (projected_r > pick_radius) pick_radius = projected_r;
+				s_radius = (visual_radius / dist_to_cam) * app->camera.fov;
 			}
+			float pick_radius = s_radius * 1.5f; /* Largura um pouco maior pra facilitar */
 			if (pick_radius < 15.0f) pick_radius = 15.0f;
 			if (pick_radius > 200.0f) pick_radius = 200.0f;
 
+			/* Distance Check (Sphere) */
 			float d2 = (sx - (float)mx) * (sx - (float)mx) + (sy - (float)my) * (sy - (float)my);
 			float radius_sq = pick_radius * pick_radius;
 
-			if (d2 < radius_sq && d2 < best_dist) {
+			bool hit = (d2 < radius_sq);
+
+            /* Text Label Picking */
+            if (!hit) {
+                const char *label = (b->name[0]) ? b->name : "Planet";
+				float font_size = 15.0f; /* Match renderer */
+				float tw = bhs_ui_measure_text(app->ui, label, font_size);
+                
+                /* Text Rect: Centered at sx, below by s_radius + 5.0f */
+                float tx = sx - tw * 0.5f;
+                float ty = sy + s_radius + 5.0f;
+                float th = font_size;
+                
+                /* Hit Test Box (com padding extra) */
+                if (mx >= tx - 5 && mx <= tx + tw + 5 &&
+                    my >= ty - 5 && my <= ty + th + 5) {
+                    hit = true;
+                }
+            }
+
+			if (hit && d2 < best_dist) {
 				best_dist = d2;
 				best_idx = i;
 			}

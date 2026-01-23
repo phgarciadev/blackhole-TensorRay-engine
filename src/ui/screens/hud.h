@@ -49,7 +49,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		  int window_h);
 
 /* Retorna true se o mouse estiver sobre algum elemento da HUD */
-bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
+bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int mx, int my,
 			   int win_w, int win_h);
 
 #endif

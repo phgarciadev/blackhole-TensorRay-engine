@@ -25,7 +25,7 @@ typedef struct {
     float info_panel_margin;
 } bhs_ui_layout_t;
 
-static bhs_ui_layout_t get_ui_layout(int win_w, int win_h) {
+static bhs_ui_layout_t get_ui_layout(bhs_ui_ctx_t ctx, int win_w, int win_h) {
     bhs_ui_layout_t l;
     /* 
      * [FIX] Base Scale: considera AMBAS dimensões
@@ -44,15 +44,11 @@ static bhs_ui_layout_t get_ui_layout(int win_w, int win_h) {
     l.font_size_logo = 16.0f * l.ui_scale;
     l.font_size_tab = 14.0f * l.ui_scale;
 
-    /* robust "CSS-like" columns */
-    /* Logo Column: Fixed minimum width to guarantee space */
-    float min_logo_w = 200.0f * l.ui_scale; 
-    
-    /* Calculate text width heuristic */
-    int logo_len = 13; // "RiemannEngine"
-    float text_w = logo_len * l.font_size_logo;  /* Fonte monospaced: 1 char = font_size */ 
-    
-    l.logo_width = (text_w > min_logo_w) ? text_w : min_logo_w;
+    /* robust colunas tipo CSS */
+    /* Coluna do Logo: Largura medida dinamicamente + padding */
+    const char* logo_text = "RiemannEngine";
+    float logo_text_w = bhs_ui_measure_text(ctx, logo_text, l.font_size_logo);
+    l.logo_width = logo_text_w + (10.0f * l.ui_scale);
 
     /* Layout: [Pad] [Logo] [Pad] [Line] [Pad] [Tabs...] */
     l.tab_start_x = l.padding_x + l.logo_width + (15.0f * l.ui_scale) + (1.0f * l.ui_scale) + (15.0f * l.ui_scale);
@@ -93,7 +89,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	(void)window_h;
 	
     /* --- LAYOUT CALCULATION --- */
-    bhs_ui_layout_t layout = get_ui_layout(window_w, window_h);
+    bhs_ui_layout_t layout = get_ui_layout(ctx, window_w, window_h);
     float ui_scale = layout.ui_scale; /* Keep for local usage if needed */
 
     struct bhs_ui_color theme_bg = { 0.05f, 0.05f, 0.05f, 0.95f };
@@ -132,12 +128,9 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	for (int i = 0; i < MENU_COUNT; i++) {
         bool is_active = (state->active_menu_index == i);
         
-		int len = 0;
-		while (MENU_ITEMS[i][len] != '\0') len++;
-
         /* Tab Width: Text + Padding (CSS: padding: 0 20px) */
         float item_padding = 20.0f * ui_scale;
-        float text_w = len * layout.font_size_tab;  /* Fonte monospaced */
+        float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[i], layout.font_size_tab);
 		float width = text_w + (item_padding * 2.0f);
         
 		struct bhs_ui_rect item_rect = { x_cursor, 0, width, layout.top_bar_height };
@@ -184,7 +177,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             snprintf(telemetry_text, 128, "Speed: %.0f dias/min", days_per_min);
         }
         
-        float text_w = 25.0f * (layout.font_size_tab * 0.85f); 
+        float text_w = bhs_ui_measure_text(ctx, telemetry_text, layout.font_size_tab); 
         float margin_right = 20.0f * layout.ui_scale;
         
         bhs_ui_draw_text(ctx, telemetry_text, (float)window_w - text_w - margin_right, 
@@ -198,25 +191,30 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
         
         /* Calculate offset to active item */
         for(int j=0; j<state->active_menu_index; ++j) {
-            int len = 0; while (MENU_ITEMS[j][len] != '\0') len++;
-             /* Same width calc as Draw */
-            float w = (len * layout.font_size_tab) + (40.0f * layout.ui_scale);
+            /* Same width calc as Draw */
+            float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
+            float w = text_w + (40.0f * layout.ui_scale);
             dropdown_x += w;
         }
             
 		/* Calculate Dynamic Height */
 		int count = 0;
 		if (state->active_menu_index == 1) {
-			const struct bhs_planet_registry_entry *e = bhs_planet_registry_get_head();
-			while(e) { count++; e = e->next; }
+            if (state->add_menu_category == -1) {
+                count = 4; /* Categorias principais */
+            } else {
+                /* Conta itens da categoria */
+			    const struct bhs_planet_registry_entry *e = bhs_planet_registry_get_head();
+			    while(e) { count++; e = e->next; }
+            }
 		} else if (state->active_menu_index == 2) {
-			count = 5; /* 3 Modes + TopDown Toggle + Extra space */
+			count = 6; /* 3 Modes + 3 Toggles */
 		} else {
-			count = 4; /* Config: FPS, TimeText, Slider, VSync */
+			count = 5; /* Config items */
 		}
 		
-		float row_h = 28.0f * layout.ui_scale;
-		float panel_h = (40.0f * layout.ui_scale) + (count * row_h);
+		float row_h = 32.0f * layout.ui_scale; /* Aumentado */
+		float panel_h = (50.0f * layout.ui_scale) + (count * row_h);
 		if (panel_h < 150.0f * layout.ui_scale) panel_h = 150.0f * layout.ui_scale;
 
 		struct bhs_ui_rect panel_rect = { dropdown_x, layout.top_bar_height, 200.0f * layout.ui_scale, panel_h };
@@ -227,13 +225,13 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			(struct bhs_ui_color){ 0.1f, 0.1f, 0.1f, 0.98f },
 			theme_border); /* Border */
 
-		float y = layout.top_bar_height + (15.0f * ui_scale);
-		float item_pad = 10.0f * ui_scale;  /* Padding interno do dropdown */
-		float item_w = panel_rect.width - (item_pad * 2.0f);  /* Largura dos itens */
-		float item_h = 24.0f * ui_scale;  /* Altura dos botoes/checkboxes */
-		float font_header = 14.0f * ui_scale;  /* Fonte dos titulos */
-		float font_label = 12.0f * ui_scale;   /* Fonte dos labels menores */
-		float row_spacing = 28.0f * ui_scale;  /* Espacamento entre linhas */
+		float y = layout.top_bar_height + (20.0f * ui_scale);
+		float item_pad = 12.0f * ui_scale;  /* Mais robusto */
+		float item_w = panel_rect.width - (item_pad * 2.0f);
+		float item_h = 28.0f * ui_scale;  /* Botões maiores */
+		float font_header = 15.0f * ui_scale;
+		float font_label = 13.0f * ui_scale;
+		float row_spacing = 34.0f * ui_scale;  /* Mais respiro */
 
 		/* INDEX 0: CONFIG */
 		if (state->active_menu_index == 0) {
@@ -478,13 +476,13 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		float x = info_rect.x + pad;
         float w = info_rect.width - (pad * 2.0f);
 		
-		/* Font sizes escalados */
-		float font_title = 14.0f * ui_scale;
-		float font_name = 16.0f * ui_scale;
-		float font_prop = 13.0f * ui_scale;
-		float font_section = 12.0f * ui_scale;
-		float prop_offset = 80.0f * ui_scale;  /* Offset pra valor das props */
-		float line_h = 18.0f * ui_scale;  /* Altura de linha */
+		/* Font sizes escalados - Mais legíveis */
+		float font_title = 16.0f * ui_scale;
+		float font_name = 18.0f * ui_scale;
+		float font_prop = 15.0f * ui_scale;
+		float font_section = 14.0f * ui_scale;
+		float prop_offset = 90.0f * ui_scale;  /* Offset ajustado */
+		float line_h = 22.0f * ui_scale;  /* Mais respiro */
 
 		/* Macro para desenhar propriedades (reutilizável) */
 		char buf[128];
@@ -706,10 +704,10 @@ static bool is_inside(int mx, int my, float x, float y, float w, float h)
 	       (float)my <= y + h;
 }
 
-bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
+bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int mx, int my,
 			   int win_w, int win_h)
 {
-    bhs_ui_layout_t layout = get_ui_layout(win_w, win_h);
+    bhs_ui_layout_t layout = get_ui_layout(ctx, win_w, win_h);
 
 	/* 1. Top Bar */
 	if (is_inside(mx, my, 0, 0, (float)win_w, layout.top_bar_height))
@@ -721,9 +719,9 @@ bool bhs_hud_is_mouse_over(const bhs_hud_state_t *state, int mx, int my,
          
         /* Calculate offset to active item */
         for(int j=0; j<state->active_menu_index; ++j) {
-            int len = 0; while (MENU_ITEMS[j][len] != '\0') len++;
              /* Same width calc as Draw */
-            float w = (len * layout.font_size_tab) + (40.0f * layout.ui_scale);
+            float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
+            float w = text_w + (40.0f * layout.ui_scale);
             dropdown_x += w;
         }
 

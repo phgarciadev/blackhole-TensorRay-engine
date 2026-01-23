@@ -124,12 +124,35 @@ static float calculate_gravity_depth(float x, float z, const struct bhs_body *bo
 
 void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 const bhs_camera_t *cam, int width, int height,
-				 const void *assets_void)
+				 const void *assets_void, bhs_visual_mode_t mode)
 {
 	const bhs_view_assets_t *assets = (const bhs_view_assets_t *)assets_void;
 	void *tex_bg = assets ? assets->bg_texture : NULL;
 
 	void *tex_bh = assets ? assets->bh_texture : NULL;
+
+	/* Pre-calc mode params (Copied from planet_renderer.c to sync labels) */
+	float rad_mult = 1.0f;
+	float pos_scale = 1.0f;
+	bool use_gravity_well = false;
+	
+	switch(mode) {
+		case BHS_VISUAL_MODE_SCIENTIFIC:
+			rad_mult = 1.0f;
+			pos_scale = 1.0f;
+			use_gravity_well = false;
+			break;
+		case BHS_VISUAL_MODE_DIDACTIC:
+			rad_mult = 60.0f;
+			pos_scale = 5.0f;
+			use_gravity_well = true;
+			break;
+		case BHS_VISUAL_MODE_CINEMATIC:
+			rad_mult = 200.0f;
+			pos_scale = 4.0f;
+			use_gravity_well = true;
+			break;
+	}
 
 	/* -1. Black Hole Compute Output */
 	if (tex_bh) {
@@ -234,12 +257,12 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				vx /= dist; vy /= dist; vz /= dist;
 				
 				/* Ponto inicial: superfície do planeta (direção do atrator) */
-				float start_x = (float)(planet->state.pos.x + vx * planet->state.radius);
-				float start_z = (float)(planet->state.pos.z + vz * planet->state.radius);
+				float start_x = (float)(planet->state.pos.x * pos_scale + vx * planet->state.radius * rad_mult);
+				float start_z = (float)(planet->state.pos.z * pos_scale + vz * planet->state.radius * rad_mult);
 				
 				/* Ponto final: superfície do atrator (direção do planeta) */
-				float end_x = (float)(attractor->state.pos.x - vx * attractor->state.radius);
-				float end_z = (float)(attractor->state.pos.z - vz * attractor->state.radius);
+				float end_x = (float)(attractor->state.pos.x * pos_scale - vx * attractor->state.radius * rad_mult);
+				float end_z = (float)(attractor->state.pos.z * pos_scale - vz * attractor->state.radius * rad_mult);
 				
 				/* Calcula depth visual (pra alinhar com a malha de gravidade) */
 				float depth1 = calculate_gravity_depth(start_x, start_z, bodies, n_bodies);
@@ -288,6 +311,10 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				/* Isso evita gaps causados por projeção incorreta de Y negativo */
 				float depth = 0.0f;
 				
+				/* Aplica escala visual */
+				x1 *= pos_scale; z1 *= pos_scale;
+				x2 *= pos_scale; z2 *= pos_scale;
+
 				/* Projeta pro screen space */
 				float sx1, sy1, sx2, sy2;
 				bhs_project_point(cam, x1, depth, z1, (float)width, (float)height, &sx1, &sy1);
@@ -341,9 +368,12 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index)
 				continue;
 
-			/* Projeta posição do marcador */
+			/* Projeta posição do marcador com escala visual */
+			float m_x = (float)m->position.x * pos_scale;
+			float m_z = (float)m->position.z * pos_scale;
+			
 			float sx, sy;
-			bhs_project_point(cam, (float)m->position.x, 0.0f, (float)m->position.z,
+			bhs_project_point(cam, m_x, 0.0f, m_z,
 				      (float)width, (float)height, &sx, &sy);
 
 			/* Só desenha se visível na tela */
@@ -360,8 +390,9 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			/* Número da órbita pequeno ao lado */
 			char orbit_text[16];
 			snprintf(orbit_text, sizeof(orbit_text), "#%d", m->orbit_number);
-			bhs_ui_draw_text(ctx, orbit_text, sx + size + 3.0f, sy - 5.0f,
-					 10.0f, purple_outline);
+			float orbit_tw = bhs_ui_measure_text(ctx, orbit_text, 12.0f);
+			bhs_ui_draw_text(ctx, orbit_text, sx - orbit_tw * 0.5f, sy + size + 2.0f,
+					 12.0f, purple_outline);
 		}
 	}
 
@@ -374,15 +405,16 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 		float sx, sy;
 
-        /* Visual Mapping:
-           Physics Pos (x, y) -> Visual (x, z) 
-           Y is 0 in 2D physics.
-        */
-		float visual_x = b->state.pos.x;
-		float visual_z = b->state.pos.z; /* Physics Z -> Visual Z (Matches presets.c X-Z orbit) */
+        /* Visual Mapping with Mode Scaling */
+		float visual_x = b->state.pos.x * pos_scale;
+		float visual_z = b->state.pos.z * pos_scale;
 		
 		/* Calculate depth based on gravity well logic */
-		float visual_y = calculate_gravity_depth(visual_x, visual_z, bodies, n_bodies);
+		float visual_y = 0.0f;
+		if (use_gravity_well) {
+			visual_y = calculate_gravity_depth(visual_x, visual_z, bodies, n_bodies);
+			if (mode == BHS_VISUAL_MODE_CINEMATIC) visual_y *= 2.0f;
+		}
 
 		bhs_project_point(cam, visual_x, visual_y, visual_z, width, height, &sx, &sy);
 		
@@ -393,8 +425,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		float dist = sqrtf(dx*dx + dy*dy + dz*dz);
 		if (dist < 0.1f) dist = 0.1f;
 		
-		/* VISUAL SCALE: Uniform 80x */
-		float visual_radius = b->state.radius * 80.0f;
+		/* VISUAL SCALE: Use mode multiplier */
+		float visual_radius = b->state.radius * rad_mult;
 		float s_radius = (visual_radius / dist) * cam->fov;
 		if (s_radius < 2.0f) s_radius = 2.0f;
 
@@ -406,7 +438,11 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
             /* Only draw text if visible on screen */
             if (sx > 0 && sx < width && sy > 0 && sy < height) {
     			const char *label = (b->name[0]) ? b->name : "Planet";
-	    		bhs_ui_draw_text(ctx, label, sx + 5, sy, 12.0f, BHS_UI_COLOR_WHITE);
+				float font_size = 15.0f;
+				float tw = bhs_ui_measure_text(ctx, label, font_size);
+				
+				/* Centraliza abaixo do corpo, com respiro baseado no raio */
+	    		bhs_ui_draw_text(ctx, label, sx - tw * 0.5f, sy + s_radius + 5.0f, font_size, BHS_UI_COLOR_WHITE);
             }
 			/* NO 2D SPRITES - "Garantir ao supremo que o planeta tá só 3d" */
 		} else {
