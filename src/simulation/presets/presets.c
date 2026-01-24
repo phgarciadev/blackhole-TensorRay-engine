@@ -48,38 +48,135 @@ double bhs_preset_orbital_velocity(double central_mass, double orbital_radius)
  *
  * Usamos os valores REAIS sem modificação.
  */
+/*
+ * Helper: Solve Kepler's Equation M = E - e*sin(E) for E
+ */
+static double solve_kepler(double M, double e)
+{
+	double E = M;
+	for (int i = 0; i < 10; i++) {
+		double dE = (E - e * sin(E) - M) / (1.0 - e * cos(E));
+		E -= dE;
+		if (fabs(dE) < 1e-6) break;
+	}
+	return E;
+}
+
+/*
+ * Keplerian Elements to Cartesian State Vectors (J2000 -> Engine)
+ * Engine Coordinates: Y-up (Gravity down). J2000: Z-up.
+ * Mapping: J2000(X, Y, Z) -> Engine(X, Z, Y) 
+ * (Y in J2000 matches Z in engine for "depth/plane", Z in J2000 is "up" matches Y in engine)
+ */
+static void bhs_kepler_to_cartesian(struct bhs_planet_desc *d, 
+                                    double central_mass,
+                                    struct bhs_vec3 *out_pos,
+                                    struct bhs_vec3 *out_vel)
+{
+	/* 1. Extract Elements & Convert to Radians */
+	double a = d->semimajor_axis; // meters
+	double e = d->eccentricity;
+	double inc = d->inclination * (M_PI / 180.0);
+	double Omega = d->long_asc_node * (M_PI / 180.0);
+	double varpi = d->long_perihelion * (M_PI / 180.0);
+	double L = d->mean_longitude * (M_PI / 180.0);
+	
+	/* Argument of Periapsis */
+	double omega = varpi - Omega;
+	
+	/* Mean Anomaly */
+	double M = L - varpi;
+	
+	/* 2. Solve Kepler Equation for Eccentric Anomaly (E) */
+	double E = solve_kepler(M, e);
+	
+	/* 3. True Anomaly (nu) & Distance (r) */
+	double cosE = cos(E);
+	double sinE = sin(E);
+	
+	double x_orb = a * (cosE - e);
+	double y_orb = a * sqrt(1.0 - e*e) * sinE;
+	double r = sqrt(x_orb*x_orb + y_orb*y_orb);
+	
+	/* Orbital Velocity (Vis-viva derivative) */
+	/* Mean motion n = sqrt(mu / a^3) */
+	const double G = 6.67430e-11;
+	double mu = G * central_mass;
+	double n = sqrt(mu / (a*a*a));
+	
+	double vx_orb = -(n * a * a / r) * sinE;
+	double vy_orb = (n * a * a / r) * sqrt(1.0 - e*e) * cosE;
+
+	/* 4. Rotate to Heliocentric Coordinates (J2000) */
+	double cosO = cos(Omega);
+	double sinO = sin(Omega);
+	double cosw = cos(omega);
+	double sinw = sin(omega);
+	double cosi = cos(inc);
+	double sini = sin(inc);
+	
+	/* Rotation Matrix Elements */
+	double Px = cosO * cosw - sinO * sinw * cosi;
+	double Py = sinO * cosw + cosO * sinw * cosi;
+	double Pz = sinw * sini;
+	
+	double Qx = -cosO * sinw - sinO * cosw * cosi;
+	double Qy = -sinO * sinw + cosO * cosw * cosi;
+	double Qz = cosw * sini;
+	
+	/* J2000 Position */
+	double X = x_orb * Px + y_orb * Qx;
+	double Y = x_orb * Py + y_orb * Qy;
+	double Z = x_orb * Pz + y_orb * Qz;
+	
+	/* J2000 Velocity */
+	double VX = vx_orb * Px + vy_orb * Qx;
+	double VY = vx_orb * Py + vy_orb * Qy;
+	double VZ = vx_orb * Pz + vy_orb * Qz;
+	
+	/* 5. Map to Engine Coordinates (X -> X, Y -> Z, Z -> Y) */
+	out_pos->x = X;
+	out_pos->y = Z; /* Z_J2000 (up) -> Y_Engine (up) */
+	out_pos->z = Y; /* Y_J2000 (plane) -> Z_Engine (plane) */
+	
+	out_vel->x = VX;
+	out_vel->y = VZ;
+	out_vel->z = VY;
+}
+
 static struct bhs_body create_body_from_module(struct bhs_planet_desc desc, 
 					       struct bhs_vec3 center_pos, 
 					       double central_mass_sim)
 {
-	/* Posição: distância orbital convertida para simulação */
-	double r = desc.semimajor_axis; /* Meters */
-	
-	struct bhs_vec3 pos = {
-		center_pos.x + r,
-		center_pos.y,
-		center_pos.z
-	};
-	
+	struct bhs_vec3 pos = {0};
+	struct bhs_vec3 vel = {0};
+
+	/* Calculate realistic position/velocity IF we have orbital data */
+	if (desc.semimajor_axis > 0.0) {
+		bhs_kepler_to_cartesian(&desc, central_mass_sim, &pos, &vel);
+		
+		/* Offset by central body position */
+		pos.x += center_pos.x;
+		pos.y += center_pos.y;
+		pos.z += center_pos.z;
+	} else {
+		/* Fallback for Sun/Fixed bodies at 0 or manual placement */
+		pos = center_pos;
+	}
+
 	/* Cria corpo base a partir do descritor */
 	struct bhs_body b = bhs_body_create_from_desc(&desc, pos);
 	
+	/* Set calculated velocity */
+	b.state.vel = vel;
+	
 	/* Aplica escalas de massa e raio - REAL SCALE (SI) */
-	/* No conversion needed - simulation now uses SI meters/kg */
 	b.state.mass = b.state.mass;
 	b.state.radius = b.state.radius;
 	
-	printf("[PRESET] %s: M=%.2e, R=%.4f (real), Dist=%.1f\n", 
-		desc.name, b.state.mass, b.state.radius, r);
+	printf("[PRESET] %s: M=%.2e, R=%.4f (real), a=%.2e m\n", 
+		desc.name, b.state.mass, b.state.radius, desc.semimajor_axis);
 
-	/* Velocidade orbital: v = sqrt(G × M_central / r) */
-	if (central_mass_sim > 0.0 && r > 0.0) {
-		double G = 6.67430e-11;
-		double v = sqrt((G * central_mass_sim) / r);
-		/* Órbita no plano XZ (Y é "para cima") */
-		b.state.vel = (struct bhs_vec3){ 0, 0, v };
-	}
-		
 	return b;
 }
 

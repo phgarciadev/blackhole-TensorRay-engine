@@ -44,9 +44,15 @@ struct bhs_planet_desc bhs_jupiter_get_desc(void)
 	d.gravity = 24.79;
 	
 	/* Orbital */
-	d.semimajor_axis = 7.7857e11;
-	d.eccentricity = 0.0489;
+	d.semimajor_axis = 5.20336301 * 149597870700.0;
+	d.eccentricity = 0.04839266;
 	d.orbital_period = 11.86 * 365.25 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 1.30530;
+	d.long_asc_node = 100.55615;
+	d.long_perihelion = 14.75385;
+	d.mean_longitude = 34.40438;
 	
 	/* Solitário Termodinâmico */
 	d.has_atmosphere = true;

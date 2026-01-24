@@ -36,9 +36,15 @@ struct bhs_planet_desc bhs_mars_get_desc(void)
 	d.gravity = 3.72;
 	
 	/* Orbital */
-	d.semimajor_axis = 2.2794e11;
-	d.eccentricity = 0.0934;
+	d.semimajor_axis = 1.52366231 * 149597870700.0;
+	d.eccentricity = 0.09341233;
 	d.orbital_period = 686.98 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 1.85061;
+	d.long_asc_node = 49.57854;
+	d.long_perihelion = 336.04084;
+	d.mean_longitude = 355.45332;
 	
 	/* Atmosfera */
 	d.has_atmosphere = true; /* Fina */

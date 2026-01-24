@@ -39,9 +39,15 @@ struct bhs_planet_desc bhs_earth_get_desc(void)
 	d.gravity = 9.807;
 	
 	/* Orbital */
-	d.semimajor_axis = 1.496e11;
-	d.eccentricity = 0.0167;
+	d.semimajor_axis = 1.00000011 * 149597870700.0;
+	d.eccentricity = 0.01671022;
 	d.orbital_period = 365.256 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 0.00005;
+	d.long_asc_node = -11.26064;
+	d.long_perihelion = 102.94719;
+	d.mean_longitude = 100.46435;
 	
 	/* Atmosfera */
 	d.has_atmosphere = true;

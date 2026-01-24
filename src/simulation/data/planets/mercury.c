@@ -35,9 +35,15 @@ struct bhs_planet_desc bhs_mercury_get_desc(void)
 	d.gravity = 3.7;
 	
 	/* Orbital */
-	d.semimajor_axis = 5.7909e10;
-	d.eccentricity = 0.2056;
+	d.semimajor_axis = 0.38709893 * 149597870700.0; /* ~0.387 AU */
+	d.eccentricity = 0.20563069;
 	d.orbital_period = 87.969 * 24 * 3600;
+
+	/* J2000 Elements */
+	d.inclination = 7.00487;
+	d.long_asc_node = 48.33167;
+	d.long_perihelion = 77.45645;
+	d.mean_longitude = 252.25084;
 	
 	/* Termodinâmico */
 	d.has_atmosphere = false;

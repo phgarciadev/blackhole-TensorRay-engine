@@ -39,9 +39,15 @@ struct bhs_planet_desc bhs_venus_get_desc(void)
 	d.gravity = 8.87;
 	
 	/* Orbital */
-	d.semimajor_axis = 1.0821e11;
-	d.eccentricity = 0.0067;
+	d.semimajor_axis = 0.72333199 * 149597870700.0;
+	d.eccentricity = 0.00677323;
 	d.orbital_period = 224.7 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 3.39471;
+	d.long_asc_node = 76.68069;
+	d.long_perihelion = 131.53298;
+	d.mean_longitude = 181.97973;
 	
 	/* Atmosfera */
 	d.has_atmosphere = true;
