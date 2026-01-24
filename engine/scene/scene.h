@@ -94,7 +94,7 @@ struct bhs_body_state {
 };
 
 /* Orbit Trail - buffer circular de posições históricas */
-#define BHS_MAX_TRAIL_POINTS 16384 /* 16K points * 10h sampling ~ 18 years history */
+#define BHS_MAX_TRAIL_POINTS 65536 /* 64K points * 4h sampling ~ 30 years history */
 
 struct bhs_body {
 	struct bhs_body_state state;

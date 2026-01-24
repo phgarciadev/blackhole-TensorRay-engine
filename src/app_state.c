@@ -342,7 +342,7 @@ void app_run(struct app_state *app)
 			static int trail_sample_counter = 0;
 			trail_sample_counter++;
 			if (app->hud.show_orbit_trail &&
-			    (trail_sample_counter % 10 == 0)) {
+			    (trail_sample_counter % 240 == 0)) {
 				int count = 0;
 				struct bhs_body *bodies =
 					(struct bhs_body *)bhs_scene_get_bodies(
