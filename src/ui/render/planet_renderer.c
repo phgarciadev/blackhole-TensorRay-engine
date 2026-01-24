@@ -10,6 +10,7 @@
 #include "gui/log.h"
 #include <stdlib.h>
 #include <string.h>
+#include "visual_utils.h"
 
 /* Shaders (embed via build system or file load? Using file load for now based on pattern) */
 /* Actually, codebase uses `bhs_read_file` or embedded? 
@@ -43,30 +44,7 @@ struct planet_pc {
 	float colorParams[4];   /* xyz=color, w=pad */
 }; /* Total 128 bytes */
 
-/* Helper: Gravity Depth (Copied from spacetime_renderer.c to match grid) */
-static float calculate_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
-{
-	if (!bodies || n_bodies == 0) return 0.0f;
-	
-	float potential = 0.0f;
-	for (int i = 0; i < n_bodies; i++) {
-		float dx = x - bodies[i].state.pos.x;
-		float dz = z - bodies[i].state.pos.z;
-		
-		float dist_sq = dx*dx + dz*dz;
-		float dist = sqrtf(dist_sq + 0.1f);
-		
-		double eff_mass = bodies[i].state.mass;
-		if (bodies[i].type == BHS_BODY_PLANET) {
-			eff_mass *= 5000.0; /* Visual boost for planet gravity wells */
-		}
-		
-		potential -= (eff_mass) / dist;
-	}
-	float depth = potential * 5.0f;
-	if (depth < -50.0f) depth = -50.0f;
-	return depth;
-}
+/* Helper: Gravity Depth removed (Now in visual_utils.h) */
 
 /* Private Helper: Load Shader Code */
 static int load_shader(bhs_gpu_device_t dev, const char *rel_path, enum bhs_gpu_shader_stage stage, bhs_gpu_shader_t *out) {
@@ -234,6 +212,8 @@ void bhs_planet_pass_destroy(bhs_planet_pass_t pass)
 struct render_item {
 	int index;
 	float dist_sq;
+	float vis_x, vis_y, vis_z; /* [NEW] Store pre-calced pos to avoid recalc drift */
+    float vis_radius;
 };
 
 static int compare_items(const void *a, const void *b)
@@ -310,57 +290,33 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	struct render_item sort_list[128]; 
 	int render_count = 0;
 
-	/* Pre-calc mode params to avoid switch inside loop */
-	float rad_mult = 1.0f;
-	float pos_scale = 1.0f;
-	bool use_gravity_well = false;
-	
-	switch(mode) {
-		case BHS_VISUAL_MODE_SCIENTIFIC:
-			rad_mult = 1.0f;
-			pos_scale = 1.0f;
-			use_gravity_well = false; /* Flat plane */
-			break;
-		case BHS_VISUAL_MODE_DIDACTIC:
-			rad_mult = 60.0f; /* Slightly smaller than before to reduce clutter */
-			pos_scale = 5.0f; /* Spread out 5x so Mercury isn't inside Sun */
-			use_gravity_well = true;
-			break;
-		case BHS_VISUAL_MODE_CINEMATIC:
-			rad_mult = 200.0f; /* Huge, but not 300x huge */
-			pos_scale = 4.0f;  /* 4x distance gives breathing room for the massive radii */
-			use_gravity_well = true;
-			break;
-	}
+	/* === Surface-to-Surface Logic === */
+	/* Identify Main Attractor (Sun/BH) */
+	/* ... Logic continues in loop ... */
 
+	/* Use Helper for Transform */
 	for (int i = 0; i < count; i++) {
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		if (render_count >= 128) break;
+		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index) continue;
 
-		/* [NEW] Isolamento: se ativo, pula corpos que não são o selecionado */
-		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index)
-			continue;
+        float vx, vy, vz, vrad;
+        /* SHARED LOGIC CALL */
+        bhs_visual_calculate_transform(b, bodies, count, mode, &vx, &vy, &vz, &vrad);
 
-		/* Determine Visual Position based on Mode */
-		float b_px = (float)b->state.pos.x * pos_scale;
-		float b_pz = (float)b->state.pos.z * pos_scale;
-		float b_py = 0.0f;
-		
-		if (use_gravity_well) {
-			b_py = calculate_gravity_depth(b_px, b_pz, bodies, count);
-			/* Cosmetic adjustment: In cinematic, exaggerate depth? */
-			if (mode == BHS_VISUAL_MODE_CINEMATIC) b_py *= 2.0f;
-		}
-
-		double rel_x = b_px - cam->x;
-		double rel_y = b_py - cam->y;
-		double rel_z = b_pz - cam->z;
+		double rel_x = vx - cam->x;
+		double rel_y = vy - cam->y;
+		double rel_z = vz - cam->z;
 		
 		float dist_sq = (float)(rel_x*rel_x + rel_y*rel_y + rel_z*rel_z);
 		
 		sort_list[render_count].index = i;
 		sort_list[render_count].dist_sq = dist_sq;
+		sort_list[render_count].vis_x = vx;
+		sort_list[render_count].vis_y = vy;
+		sort_list[render_count].vis_z = vz;
+        sort_list[render_count].vis_radius = vrad;
 		render_count++;
 	}
 
@@ -384,16 +340,11 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		}
 		bhs_gpu_cmd_bind_texture(cmd, 0, 0, tex, pass->sampler);
 		
-		/* Reconstruct Visual Position (Duplicated calc, but cheap) */
-		/* Ideally store in sort_list but struct size constraint. It's fine. */
-		float b_px = (float)b->state.pos.x * pos_scale;
-		float b_pz = (float)b->state.pos.z * pos_scale;
-		float b_py = 0.0f;
-		
-		if (use_gravity_well) {
-			b_py = calculate_gravity_depth(b_px, b_pz, bodies, count);
-			if (mode == BHS_VISUAL_MODE_CINEMATIC) b_py *= 2.0f;
-		}
+
+		/* [Optimization] Use stored visual pos */
+		float b_px = sort_list[k].vis_x;
+		float b_py = sort_list[k].vis_y;
+		float b_pz = sort_list[k].vis_z;
 		
 		double rel_x = b_px - cam->x;
 		double rel_y = b_py - cam->y;
@@ -403,8 +354,8 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
 
-		/* Apply Scale */
-		float radius = (float)b->state.radius * rad_mult;
+		/* Use Stored Radius */
+        float radius = sort_list[k].vis_radius;
 		
 		/* Rotation Params */
 		float angle = (float)b->state.current_rotation_angle;

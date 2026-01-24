@@ -8,10 +8,11 @@
 #include <string.h>
 #include "src/simulation/data/orbit_marker.h" /* [NEW] Marcadores de órbita */
 
-/* Helper: Projeta world -> screen */
+#include "visual_utils.h"
+
 /* Helper: Projeta world -> screen */
 void bhs_project_point(const bhs_camera_t *cam, float x, float y, float z,
-			  float sw, float sh, float *ox, float *oy)
+		       float sw, float sh, float *ox, float *oy)
 {
 	/* 1. Translação (World -> Camera Space) */
 	float dx = x - cam->x;
@@ -97,73 +98,24 @@ static void calculate_sphere_uv(const bhs_camera_t *cam, float width,
 
 #include "src/ui/screens/view_spacetime.h" /* For struct definition */
 
-/* Helper: Calculate gravity depth for object placement */
-static float calculate_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
-{
-	if (!bodies || n_bodies == 0) return 0.0f;
-	
-	float potential = 0.0f;
-	for (int i = 0; i < n_bodies; i++) {
-		float dx = x - bodies[i].state.pos.x;
-		float dz = z - bodies[i].state.pos.z;
-		
-		float dist_sq = dx*dx + dz*dz;
-		float dist = sqrtf(dist_sq + 0.1f);
-		
-		double eff_mass = bodies[i].state.mass;
-		if (bodies[i].type == BHS_BODY_PLANET) {
-			eff_mass *= 5000.0; /* Visual boost for planet gravity wells */
-		}
-		
-		potential -= (eff_mass) / dist; /* G=1 visual */
-	}
-	float depth = potential * 5.0f; /* Potential scale */
-	if (depth < -50.0f) depth = -50.0f;
-	return depth;
-}
-
 void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 const bhs_camera_t *cam, int width, int height,
-				 const void *assets_void, bhs_visual_mode_t mode)
+				 const void *assets_void,
+				 bhs_visual_mode_t mode)
 {
-	const bhs_view_assets_t *assets = (const bhs_view_assets_t *)assets_void;
+	const bhs_view_assets_t *assets =
+		(const bhs_view_assets_t *)assets_void;
 	void *tex_bg = assets ? assets->bg_texture : NULL;
 
 	void *tex_bh = assets ? assets->bh_texture : NULL;
 
-	/* Pre-calc mode params (Copied from planet_renderer.c to sync labels) */
-	float rad_mult = 1.0f;
-	float pos_scale = 1.0f;
-	bool use_gravity_well = false;
-	
-	switch(mode) {
-		case BHS_VISUAL_MODE_SCIENTIFIC:
-			rad_mult = 1.0f;
-			pos_scale = 1.0f;
-			use_gravity_well = false;
-			break;
-		case BHS_VISUAL_MODE_DIDACTIC:
-			rad_mult = 60.0f;
-			pos_scale = 5.0f;
-			use_gravity_well = true;
-			break;
-		case BHS_VISUAL_MODE_CINEMATIC:
-			rad_mult = 200.0f;
-			pos_scale = 4.0f;
-			use_gravity_well = true;
-			break;
-	}
-
 	/* -1. Black Hole Compute Output */
 	if (tex_bh) {
 		struct bhs_ui_color white = { 1.0f, 1.0f, 1.0f, 1.0f };
-		bhs_ui_draw_quad_uv(ctx, tex_bh,
-				    0, 0, 0, 0,
-				    (float)width, 0, 1, 0,
-				    (float)width, (float)height, 1, 1,
-				    0, (float)height, 0, 1,
-				    white);
-		tex_bg = NULL; 
+		bhs_ui_draw_quad_uv(ctx, tex_bh, 0, 0, 0, 0, (float)width, 0, 1,
+				    0, (float)width, (float)height, 1, 1, 0,
+				    (float)height, 0, 1, white);
+		tex_bg = NULL;
 	}
 
 	/* 0. Background */
@@ -175,48 +127,74 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
                    but safer to keep existing loop if I can.
                    Actually, I am replacing the whole file content from line 99, so I must re-include logic.
 		*/
-        int segs_x = 32; int segs_y = 16;
-        float tile_w = (float)width / segs_x;
-        float tile_h = (float)height / segs_y;
-        struct bhs_ui_color space_color = { 1.0f, 1.0f, 1.0f, 1.0f };
-        for (int y = 0; y < segs_y; y++) {
-            for (int x = 0; x < segs_x; x++) {
-                float x0 = x * tile_w; float y0 = y * tile_h;
-                float x1 = (x+1) * tile_w; float y1 = (y+1) * tile_h;
-                
-                float u0,v0, u1,v1, u2,v2, u3,v3;
-				/* Re-use calculate_sphere_uv helper which is static above this function (not replaced) */
-                calculate_sphere_uv(cam, width, height, x0, y0, &u0, &v0);
-                calculate_sphere_uv(cam, width, height, x1, y0, &u1, &v1);
-                calculate_sphere_uv(cam, width, height, x1, y1, &u2, &v2);
-                calculate_sphere_uv(cam, width, height, x0, y1, &u3, &v3);
-                
-                /* Wrap fix */
-                if(fabsf(u1-u0)>0.5f) { if(u0<0.5f) u0+=1; else u1+=1; }
-                if(fabsf(u2-u1)>0.5f) { if(u1<0.5f) u1+=1; else u2+=1; }
-                if(fabsf(u3-u2)>0.5f) { if(u2<0.5f) u2+=1; else u3+=1; }
-                if(fabsf(u3-u0)>0.5f) { if(u0<0.5f) u0+=1; else u3+=1; }
+		int segs_x = 32;
+		int segs_y = 16;
+		float tile_w = (float)width / segs_x;
+		float tile_h = (float)height / segs_y;
+		struct bhs_ui_color space_color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		for (int y = 0; y < segs_y; y++) {
+			for (int x = 0; x < segs_x; x++) {
+				float x0 = x * tile_w;
+				float y0 = y * tile_h;
+				float x1 = (x + 1) * tile_w;
+				float y1 = (y + 1) * tile_h;
 
-                bhs_ui_draw_quad_uv(ctx, tex_bg, x0, y0, u0, v0, x1, y0, u1, v1, x1, y1, u2, v2, x0, y1, u3, v3, space_color);
-            }
-        }
+				float u0, v0, u1, v1, u2, v2, u3, v3;
+				/* Re-use calculate_sphere_uv helper which is static above this function (not replaced) */
+				calculate_sphere_uv(cam, width, height, x0, y0,
+						    &u0, &v0);
+				calculate_sphere_uv(cam, width, height, x1, y0,
+						    &u1, &v1);
+				calculate_sphere_uv(cam, width, height, x1, y1,
+						    &u2, &v2);
+				calculate_sphere_uv(cam, width, height, x0, y1,
+						    &u3, &v3);
+
+				/* Wrap fix */
+				if (fabsf(u1 - u0) > 0.5f) {
+					if (u0 < 0.5f)
+						u0 += 1;
+					else
+						u1 += 1;
+				}
+				if (fabsf(u2 - u1) > 0.5f) {
+					if (u1 < 0.5f)
+						u1 += 1;
+					else
+						u2 += 1;
+				}
+				if (fabsf(u3 - u2) > 0.5f) {
+					if (u2 < 0.5f)
+						u2 += 1;
+					else
+						u3 += 1;
+				}
+				if (fabsf(u3 - u0) > 0.5f) {
+					if (u0 < 0.5f)
+						u0 += 1;
+					else
+						u3 += 1;
+				}
+
+				bhs_ui_draw_quad_uv(ctx, tex_bg, x0, y0, u0, v0,
+						    x1, y0, u1, v1, x1, y1, u2,
+						    v2, x0, y1, u3, v3,
+						    space_color);
+			}
+		}
 	}
 
 	/* 2. Bodies */
 	int n_bodies = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
 
-	/* 2.5. Gravity Lines (Drawn on top of background, behind body labels) */
+	/* 2.5. Gravity Lines (Pointer to Force Source) */
+	/* Apenas visual: conecta o planeta (visual) ao atrator (visual) */
 	if (assets && assets->show_gravity_line && n_bodies > 0) {
-		/* 
-		 * Lógica: 
-		 * - Se selected_body_index == -1: desenha linhas de TODOS os planetas pro atrator
-		 * - Se selected_body_index >= 0: desenha SÓ a linha do planeta selecionado
-		 */
-		
-		/* Primeiro, encontra o atrator principal (Sol/BH com maior massa) */
+		struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
+
 		int attractor_idx = -1;
-		double attractor_mass = 0.0;
+		double attractor_mass = -1.0;
 		for (int i = 0; i < n_bodies; i++) {
 			if (bodies[i].type == BHS_BODY_STAR || bodies[i].type == BHS_BODY_BLACKHOLE) {
 				if (bodies[i].state.mass > attractor_mass) {
@@ -225,126 +203,91 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				}
 			}
 		}
-		
-		if (attractor_idx >= 0) {
-			const struct bhs_body *attractor = &bodies[attractor_idx];
-			
-			/* Cor vermelha pra linha */
-			struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
-			
-			for (int i = 0; i < n_bodies; i++) {
-				/* Pula o próprio atrator */
-				if (i == attractor_idx) continue;
-				
-				/* Se há seleção, só desenha a linha do selecionado */
-				if (assets->selected_body_index >= 0 && i != assets->selected_body_index)
-					continue;
-				
-				/* Só planetas têm linhas pro Sol */
-				if (bodies[i].type != BHS_BODY_PLANET) continue;
-				
-				const struct bhs_body *planet = &bodies[i];
-				
-				/* Calcula direção planet -> attractor */
-				double vx = attractor->state.pos.x - planet->state.pos.x;
-				double vy = attractor->state.pos.y - planet->state.pos.y;
-				double vz = attractor->state.pos.z - planet->state.pos.z;
-				double dist = sqrt(vx*vx + vy*vy + vz*vz);
-				
-				if (dist < 0.0001) continue;
-				
-				/* Normaliza */
-				vx /= dist; vy /= dist; vz /= dist;
-				
-				/* Ponto inicial: superfície do planeta (direção do atrator) */
-				float start_x = (float)(planet->state.pos.x * pos_scale + vx * planet->state.radius * rad_mult);
-				float start_z = (float)(planet->state.pos.z * pos_scale + vz * planet->state.radius * rad_mult);
-				
-				/* Ponto final: superfície do atrator (direção do planeta) */
-				float end_x = (float)(attractor->state.pos.x * pos_scale - vx * attractor->state.radius * rad_mult);
-				float end_z = (float)(attractor->state.pos.z * pos_scale - vz * attractor->state.radius * rad_mult);
-				
-				/* Calcula depth visual (pra alinhar com a malha de gravidade) */
-				float depth1 = calculate_gravity_depth(start_x, start_z, bodies, n_bodies);
-				float depth2 = calculate_gravity_depth(end_x, end_z, bodies, n_bodies);
-				
-				/* Projeta pro screen space */
-				float sx1, sy1, sx2, sy2;
-				bhs_project_point(cam, start_x, depth1, start_z, (float)width, (float)height, &sx1, &sy1);
-				bhs_project_point(cam, end_x, depth2, end_z, (float)width, (float)height, &sx2, &sy2);
-				
-				/* Desenha a linha vermelha */
-				bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, red, 2.5f);
+		if (attractor_idx == -1 && n_bodies > 0) attractor_idx = 0;
+
+		const struct bhs_body *att = &bodies[attractor_idx];
+		float ax, ay, az, ar;
+		bhs_visual_calculate_transform(att, bodies, n_bodies, mode, &ax, &ay, &az, &ar);
+
+		float sax, say;
+		bhs_project_point(cam, ax, ay, az, (float)width, (float)height, &sax, &say);
+
+		for (int i = 0; i < n_bodies; i++) {
+			if (i == attractor_idx) continue;
+			if (bodies[i].type != BHS_BODY_PLANET) continue;
+			if (assets->selected_body_index >= 0 && i != assets->selected_body_index) continue;
+
+			float px, py, pz, pr;
+			bhs_visual_calculate_transform(&bodies[i], bodies, n_bodies, mode, &px, &py, &pz, &pr);
+
+			float spx, spy;
+			bhs_project_point(cam, px, py, pz, (float)width, (float)height, &spx, &spy);
+
+			if ((spx > -100 && spx < width + 100 && spy > -100 && spy < height + 100) ||
+			    (sax > -100 && sax < width + 100 && say > -100 && say < height + 100)) {
+				bhs_ui_draw_line(ctx, sax, say, spx, spy, red, 2.0f);
 			}
 		}
 	}
 
 	/* 2.6. Orbit Trails (Blue path showing planet movement history) */
 	if (assets && assets->show_orbit_trail && n_bodies > 0) {
-		struct bhs_ui_color trail_color = { 0.2f, 0.5f, 1.0f, 0.6f }; /* Azul semi-transparente */
-		
+		struct bhs_ui_color trail_color = { 0.2f, 0.5f, 1.0f, 0.6f };
+
 		for (int i = 0; i < n_bodies; i++) {
 			const struct bhs_body *planet = &bodies[i];
-			
-			/* Só planetas têm trails */
 			if (planet->type != BHS_BODY_PLANET) continue;
-			
-			/* Mesma lógica de filtro: se há seleção, só desenha trail do selecionado */
-			if (assets->selected_body_index >= 0 && i != assets->selected_body_index)
-				continue;
-			
-			/* Precisa de pelo menos 2 pontos para desenhar linha */
+			if (assets->selected_body_index >= 0 && i != assets->selected_body_index) continue;
 			if (planet->trail_count < 2) continue;
-			
-			/* Desenha segmentos conectando pontos históricos */
+
 			for (int j = 0; j < planet->trail_count - 1; j++) {
-				/* Calcula índices no buffer circular */
 				int start_idx = (planet->trail_head - planet->trail_count + j + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
 				int end_idx = (start_idx + 1) % BHS_MAX_TRAIL_POINTS;
-				
+
 				float x1 = planet->trail_positions[start_idx][0];
 				float z1 = planet->trail_positions[start_idx][2];
 				float x2 = planet->trail_positions[end_idx][0];
 				float z2 = planet->trail_positions[end_idx][2];
 				
-				/* Trilhas flat (Y=0) - não seguir curvatura da gravidade */
-				/* Isso evita gaps causados por projeção incorreta de Y negativo */
-				float depth = 0.0f;
-				
-				/* Aplica escala visual */
-				x1 *= pos_scale; z1 *= pos_scale;
-				x2 *= pos_scale; z2 *= pos_scale;
+				/* [FIX] Transform Trail Points using Wall-to-Wall Logic */
+				float tx1, ty1, tz1, tr1;
+				float tx2, ty2, tz2, tr2;
 
-				/* Projeta pro screen space */
+				bhs_visual_transform_point(
+					x1, 0.0f, z1, 
+					planet->state.radius, planet->type,
+					bodies, n_bodies, mode,
+					&tx1, &ty1, &tz1, &tr1
+				);
+
+				bhs_visual_transform_point(
+					x2, 0.0f, z2, 
+					planet->state.radius, planet->type,
+					bodies, n_bodies, mode,
+					&tx2, &ty2, &tz2, &tr2
+				);
+
 				float sx1, sy1, sx2, sy2;
-				bhs_project_point(cam, x1, depth, z1, (float)width, (float)height, &sx1, &sy1);
-				bhs_project_point(cam, x2, depth, z2, (float)width, (float)height, &sx2, &sy2);
-				
-				/* Clipping simples: só desenha se os pontos estão dentro da tela */
-				bool on_screen1 = (sx1 > -100 && sx1 < width + 100 && sy1 > -100 && sy1 < height + 100);
-				bool on_screen2 = (sx2 > -100 && sx2 < width + 100 && sy2 > -100 && sy2 < height + 100);
-				
-				if (on_screen1 || on_screen2) {
+				bhs_project_point(cam, tx1, ty1, tz1, (float)width, (float)height, &sx1, &sy1);
+				bhs_project_point(cam, tx2, ty2, tz2, (float)width, (float)height, &sx2, &sy2);
+
+				bool on_screen = (sx1 > -100 && sx1 < width + 100 && sy1 > -100 && sy1 < height + 100);
+				if (on_screen) {
 					bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, trail_color, 1.5f);
 				}
 			}
 		}
 	}
 
-	/* [NEW] 2.7. Orbit Completion Markers (Marcadores Roxos de Órbita Completa) */
+	/* 2.7. Orbit Completion Markers */
 	if (assets && assets->orbit_markers && assets->orbit_markers->marker_count > 0) {
-		/* Roxo vibrante pro marcador */
 		struct bhs_ui_color purple = { 0.6f, 0.2f, 0.8f, 1.0f };
 		struct bhs_ui_color purple_outline = { 0.9f, 0.6f, 1.0f, 0.9f };
-
 		const struct bhs_orbit_marker_system *sys = assets->orbit_markers;
 
-		/* [FIX] Para evitar a poluição de pontos roxos ("stacking"), 
-		 * vamos descobrir qual o orbit_number mais alto de cada planeta.
-		 */
-		int latest_orbit[128]; /* MAX_BODIES */
-		for(int i=0; i<128; i++) latest_orbit[i] = -1;
-
+		/* Filter latest */
+		int latest_orbit[128];
+		for (int i = 0; i < 128; i++) latest_orbit[i] = -1;
 		for (int i = 0; i < sys->marker_count; i++) {
 			const struct bhs_orbit_marker *m = &sys->markers[i];
 			if (!m->active) continue;
@@ -358,97 +301,81 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		for (int i = 0; i < sys->marker_count; i++) {
 			const struct bhs_orbit_marker *m = &sys->markers[i];
 			if (!m->active) continue;
-
-			/* [FIX] Só desenha se for a órbita mais recente do planeta */
 			if (m->planet_index >= 0 && m->planet_index < 128) {
 				if (m->orbit_number != latest_orbit[m->planet_index]) continue;
 			}
+			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index) continue;
 
-			/* [FIX] Respeita o isolamento visual */
-			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index)
-				continue;
+			float m_x = (float)m->position.x;
+			float m_z = (float)m->position.z;
+            
+            /* Apply generic scaling to marker point */
+            float radius_for_calc = 1000.0f; /* Dummy small radius */
+            if (m->planet_index >= 0 && m->planet_index < n_bodies) {
+                radius_for_calc = bodies[m->planet_index].state.radius;
+            }
 
-			/* Projeta posição do marcador com escala visual */
-			float m_x = (float)m->position.x * pos_scale;
-			float m_z = (float)m->position.z * pos_scale;
-			
+            float tx, ty, tz, tr;
+            bhs_visual_transform_point(
+					m_x, 0.0f, m_z, 
+					radius_for_calc, BHS_BODY_PLANET,
+					bodies, n_bodies, mode,
+					&tx, &ty, &tz, &tr
+			);
+
 			float sx, sy;
-			bhs_project_point(cam, m_x, 0.0f, m_z,
-				      (float)width, (float)height, &sx, &sy);
+			bhs_project_point(cam, tx, ty, tz, (float)width, (float)height, &sx, &sy);
 
-			/* Só desenha se visível na tela */
-			if (sx < -50 || sx > width + 50 || sy < -50 || sy > height + 50)
-				continue;
+			if (sx < -50 || sx > width + 50 || sy < -50 || sy > height + 50) continue;
 
-			/* Desenha diamante roxo (losango) */
 			float size = 10.0f;
 			bhs_ui_draw_circle_fill(ctx, sx, sy, size, purple);
+			bhs_ui_draw_circle_fill(ctx, sx, sy, size + 2.0f, (struct bhs_ui_color){ 0.9f, 0.6f, 1.0f, 0.3f });
 			
-			/* Borda brilhante */
-			bhs_ui_draw_circle_fill(ctx, sx, sy, size + 2.0f, (struct bhs_ui_color){0.9f, 0.6f, 1.0f, 0.3f});
-
-			/* Número da órbita pequeno ao lado */
 			char orbit_text[16];
 			snprintf(orbit_text, sizeof(orbit_text), "#%d", m->orbit_number);
 			float orbit_tw = bhs_ui_measure_text(ctx, orbit_text, 12.0f);
-			bhs_ui_draw_text(ctx, orbit_text, sx - orbit_tw * 0.5f, sy + size + 2.0f,
-					 12.0f, purple_outline);
+			bhs_ui_draw_text(ctx, orbit_text, sx - orbit_tw * 0.5f, sy + size + 2.0f, 12.0f, purple_outline);
 		}
 	}
 
+	/* === Surface-to-Surface Body Rendering (Labels) === */
 	for (int i = 0; i < n_bodies; i++) {
 		const struct bhs_body *b = &bodies[i];
-
-		/* [NEW] Isolamento: se ativo, pula corpos que não são o selecionado */
-		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index)
-			continue;
+		/* Isolamento */
+		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index) continue;
+		
+		float visual_x, visual_y, visual_z, visual_radius;
+		
+		bhs_visual_calculate_transform(b, bodies, n_bodies, mode, 
+		                               &visual_x, &visual_y, &visual_z, &visual_radius);
 
 		float sx, sy;
+		bhs_project_point(cam, visual_x, visual_y, visual_z, width,
+				  height, &sx, &sy);
 
-        /* Visual Mapping with Mode Scaling */
-		float visual_x = b->state.pos.x * pos_scale;
-		float visual_z = b->state.pos.z * pos_scale;
-		
-		/* Calculate depth based on gravity well logic */
-		float visual_y = 0.0f;
-		if (use_gravity_well) {
-			visual_y = calculate_gravity_depth(visual_x, visual_z, bodies, n_bodies);
-			if (mode == BHS_VISUAL_MODE_CINEMATIC) visual_y *= 2.0f;
-		}
-
-		bhs_project_point(cam, visual_x, visual_y, visual_z, width, height, &sx, &sy);
-		
-		/* ... [Using same projection/scaling logic as before] ... */
+		/* Distance check */
 		float dx = visual_x - cam->x;
-		float dy = visual_y - cam->y; /* Including depth in distance */
+		float dy = visual_y - cam->y;
 		float dz = visual_z - cam->z;
-		float dist = sqrtf(dx*dx + dy*dy + dz*dz);
+		float dist = sqrtf(dx * dx + dy * dy + dz * dz);
 		if (dist < 0.1f) dist = 0.1f;
-		
-		/* VISUAL SCALE: Use mode multiplier */
-		float visual_radius = b->state.radius * rad_mult;
+
 		float s_radius = (visual_radius / dist) * cam->fov;
 		if (s_radius < 2.0f) s_radius = 2.0f;
 
 		struct bhs_ui_color color = { (float)b->color.x, (float)b->color.y, (float)b->color.z, 1.0f };
-		
-		/* [FIX] Aggressive Refactor: NO 2D DRAWING for Celestial Bodies */
-		/* We only draw labels for planets/stars to help identification in 3D view */
+
+		/* Render Label/Sprite */
 		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR || b->type == BHS_BODY_MOON) {
-            /* Only draw text if visible on screen */
-            if (sx > 0 && sx < width && sy > 0 && sy < height) {
-    			const char *label = (b->name[0]) ? b->name : "Planet";
+			if (sx > 0 && sx < width && sy > 0 && sy < height) {
+				const char *label = (b->name[0]) ? b->name : "Planet";
 				float font_size = 15.0f;
 				float tw = bhs_ui_measure_text(ctx, label, font_size);
-				
-				/* Centraliza abaixo do corpo, com respiro baseado no raio */
-	    		bhs_ui_draw_text(ctx, label, sx - tw * 0.5f, sy + s_radius + 5.0f, font_size, BHS_UI_COLOR_WHITE);
-            }
-			/* NO 2D SPRITES - "Garantir ao supremo que o planeta tá só 3d" */
+				bhs_ui_draw_text(ctx, label, sx - tw * 0.5f, sy + s_radius + 5.0f, font_size, BHS_UI_COLOR_WHITE);
+			}
 		} else {
-             /* Other bodies (Asteroids, Ships?) can stay simple circles for now */
-             bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
+			bhs_ui_draw_circle_fill(ctx, sx, sy, s_radius, color);
 		}
 	}
 }
-

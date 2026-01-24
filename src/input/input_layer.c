@@ -39,8 +39,7 @@
 
 #include "src/math/mat4.h"
 #include "src/ui/render/spacetime_renderer.h"
-
-/* Helper projection removed - now using shared bhs_project_point from spacetime_renderer.h */
+#include "src/ui/render/visual_utils.h"
 
 /* ============================================================================
  * HANDLERS ESPECÍFICOS
@@ -138,24 +137,7 @@ static void handle_global_input(struct app_state *app)
 /**
  * Processa interação com objetos (seleção e deleção)
  */
-/* Helper duplicate from renderers to ensure consistency in picking */
-static float fast_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
-{
-	if (!bodies || n_bodies == 0) return 0.0f;
-	float potential = 0.0f;
-	for (int i = 0; i < n_bodies; i++) {
-		if (bodies[i].type != BHS_BODY_PLANET && bodies[i].type != BHS_BODY_STAR && bodies[i].type != BHS_BODY_BLACKHOLE) continue;
-		float dx = x - bodies[i].state.pos.x;
-		float dz = z - bodies[i].state.pos.z;
-		float dist = sqrtf(dx*dx + dz*dz + 0.1f);
-		double eff_mass = bodies[i].state.mass;
-		if (bodies[i].type == BHS_BODY_PLANET) eff_mass *= 5000.0;
-		potential -= (eff_mass) / dist;
-	}
-	float depth = potential * 5.0f;
-	if (depth < -50.0f) depth = -50.0f;
-	return depth;
-}
+/* Helper duplicate: Gravity Depth removed (Now in visual_utils.h) */
 
 static void handle_object_interaction(struct app_state *app)
 {
@@ -276,33 +258,11 @@ static void handle_object_interaction(struct app_state *app)
 
 		int best_idx = -1;
 		float best_dist = 1e9f;
-
-		/* [FIX] Sync with Visual Mode */
-		float rad_mult = 1.0f;
-		float pos_scale = 1.0f;
-		bool use_gravity_well = false;
 		
-		switch(app->hud.visual_mode) {
-			case BHS_VISUAL_MODE_DIDACTIC:
-				rad_mult = 60.0f;
-				pos_scale = 5.0f;
-				use_gravity_well = true;
-				break;
-			case BHS_VISUAL_MODE_CINEMATIC:
-				rad_mult = 200.0f;
-				pos_scale = 4.0f;
-				use_gravity_well = true;
-				break;
-			case BHS_VISUAL_MODE_SCIENTIFIC:
-			default:
-				/* Defaults are 1.0f/1.0f/false */
-				break;
-		}
-
 		for (int i = 0; i < n_bodies; i++) {
 			const struct bhs_body *b = &bodies[i];
 			
-			/* Só pega planetas, estrelas e luas (como no renderer) */
+			/* Filter types */
 			if (b->type != BHS_BODY_PLANET && 
 			    b->type != BHS_BODY_STAR && 
 			    b->type != BHS_BODY_MOON) continue;
@@ -312,16 +272,9 @@ static void handle_object_interaction(struct app_state *app)
 				if (i != app->hud.selected_body_index) continue;
 			}
 
-            /* [FIX] Apply Visual Scaling */
-			float visual_x = (float)b->state.pos.x * pos_scale;
-			float visual_z = (float)b->state.pos.z * pos_scale;
-			float visual_y = 0.0f;
-			
-			if (use_gravity_well) {
-				visual_y = fast_gravity_depth(visual_x, visual_z, bodies, n_bodies);
-				if (app->hud.visual_mode == BHS_VISUAL_MODE_CINEMATIC) 
-					visual_y *= 2.0f;
-			}
+            /* [FIX] Apply Visual Scaling using Shared Helper */
+            float visual_x, visual_y, visual_z, visual_radius;
+            bhs_visual_calculate_transform(b, bodies, n_bodies, app->hud.visual_mode, &visual_x, &visual_y, &visual_z, &visual_radius);
 
 			/* Projeta usando coordenadas absolutas */
 			float sx, sy;
@@ -338,7 +291,6 @@ static void handle_object_interaction(struct app_state *app)
 			float dist_to_cam = sqrtf(dx*dx + dy*dy + dz*dz);
 			
 			/* Body Picking Radius */
-			float visual_radius = (float)b->state.radius * rad_mult;
 			float s_radius = 2.0f;
 			if (dist_to_cam > 0.1f) {
 				s_radius = (visual_radius / dist_to_cam) * app->camera.fov;
