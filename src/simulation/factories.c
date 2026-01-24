@@ -119,9 +119,10 @@ struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc,
 	b.state.acc = (struct bhs_vec3){ 0, 0, 0 };
 	b.state.vel = (struct bhs_vec3){ 0, 0, 0 };
 	
-	/* Rotação */
+	/* Rotação - Eixo Y (Up) inclinado por axis_tilt */
+	/* Tilt 0 = (0,1,0). Tilt 90 = (1,0,0) (Deitado) */
 	b.state.rot_axis = (struct bhs_vec3){ 
-		sin(desc->axis_tilt), 0.0, cos(desc->axis_tilt) 
+		sin(desc->axis_tilt), cos(desc->axis_tilt), 0.0 
 	};
 	/* Normalize axis roughly if needed, simplified here */
 	
@@ -148,6 +149,7 @@ struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc,
 		b.type = BHS_BODY_PLANET;
 		b.prop.planet.density = desc->density;
 		b.prop.planet.axis_tilt = desc->axis_tilt;
+		b.prop.planet.rotation_period = desc->rotation_period; /* [FIX] Copiar dado */
 		b.prop.planet.albedo = desc->albedo;
 		b.prop.planet.has_atmosphere = desc->has_atmosphere;
 		b.prop.planet.surface_pressure = desc->surface_pressure;

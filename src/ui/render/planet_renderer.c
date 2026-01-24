@@ -359,6 +359,13 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		
 		/* Rotation Params */
 		float angle = (float)b->state.current_rotation_angle;
+		
+		/* [NEW] Interpolate rotation (smooth sub-frame) */
+		if (assets) {
+		    /* angle = current + speed * accumulator */
+		    angle += (float)(b->state.rot_speed * assets->sim_alpha);
+		}
+
 		float ax = (float)b->state.rot_axis.x;
 		float ay = (float)b->state.rot_axis.y;
 		float az = (float)b->state.rot_axis.z;

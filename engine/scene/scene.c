@@ -153,6 +153,25 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
                 b->color = c->data.planet.color;
                 b->prop.planet.density = c->data.planet.density;
                 b->prop.planet.has_atmosphere = c->data.planet.has_atmosphere;
+                
+                /* Map Rotation State */
+                b->state.rot_speed = c->data.planet.rotation_speed;
+                b->state.rot_axis = c->data.planet.rotation_axis;
+                b->state.current_rotation_angle = c->data.planet.current_rotation_angle;
+                
+                /* [FIX] Reconstruct Properties for UI (Inspector) */
+                /* Tilt = angle between Up(0,1,0) and Axis? 
+                   Factory: axis = (sin(tilt), cos(tilt), 0)
+                   So tilt = atan2(x, y) */
+                b->prop.planet.axis_tilt = atan2(b->state.rot_axis.x, b->state.rot_axis.y);
+                
+                /* Period = 2pi / speed */
+                if (fabs(b->state.rot_speed) > 1e-9) {
+                    b->prop.planet.rotation_period = (2.0 * 3.14159265359) / b->state.rot_speed;
+                } else {
+                    b->prop.planet.rotation_period = 0.0;
+                }
+                
             } else if (c->type == BHS_CELESTIAL_STAR) {
                 b->type = BHS_BODY_STAR;
                 b->prop.star.luminosity = c->data.star.luminosity;
@@ -215,6 +234,14 @@ bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
         c.data.planet.color = b.color;
         c.data.planet.density = b.prop.planet.density;
         c.data.planet.has_atmosphere = b.prop.planet.has_atmosphere;
+        
+        /* Rotation Logic - Use calculated state from factory */
+        c.data.planet.rotation_speed = b.state.rot_speed;
+        c.data.planet.rotation_axis = b.state.rot_axis;
+        
+        /* [DEBUG] Force initialization of current angle */
+        c.data.planet.current_rotation_angle = 0.0;
+
     } else if (b.type == BHS_BODY_STAR) {
         c.type = BHS_CELESTIAL_STAR;
         c.data.star.luminosity = b.prop.star.luminosity;

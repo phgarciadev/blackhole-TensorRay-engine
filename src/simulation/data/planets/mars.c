@@ -30,7 +30,8 @@ struct bhs_planet_desc bhs_mars_get_desc(void)
 	d.mass = 6.42e23;
 	d.radius = 3.3895e6;
 	d.density = 3933.0;
-	d.rotation_period = 88642.0; /* Sol marciano ~24h 37m */
+	/* Mars Sol: 24h 37m 22s */
+	d.rotation_period = 24.6229 * 3600.0;
 	d.axis_tilt = 25.19 * (3.14159 / 180.0);
 	d.gravity = 3.72;
 	

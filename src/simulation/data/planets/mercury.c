@@ -29,8 +29,9 @@ struct bhs_planet_desc bhs_mercury_get_desc(void)
 	d.mass = 3.30e23;
 	d.radius = 2.4397e6;
 	d.density = 5427.0;
-	d.rotation_period = 58.646 * 24 * 3600;
-	d.axis_tilt = 0.034 * (3.14159 / 180.0);
+	/* Mercury spin is coupled 3:2 with orbit */
+	d.rotation_period = 58.646 * 24 * 3600; /* 1407.6 hours */
+	d.axis_tilt = 0.034 * (3.14159 / 180.0); /* Almost upright */
 	d.gravity = 3.7;
 	
 	/* Orbital */

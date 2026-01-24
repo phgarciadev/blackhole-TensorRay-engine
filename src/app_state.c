@@ -30,13 +30,10 @@
 #include <time.h>
 
 /* 
- * Timestep fixo pra física - 1 HORA por passo (3600 segundos)
- * Para órbitas planetárias, precisamos simular até 365 dias por minuto real.
- * 365 dias/min = 525,600 segundos simulados por segundo real.
- * Com dt=3600s, precisamos de apenas 146 passos/segundo = ~2.4 passos/frame.
- * Isso é trivial para qualquer CPU.
+ * Timestep fixo pra física - 60 segundos por passo (1 min)
+ * Smooth rotation requires smaller steps or interpolation.
  */
-#define PHYSICS_DT 3600.0
+#define PHYSICS_DT 60.0
 #define MAX_FRAME_TIME 0.25 /* Evita death spiral */
 
 /* ============================================================================
@@ -485,7 +482,9 @@ void app_run(struct app_state *app)
 				/* [NEW] Isolated View - propaga o índice se isolamento ativo */
 				.isolated_body_index = app->hud.isolate_view ? app->hud.selected_body_index : -1,
 				/* [NEW] Sistema de marcadores de órbita */
-				.orbit_markers = &app->orbit_markers
+				.orbit_markers = &app->orbit_markers,
+				/* [NEW] Interpolation Alpha */
+				.sim_alpha = accumulator
 			};
 			bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
 						win_w, win_h, &assets,

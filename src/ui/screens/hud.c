@@ -54,8 +54,9 @@ static bhs_ui_layout_t get_ui_layout(bhs_ui_ctx_t ctx, int win_w, int win_h) {
     l.tab_start_x = l.padding_x + l.logo_width + (15.0f * l.ui_scale) + (1.0f * l.ui_scale) + (15.0f * l.ui_scale);
     
     /* [FIX] Info Panel - valores centralizados aqui pra draw e input usarem o mesmo */
-    l.info_panel_w = 250.0f * l.ui_scale;
-    l.info_panel_h = 420.0f * l.ui_scale;
+    /* [FIX] Info Panel - valores centralizados aqui pra draw e input usarem o mesmo */
+    l.info_panel_w = 260.0f * l.ui_scale; /* Slightly wider */
+    l.info_panel_h = 720.0f * l.ui_scale; /* Enormous for all data */
     l.info_panel_margin = 20.0f * l.ui_scale;
     
     return l;
@@ -624,9 +625,63 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
         /* Separator */
         bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 1.0f}, 1.0f * ui_scale);
         y += 10.0f * ui_scale;
+
+        /* --- MOTION DYNAMICS --- */
+        bhs_ui_draw_text(ctx, "MOTION", x, y, font_section, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
+        y += line_h;
+        
+        double speed_ms = sqrt(b->state.vel.x*b->state.vel.x + b->state.vel.z*b->state.vel.z);
+        if (speed_ms > 1000.0) {
+            DRAW_PROP("Orb. Spd:", "%.2f km/s", speed_ms / 1000.0);
+        } else {
+             DRAW_PROP("Orb. Spd:", "%.2f m/s", speed_ms);
+        }
+        
+        /* Escape Velocity sqrt(2GM/r) relative to ITSELF? No, relative to parent...
+           We don't know parent R here easily without query. Skip escape vel for now. */
+
+        y += 10.0f * ui_scale;
+
+        /* --- ROTATION --- */
+        if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR) {
+            bhs_ui_draw_text(ctx, "ROTATION", x, y, font_section, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
+            y += line_h;
+            
+            /* Period Calc: T = 2pi / omega */
+            double period_s = 0.0;
+            if (fabs(b->state.rot_speed) > 1e-9) {
+                period_s = (2.0 * 3.14159265359) / fabs(b->state.rot_speed);
+                /* Check sign for retrograde */
+                bool retro = (b->state.rot_speed < 0 && b->prop.planet.rotation_period < 0);
+                /* If period is negative in prop, it's retro. */
+                if (b->type == BHS_BODY_PLANET && b->prop.planet.rotation_period < 0) retro = true;
+                
+                if (period_s > 86400.0) {
+                     DRAW_PROP("Period:", "%.2f d %s", period_s / 86400.0, retro ? "(R)" : "");
+                } else {
+                     DRAW_PROP("Period:", "%.2f h %s", period_s / 3600.0, retro ? "(R)" : "");
+                }
+            } else {
+                 DRAW_PROP("Period:", "Locked/Static%s", "");
+            }
+            
+            /* Axis Tilt from Prop (converted to deg) */
+            double tilt_deg = 0.0;
+            if (b->type == BHS_BODY_PLANET) tilt_deg = b->prop.planet.axis_tilt * (180.0 / 3.14159265359);
+            // else if (b->type == BHS_BODY_STAR) tilt_deg = b->prop.star.axis_tilt... (struct doesnt have it explicitly yet in Display/Prop union?) 
+            // Only planet prop has explicit tilt field in `bhs_planet_data`.
+            
+            DRAW_PROP("Tilt:", "%.2f deg", tilt_deg);
+            
+            /* Calc Linear Velocity at Equator: v = omega * r */
+            double v_eq = fabs(b->state.rot_speed) * b->state.radius;
+            DRAW_PROP("Eq. Vel:", "%.1f m/s", v_eq);
+            
+            y += 10.0f * ui_scale;
+        }
         
         bhs_ui_draw_text(ctx, "PROPERTIES", x, y, font_section, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
-		y += line_h;
+        y += line_h;
 
 		/* --- TYPE SPECIFIC --- */
 		if (b->type == BHS_BODY_PLANET) {

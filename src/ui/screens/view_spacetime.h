@@ -53,6 +53,9 @@ typedef struct bhs_view_assets {
     
     /* [NEW] Ponteiro para sistema de marcadores de órbita */
     const struct bhs_orbit_marker_system *orbit_markers;
+
+    /* [NEW] Interpolation Alpha (accumulator) */
+    double sim_alpha;
 } bhs_view_assets_t;
 
 /* Proxy to renderer */

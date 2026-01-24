@@ -45,7 +45,8 @@ enum bhs_star_stage {
 
 struct bhs_planet_data {
 	double density;
-	double axis_tilt; 
+	double axis_tilt; // [NEW] Obliquity in radians
+	double rotation_period; // [NEW] Sidereal rotation period in seconds
 	double albedo;
 	bool has_atmosphere;
 	double surface_pressure;

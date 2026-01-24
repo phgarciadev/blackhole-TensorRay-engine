@@ -33,8 +33,9 @@ struct bhs_planet_desc bhs_venus_get_desc(void)
 	d.mass = 4.87e24;
 	d.radius = 6.0518e6;
 	d.density = 5243.0;
-	d.rotation_period = -243.025 * 24 * 3600; /* Retrógrado */
-	d.axis_tilt = 177.36 * (3.14159 / 180.0);
+	/* Venus rotates backwards (Retrograde) -243 days */
+	d.rotation_period = -243.025 * 24 * 3600; 
+	d.axis_tilt = 177.36 * (3.14159 / 180.0); /* Upside down essentially */
 	d.gravity = 8.87;
 	
 	/* Orbital */
