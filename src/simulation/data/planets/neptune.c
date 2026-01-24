@@ -38,9 +38,15 @@ struct bhs_planet_desc bhs_neptune_get_desc(void)
 	d.gravity = 11.15;
 	
 	/* Orbital */
-	d.semimajor_axis = 4.4951e12;
-	d.eccentricity = 0.0113;
+	d.semimajor_axis = 30.06896348 * 149597870700.0;
+	d.eccentricity = 0.00858587;
 	d.orbital_period = 164.8 * 365.25 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 1.76917;
+	d.long_asc_node = 131.72169;
+	d.long_perihelion = 44.97135;
+	d.mean_longitude = 304.88003;
 	
 	/* Termodinâmico */
 	d.has_atmosphere = true;

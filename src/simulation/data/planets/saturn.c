@@ -36,9 +36,15 @@ struct bhs_planet_desc bhs_saturn_get_desc(void)
 	d.gravity = 10.44;
 	
 	/* Orbital */
-	d.semimajor_axis = 1.4335e12;
-	d.eccentricity = 0.0565;
+	d.semimajor_axis = 9.53707032 * 149597870700.0;
+	d.eccentricity = 0.05415060;
 	d.orbital_period = 29.45 * 365.25 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 2.48446;
+	d.long_asc_node = 113.71504;
+	d.long_perihelion = 92.43194;
+	d.mean_longitude = 49.944;
 	
 	/* Termodinâmico */
 	d.has_atmosphere = true;

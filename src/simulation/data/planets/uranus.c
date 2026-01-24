@@ -29,9 +29,15 @@ struct bhs_planet_desc bhs_uranus_get_desc(void)
 	d.gravity = 8.69;
 	
 	/* Orbital */
-	d.semimajor_axis = 2.8725e12;
-	d.eccentricity = 0.0457;
+	d.semimajor_axis = 19.19126393 * 149597870700.0;
+	d.eccentricity = 0.04716771;
 	d.orbital_period = 84.0 * 365.25 * 24 * 3600;
+	
+	/* J2000 Elements */
+	d.inclination = 0.76986;
+	d.long_asc_node = 74.22988;
+	d.long_perihelion = 170.96424;
+	d.mean_longitude = 313.23218;
 	
 	/* Termodinâmico */
 	d.has_atmosphere = true;
