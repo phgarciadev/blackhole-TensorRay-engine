@@ -42,6 +42,13 @@ typedef struct {
 	/* [NEW] Acesso ao sistema de marcadores para exibição de detalhes */
 	const struct bhs_orbit_marker_system *orbit_markers_ptr;
 	float orbit_history_scroll; /* [NEW] Estado de rolagem do histórico */
+	
+	/* [NEW] REFS Panel State */
+	bool refs_collapsed;
+
+	/* [NEW] Time Control State */
+	bool is_paused;       /* Display only */
+	bool req_toggle_pause; /* Command to App */
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

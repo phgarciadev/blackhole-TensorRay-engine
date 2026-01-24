@@ -288,8 +288,20 @@ void app_run(struct app_state *app)
 			app_set_time_scale(app, (double)target_timescale);
 		}
 
+		/* [NEW] Handle Pause Request from HUD */
+		if (app->hud.req_toggle_pause) {
+			app_toggle_pause(app);
+			app->hud.req_toggle_pause = false;
+		}
+
+		/* Sync HUD state */
+		app->hud.is_paused = (app->sim_status == APP_SIM_PAUSED);
+
 		/* Acumular tempo para fixed timestep - MULTIPLICADO pelo time_scale! */
-		accumulator += frame_time * app->time_scale;
+		/* [CRITICAL] Só acumula se estiver rodando, senão cria Death Spiral ao voltar */
+		if (app->sim_status == APP_SIM_RUNNING) {
+			accumulator += frame_time * app->time_scale;
+		}
 
 		/* Begin frame */
 		if (bhs_ui_begin_frame(app->ui) != BHS_UI_OK)
@@ -308,6 +320,8 @@ void app_run(struct app_state *app)
 		int physics_steps = 0;
 
 		double t0 = get_time_seconds();
+		
+		/* Physics Loop - Only runs if we have enough accumulated time */
 		while (accumulator >= PHYSICS_DT &&
 		       app->sim_status == APP_SIM_RUNNING &&
 		       physics_steps < MAX_PHYSICS_STEPS_PER_FRAME) {

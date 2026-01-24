@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include "src/simulation/data/orbit_marker.h" /* [NEW] */
 
-static const char *MENU_ITEMS[] = { "Config", "Add", "View", "Refs" };
-static const int MENU_COUNT = 4;
+static const char *MENU_ITEMS[] = { "Config", "Add", "View" };
+static const int MENU_COUNT = 3;
 
 static bool is_inside(int mx, int my, float x, float y, float w, float h);
 
@@ -80,7 +80,11 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_orbit_trail = false;
 		state->isolate_view = false;
 		state->selected_marker_index = -1;
+		state->selected_marker_index = -1;
 		state->orbit_history_scroll = 0.0f;
+		state->refs_collapsed = false; /* Start open */
+		state->is_paused = false;
+		state->req_toggle_pause = false;
 	}
 }
 
@@ -248,6 +252,12 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			y += row_spacing;
 			item_rect.y = y;
 
+			y += row_spacing;
+			item_rect.y = y;
+
+			/* [MOVED] Pause Toggle moved into Reference Frame Panel */
+
+
 			/* Time Scale Control */
 			/* Nova formula: dias terrestres por minuto real */
 			/* 0.1 * 3650^val = dias/min (val=0 -> 0.1, val=1 -> 365) */
@@ -401,60 +411,112 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			}
 			bhs_ui_draw_text(ctx, desc, panel_rect.x + item_pad, y, font_label, BHS_UI_COLOR_GRAY);
 		}
-		/* INDEX 3: REFS (References - Temporal) */
-		else if (state->active_menu_index == 3) {
-			bhs_ui_draw_text(ctx, "Reference Frame", panel_rect.x + item_pad,
-					 y, font_header, BHS_UI_COLOR_GRAY);
-			y += 25.0f * ui_scale;
+		}
 
-			/* Epoch Info */
-			bhs_ui_draw_text(ctx, "Epoch: J2000.0", panel_rect.x + item_pad, y, 
-					 font_label, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f});
-			y += 18.0f * ui_scale;
-			bhs_ui_draw_text(ctx, "Start: 2000-01-01 12:00 UTC", panel_rect.x + item_pad, y, 
-					 font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f});
-			y += 25.0f * ui_scale;
 
-			/* Separador */
-			bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y, 
-					 panel_rect.x + panel_rect.width - item_pad, y, 
-					 BHS_UI_COLOR_GRAY, 1.0f);
-			y += 15.0f * ui_scale;
+	/* 3b. Persistent REFS Panel (Redesigned) */
+	{
+		/* Dimensions & layout config */
+		float p_width  = 260.0f * ui_scale;
+		float p_height = 135.0f * ui_scale; 
+		float margin   = 20.0f  * ui_scale;
+		float btn_sz   = 24.0f  * ui_scale;
+		
+		/* Collapsed state */
+		if (state->refs_collapsed) {
+			p_width = btn_sz + 8.0f;
+			p_height = btn_sz + 8.0f;
+		}
 
-			/* Current Date Header */
-			bhs_ui_draw_text(ctx, "CURRENT DATE (UTC)", panel_rect.x + item_pad, y, 
-					 font_header, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f});
-			y += 25.0f * ui_scale;
+		/* Position: Bottom Right */
+		float px = (float)window_w - p_width - margin;
+		float py = (float)window_h - p_height - margin;
+		
+		struct bhs_ui_rect p_rect = { px, py, p_width, p_height };
+		
+		/* --- Draw Panel --- */
+		if (!state->refs_collapsed) {
+        /* Background: Deep scifi dark, high transparency */
+			bhs_ui_panel(ctx, p_rect, 
+				(struct bhs_ui_color){0.02f, 0.04f, 0.08f, 0.85f},
+                (struct bhs_ui_color){0.0f, 0.0f, 0.0f, 0.0f}); /* Transparent border */
 
-			/* Converte segundos desde J2000 para data */
+            /* Accent Line (Left Border) */
+            bhs_ui_draw_line(ctx, px, py, px, py + p_height, theme_highlight, 3.0f * ui_scale);
+		}
+		
+		/* --- Toggle Button (Collapse) --- */
+		/* Position: Top Right of panel */
+        float bx, by;
+        if (state->refs_collapsed) {
+             bx = (float)window_w - btn_sz - margin;
+             by = (float)window_h - btn_sz - margin;
+        } else {
+             bx = px + p_width - btn_sz - 5.0f;
+             by = py + 5.0f;
+        }
+        
+		struct bhs_ui_rect btn_rect = { bx, by, btn_sz, btn_sz };
+        /* Minimalist Toggle Icon */
+		if (bhs_ui_button(ctx, state->refs_collapsed ? "<" : ">", btn_rect)) {
+			state->refs_collapsed = !state->refs_collapsed;
+		}
+		
+		/* --- Content --- */
+		if (!state->refs_collapsed) {
+			float x = px + 20.0f * ui_scale;
+			float y = py + 15.0f * ui_scale;
+			
+			/* 1. Header */
+			bhs_ui_draw_text(ctx, "TEMPORAL FRAME", x, y, 
+                             11.0f * ui_scale, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.8f});
+			y += 20.0f * ui_scale;
+			
+			/* 2. Epoch/Date Block */
 			int yr, mo, dy, hr, mi, sc;
 			bhs_sim_time_to_date(state->sim_time_seconds, &yr, &mo, &dy, &hr, &mi, &sc);
 
-			/* Data formatada */
+			/* DATE (Large) */
 			char date_buf[64];
 			snprintf(date_buf, sizeof(date_buf), "%04d-%02d-%02d", yr, mo, dy);
-			bhs_ui_draw_text(ctx, date_buf, panel_rect.x + item_pad, y, 
-					 20.0f * ui_scale, BHS_UI_COLOR_WHITE);
-			y += 28.0f * ui_scale;
-
-			/* Hora formatada */
-			char time_buf[64];
-			snprintf(time_buf, sizeof(time_buf), "%02d:%02d:%02d UTC", hr, mi, sc);
-			bhs_ui_draw_text(ctx, time_buf, panel_rect.x + item_pad, y, 
-					 16.0f * ui_scale, (struct bhs_ui_color){0.8f, 0.8f, 0.8f, 1.0f});
+			bhs_ui_draw_text(ctx, date_buf, x, y, 
+					 26.0f * ui_scale, (struct bhs_ui_color){1.0f, 1.0f, 1.0f, 1.0f});
 			y += 30.0f * ui_scale;
 
-			/* Tempo decorrido */
+			/* TIME (Monospace-ish) + UTC */
+			char time_buf[64];
+			snprintf(time_buf, sizeof(time_buf), "%02d:%02d:%02d UTC", hr, mi, sc);
+			bhs_ui_draw_text(ctx, time_buf, x, y, 
+					 18.0f * ui_scale, (struct bhs_ui_color){0.8f, 0.9f, 0.9f, 0.7f});
+			y += 35.0f * ui_scale;
+			
+            /* 3. Controls & Info Footer */
+            /* Play/Pause Button */
+            float play_btn_w = 80.0f * ui_scale;
+            float play_btn_h = 24.0f * ui_scale;
+            struct bhs_ui_rect play_rect = { x, y, play_btn_w, play_btn_h };
+            
+            const char* pp_label = state->is_paused ? ">  PLAY" : "||  PAUSE";
+            /* Custom styled button logic would be better, but standard button works for now */
+            if (bhs_ui_button(ctx, pp_label, play_rect)) {
+                state->req_toggle_pause = true;
+            }
+            
+            /* Elapsed Time (Right aligned relative to button or panel?) */
+            /* Let's put elapsed time next to the button */
+            float elapsed_x = x + play_btn_w + 15.0f * ui_scale;
 			double days_elapsed = state->sim_time_seconds / 86400.0;
 			double years_elapsed = days_elapsed / 365.25;
 			char elapsed_buf[64];
-			if (years_elapsed >= 1.0) {
-				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.2f years since J2000", years_elapsed);
+			if (fabs(years_elapsed) >= 1.0) {
+				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.2f yrs", years_elapsed);
 			} else {
-				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.1f days since J2000", days_elapsed);
+				snprintf(elapsed_buf, sizeof(elapsed_buf), "%.1f days", days_elapsed);
 			}
-			bhs_ui_draw_text(ctx, elapsed_buf, panel_rect.x + item_pad, y, 
-					 font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f});
+            /* Vertically align text with button center */
+			bhs_ui_draw_text(ctx, elapsed_buf, elapsed_x, y + 4.0f * ui_scale, 
+					 14.0f * ui_scale, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+
 		}
 	}
 
@@ -792,6 +854,36 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int m
 		if (is_inside(mx, my, panel_x, panel_y, 
 			      layout.info_panel_w, layout.info_panel_h))
 			return true;
+	}
+
+	/* 4. REFS Panel Hit Test */
+	{
+		float ui_scale = layout.ui_scale;
+		float p_width  = 240.0f * ui_scale;
+		float p_height = 180.0f * ui_scale;
+		float margin   = 15.0f  * ui_scale;
+		float btn_sz   = 24.0f  * ui_scale;
+
+		/* Check Button */
+		float bx, by;
+		if (state->refs_collapsed) {
+			bx = (float)win_w - btn_sz - margin;
+			by = (float)win_h - btn_sz - margin;
+			if (is_inside(mx, my, bx, by, btn_sz, btn_sz)) return true;
+		} else {
+			/* Check Panel */
+			float px = (float)win_w - p_width - margin;
+			float py = (float)win_h - p_height - margin;
+			
+            /* Button is top-right of panel */
+            bx = px + p_width - btn_sz - 5.0f;
+            by = py + 5.0f;
+
+            /* If on button */
+            if (is_inside(mx, my, bx, by, btn_sz, btn_sz)) return true;
+
+			if (is_inside(mx, my, px, py, p_width, p_height)) return true;
+		}
 	}
 
 	return false;
