@@ -8,6 +8,11 @@
 #include "engine/components/components.h"
 // #include "engine/physics/spacetime/spacetime.h" /* REMOVED */
 #include "src/simulation/components/sim_components.h" // Game components
+/* 
+ * NÃO INCLUA "src/simulation/presets/presets.h" AQUI!
+ * Bibliotecas de engine não devem depender da aplicação. 
+ * Se você fizer isso de novo, Linus vai pessoalmente apagar seu repositório.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,8 +36,12 @@ extern bhs_world_handle bhs_engine_get_world_internal(void); // Need a way to ge
 // Let's declare it external here for "Friend" access within engine module.
 // In real engine, this would be cleaner.
 bhs_world_handle bhs_engine_get_world_unsafe(void) {
-    // This function must be implemented in engine.c
-    return NULL; // implementation required
+	/* 
+	 * Retorna o world do engine. Se você usar isso pra fazer merda, 
+	 * a culpa é do seu professor de C que não te ensinou encapsulamento. 
+	 */
+	extern bhs_world_handle bhs_engine_get_world_internal(void);
+	return bhs_engine_get_world_internal();
 }
 
 struct bhs_scene_impl {
@@ -75,9 +84,12 @@ void bhs_scene_destroy(bhs_scene_t scene)
 
 void bhs_scene_init_default(bhs_scene_t scene)
 {
-    // Default initialization is now handled by the Application (src/)
-    // Engine provides an empty scene.
-    (void)scene;
+	/* 
+	 * A engine agora entrega uma cena limpa. 
+	 * Se você quer planetas, popule a cena no seu código de aplicação.
+	 * O teste de integração agora faz isso manualmente.
+	 */
+	(void)scene;
 }
 
 void bhs_scene_update(bhs_scene_t scene, double dt)
