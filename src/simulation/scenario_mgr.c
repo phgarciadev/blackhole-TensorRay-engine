@@ -211,6 +211,12 @@ static bool load_debug(struct app_state *app)
 	return true;
 }
 
+static bool load_earth_moon_only(struct app_state *app) {
+    BHS_LOG_INFO("Carregando cenário Terra-Lua (Isolado)...");
+    bhs_preset_earth_moon_only(app->scene);
+    return true;
+}
+
 /* ============================================================================
  * API PÚBLICA
  * ============================================================================
@@ -239,6 +245,9 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 	case SCENARIO_EARTH_SUN:
 		ok = load_earth_sun(app);
 		break;
+	case SCENARIO_EARTH_MOON_ONLY:
+		ok = load_earth_moon_only(app);
+		break;
 	case SCENARIO_KERR_BLACKHOLE:
 		ok = load_kerr_blackhole(app);
 		break;
@@ -262,6 +271,9 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 		case SCENARIO_EARTH_SUN:
 			/* Reusando SOLAR_SYSTEM para app state por enquanto, ou NONE */
 			app->scenario = APP_SCENARIO_SOLAR_SYSTEM; 
+			break;
+		case SCENARIO_EARTH_MOON_ONLY:
+			app->scenario = APP_SCENARIO_SOLAR_SYSTEM; /* Reusing solar system state for now */
 			break;
 		case SCENARIO_KERR_BLACKHOLE:
 			app->scenario = APP_SCENARIO_KERR_BLACKHOLE;
@@ -320,6 +332,8 @@ const char *scenario_get_name(enum scenario_type type)
 		return "Sistema Binário";
 	case SCENARIO_DEBUG:
 		return "Debug";
+	case SCENARIO_EARTH_MOON_ONLY:
+		return "Terra e Lua (Isolado)";
 	default:
 		return "Desconhecido";
 	}

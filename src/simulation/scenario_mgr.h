@@ -32,6 +32,7 @@ enum scenario_type {
 	SCENARIO_EARTH_SUN,		/* Apenas Sol e Terra (Debug de Escala) */
 	SCENARIO_KERR_BLACKHOLE,/* Black hole Kerr rotativo + partículas */
 	SCENARIO_BINARY_STAR,	/* Sistema estelar binário */
+	SCENARIO_EARTH_MOON_ONLY, /* Apenas Terra e Lua (Sem Sol) */
 	SCENARIO_DEBUG		/* Cenário simples de debug */
 };
 

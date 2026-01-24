@@ -264,6 +264,39 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 	printf("[PRESET] Sistema Solar Completo Carregado!\n");
 }
 
+void bhs_preset_earth_moon_only(bhs_scene_t scene)
+{
+    if (!scene) return;
+
+    printf("[PRESET] Criando APENAS Terra e Lua (Sem Sol)...\n");
+
+    /* 1. EARTH (Fixed at 0,0,0) - Anchor of this simulation */
+    struct bhs_planet_desc d_earth = bhs_earth_get_desc();
+    /* No central mass (Sun), or use Sun mass as 'phantom' if we want Earth to orbit something invisible? 
+       No, user wants Earth & Moon. Earth should be the center. 
+       We create Earth at 0,0,0 with 0 velocity. */
+    struct bhs_vec3 center = {0,0,0};
+    /* We use Earth's own structure but positioned at origin */
+    struct bhs_body earth = bhs_body_create_from_desc(&d_earth, center);
+    
+    earth.is_fixed = true; /* Fix Earth so it doesn't drift due to Moon's pull (optional, but good for "Study") */
+    
+    bhs_scene_add_body_struct(scene, earth);
+
+    /* 2. MOON */
+    struct bhs_planet_desc d_moon = bhs_moon_get_desc();
+    
+    /* Moon orbits Earth. 
+       Center mass for orbital calc is Earth's mass.
+       Center pos is Earth (0,0,0). 
+       Center vel is Earth (0,0,0). */
+    struct bhs_body moon = create_body_from_module(d_moon, center, (struct bhs_vec3){0,0,0}, earth.state.mass);
+    
+    bhs_scene_add_body_struct(scene, moon);
+
+    printf("[PRESET] Terra e Lua (Isolados) carregados.\n");
+}
+
 void bhs_preset_earth_moon_sun(bhs_scene_t scene)
 {
 	if (!scene) return;

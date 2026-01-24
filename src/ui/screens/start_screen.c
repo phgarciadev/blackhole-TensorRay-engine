@@ -89,26 +89,7 @@ static bool custom_button(bhs_ui_ctx_t ctx, const char *label, const char *icon_
 	return hovered && bhs_ui_mouse_clicked(ctx, 0);
 }
 
-static void draw_workspace_item(bhs_ui_ctx_t ctx, float x, float y, float w, float h, 
-                               const char *name, const char *path)
-{
-	struct bhs_ui_rect rect = {x, y, w, h};
-	int32_t mx, my;
-	bhs_ui_mouse_pos(ctx, &mx, &my);
-	bool hovered = (mx >= rect.x && mx < rect.x + rect.width &&
-	                my >= rect.y && my < rect.y + rect.height);
-
-	/* Very subtle background for items */
-	struct bhs_ui_color bg = hovered ? COLOR_SECONDARY : (struct bhs_ui_color){0.0f, 0.0f, 0.0f, 0.0f};
-	
-	if (hovered) bhs_ui_draw_rect(ctx, rect, bg);
-	bhs_ui_draw_rect_outline(ctx, rect, COLOR_BORDER, 1.0f);
-	
-	/* Text Alignment */
-	float pad_x = 15.0f;
-	bhs_ui_draw_text(ctx, name, x + pad_x, y + 12, 14.0f, (struct bhs_ui_color){0.6f, 0.6f, 0.65f, 1.0f});
-	bhs_ui_draw_text(ctx, path, x + pad_x, y + 32, 11.0f, COLOR_TEXT_DIM);
-}
+/* Function removed: draw_workspace_item (inlined) */
 
 /* ============================================================================
  * API PRINCIPAL
@@ -181,14 +162,45 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 	float list_gap = 8.0f;
 	float curr_y = list_y + 20.0f;
 	
-	const char *ws_names[] = {"viagem_interestelar", "orbita_estavel_v1", "colisao_galactica"};
-	const char *ws_paths[] = {"~/Simulations/BlackHoles", "~/Simulations/Tests", "/usr/share/riemann/examples"};
+	const char *ws_names[] = {"Estudo: Terra e Lua", "Empty Workspace", ""};
+	const char *ws_paths[] = {"~/Simulations/EarthMoonStudy", "~/Simulations/New", ""};
 	
 	/* Draw background box for list? Antigravity has transparent items usually or subtle cards. 
 	   We will use outlines as per previous step helper */
 	
-	for (int i = 0; i < 3; i++) {
-		draw_workspace_item(ctx, cx - (container_w / 2.0f), curr_y, container_w, list_item_h, ws_names[i], ws_paths[i]);
+	for (int i = 0; i < 2; i++) {
+        /* [NEW] Interactive Workspace - if clicked, load scenario */
+		// draw_workspace_item only draws, let's copy logic to make it clickable or just modify draw to return bool?
+        // Modifying loop to inline logic for now since draw_workspace_item is static void
+        
+        /* Draw Item */
+        struct bhs_ui_rect rect = { cx - (container_w / 2.0f), curr_y, container_w, list_item_h };
+        
+        /* Logic duplicated from draw_workspace_item but with click check */
+        int32_t mx, my;
+        bhs_ui_mouse_pos(ctx, &mx, &my);
+        bool hovered = (mx >= rect.x && mx < rect.x + rect.width &&
+                        my >= rect.y && my < rect.y + rect.height);
+
+        struct bhs_ui_color bg = hovered ? COLOR_SECONDARY : (struct bhs_ui_color){0.0f, 0.0f, 0.0f, 0.0f};
+        if (hovered) bhs_ui_draw_rect(ctx, rect, bg);
+        bhs_ui_draw_rect_outline(ctx, rect, COLOR_BORDER, 1.0f);
+        
+        float pad_x = 15.0f;
+        bhs_ui_draw_text(ctx, ws_names[i], rect.x + pad_x, rect.y + 12, 14.0f, (struct bhs_ui_color){0.6f, 0.6f, 0.65f, 1.0f});
+        bhs_ui_draw_text(ctx, ws_paths[i], rect.x + pad_x, rect.y + 32, 11.0f, COLOR_TEXT_DIM);
+
+        if (hovered && bhs_ui_mouse_clicked(ctx, 0)) {
+            if (i == 0) {
+                scenario_load(app, SCENARIO_EARTH_MOON_ONLY);
+                app->sim_status = APP_SIM_RUNNING;
+            } else {
+                 /* Empty */
+                scenario_load(app, SCENARIO_EMPTY);
+                app->sim_status = APP_SIM_RUNNING;
+            }
+        }
+
 		curr_y += list_item_h + list_gap;
 	}
 

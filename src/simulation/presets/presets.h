@@ -67,6 +67,12 @@ void bhs_preset_solar_system(bhs_scene_t scene);
 void bhs_preset_earth_moon_sun(bhs_scene_t scene);
 
 /**
+ * bhs_preset_earth_moon_only - Cria apenas Terra e Lua (Sem Sol)
+ * @scene: Cena onde adicionar os corpos
+ */
+void bhs_preset_earth_moon_only(bhs_scene_t scene);
+
+/**
  * bhs_preset_orbital_velocity - Calcula velocidade orbital
  * @central_mass: Massa do corpo central (unidades de simulação)
  * @orbital_radius: Distância orbital (unidades de simulação)
