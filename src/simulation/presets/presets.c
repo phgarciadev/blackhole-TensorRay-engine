@@ -146,6 +146,7 @@ static void bhs_kepler_to_cartesian(struct bhs_planet_desc *d,
 
 static struct bhs_body create_body_from_module(struct bhs_planet_desc desc, 
 					       struct bhs_vec3 center_pos, 
+					       struct bhs_vec3 center_vel,
 					       double central_mass_sim)
 {
 	struct bhs_vec3 pos = {0};
@@ -167,8 +168,10 @@ static struct bhs_body create_body_from_module(struct bhs_planet_desc desc,
 	/* Cria corpo base a partir do descritor */
 	struct bhs_body b = bhs_body_create_from_desc(&desc, pos);
 	
-	/* Set calculated velocity */
-	b.state.vel = vel;
+	/* Set calculated velocity + Parent Velocity */
+	b.state.vel.x = vel.x + center_vel.x;
+	b.state.vel.y = vel.y + center_vel.y;
+	b.state.vel.z = vel.z + center_vel.z;
 	
 	/* Aplica escalas de massa e raio - REAL SCALE (SI) */
 	b.state.mass = b.state.mass;
@@ -233,10 +236,29 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 		NULL
 	};
 
+	/* Store Earth for Moon creation */
+	struct bhs_body earth_body = {0};
+	bool earth_found = false;
+
 	for (int i = 0; planet_getters[i] != NULL; i++) {
 		struct bhs_planet_desc d = planet_getters[i]();
-		struct bhs_body b = create_body_from_module(d, sun.state.pos, M_sun);
+        
+        /* [FIX] Pass 0 velocity for primary planets orbiting static Sun */
+		struct bhs_body b = create_body_from_module(d, sun.state.pos, (struct bhs_vec3){0,0,0}, M_sun);
 		bhs_scene_add_body_struct(scene, b);
+
+		if (strcmp(d.name, "Terra") == 0) {
+			earth_body = b;
+			earth_found = true;
+		}
+	}
+
+	/* 3. MOON (If Earth exists) */
+	if (earth_found) {
+		printf("[PRESET] Adicionando Lua corajosa...\n");
+		struct bhs_planet_desc d_moon = bhs_moon_get_desc();
+		struct bhs_body moon = create_body_from_module(d_moon, earth_body.state.pos, earth_body.state.vel, earth_body.state.mass);
+		bhs_scene_add_body_struct(scene, moon);
 	}
 
 	printf("[PRESET] Sistema Solar Completo Carregado!\n");
@@ -261,14 +283,14 @@ void bhs_preset_earth_moon_sun(bhs_scene_t scene)
 
 	/* 2. EARTH */
 	struct bhs_planet_desc d_earth = bhs_earth_get_desc();
-	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, sun.state.mass);
+	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, (struct bhs_vec3){0,0,0}, sun.state.mass);
 	
 	bhs_scene_add_body_struct(scene, earth);
 
     /* 3. MOON */
     struct bhs_planet_desc d_moon = bhs_moon_get_desc();
-    /* Moon orbits Earth, so center_pos is Earth's position and central_mass is Earth's mass */
-    struct bhs_body moon = create_body_from_module(d_moon, earth.state.pos, earth.state.mass);
+    /* Moon orbits Earth, so center_pos is Earth's position, VELOCITY is Earth's VELOCITY, and central_mass is Earth's mass */
+    struct bhs_body moon = create_body_from_module(d_moon, earth.state.pos, earth.state.vel, earth.state.mass);
     
     bhs_scene_add_body_struct(scene, moon);
 
@@ -287,7 +309,8 @@ struct bhs_body bhs_preset_sun(struct bhs_vec3 pos) {
 
 struct bhs_body bhs_preset_earth(struct bhs_vec3 sun_pos) {
 	struct bhs_planet_desc d = bhs_earth_get_desc();
-	return create_body_from_module(d, sun_pos, BHS_SIM_MASS_SUN);
+    /* Shim: assuming static sun */
+	return create_body_from_module(d, sun_pos, (struct bhs_vec3){0,0,0}, BHS_SIM_MASS_SUN);
 }
 
 struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth_vel) {
@@ -297,5 +320,5 @@ struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth
        but here we just take Earth Sim Mass approx or rely on module defaults */
     struct bhs_planet_desc d = bhs_moon_get_desc();
     /* Assuming Earth Mass approx 5.97e24 */
-    return create_body_from_module(d, earth_pos, 5.972e24);
+    return create_body_from_module(d, earth_pos, earth_vel, 5.972e24);
 }

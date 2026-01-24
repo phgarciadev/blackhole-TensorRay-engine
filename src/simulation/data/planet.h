@@ -104,6 +104,7 @@ struct bhs_planet_desc bhs_haumea_get_desc(void);
 struct bhs_planet_desc bhs_makemake_get_desc(void);
 struct bhs_planet_desc bhs_eris_get_desc(void);
 struct bhs_planet_desc bhs_blackhole_get_desc(void);
+struct bhs_planet_desc bhs_moon_get_desc(void);
 
 /* ============================================================================
  * REGISTRY SYSTEM (Auto-discovery)
