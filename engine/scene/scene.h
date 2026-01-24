@@ -123,11 +123,11 @@ void bhs_scene_update(bhs_scene_t scene, double dt);
 /* Accessors */
 bhs_world_handle bhs_scene_get_world(bhs_scene_t scene);
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count);
-bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
-bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
+bhs_entity_id bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
 			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
 			double radius, struct bhs_vec3 color);
-bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
 			      struct bhs_vec3 pos, struct bhs_vec3 vel,
 			      double mass, double radius, struct bhs_vec3 color,
 			      const char *name);

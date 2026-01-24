@@ -12,10 +12,10 @@
 
 /* 
  * Softening para evitar singularidade
- * Para unidades SI astronômicas (metros), precisamos de um softening
- * proporcional à escala. 0.01 AU = 1.5e9 metros é razoável.
+ * Reduzido para permitir órbitas lunares/LEO precisas.
+ * 100 km = 1e5 m.
  */
-#define SOFTENING_DIST  (1.5e9)  /* 0.01 AU em metros */
+#define SOFTENING_DIST  (1.0e5)  
 #define SOFTENING_SQ    (SOFTENING_DIST * SOFTENING_DIST)
 
 /*
@@ -427,6 +427,96 @@ void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt)
 	}
 
 	state->time += dt;
+}
+
+/* ============================================================================
+ * YOSHIDA (4th Order Symplectic)
+ * ============================================================================
+ */
+void bhs_integrator_yoshida(struct bhs_system_state *state, double dt)
+{
+	int n = state->n_bodies;
+	if (n == 0) return;
+
+    /* Coeficientes Yoshida (4th Order) */
+    /* w1 = 1 / (2 - 2^(1/3)) */
+    /* w0 = -2^(1/3) * w1 */
+    
+    /* Pre-calculated for speed */
+    const double w1 = 1.351207191959657; 
+    const double w0 = -1.702414383919315;
+    
+    const double c1 = w1 / 2.0;
+    const double c2 = (w0 + w1) / 2.0;
+    const double c3 = c2;
+    const double c4 = c1;
+    
+    const double d1 = w1;
+    const double d2 = w0;
+    const double d3 = w1;
+
+	struct bhs_vec3 acc[BHS_MAX_BODIES];
+
+    /* Step 1: x1 = x0 + c1 * v0 * dt */
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].pos.x += c1 * state->bodies[i].vel.x * dt;
+        state->bodies[i].pos.y += c1 * state->bodies[i].vel.y * dt;
+        state->bodies[i].pos.z += c1 * state->bodies[i].vel.z * dt;
+    }
+
+    /* Step 2: v1 = v0 + d1 * a(x1) * dt */
+    bhs_compute_accelerations(state, acc);
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].vel.x += d1 * acc[i].x * dt;
+        state->bodies[i].vel.y += d1 * acc[i].y * dt;
+        state->bodies[i].vel.z += d1 * acc[i].z * dt;
+    }
+
+    /* Step 3: x2 = x1 + c2 * v1 * dt */
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].pos.x += c2 * state->bodies[i].vel.x * dt;
+        state->bodies[i].pos.y += c2 * state->bodies[i].vel.y * dt;
+        state->bodies[i].pos.z += c2 * state->bodies[i].vel.z * dt;
+    }
+
+    /* Step 4: v2 = v1 + d2 * a(x2) * dt */
+    bhs_compute_accelerations(state, acc);
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].vel.x += d2 * acc[i].x * dt;
+        state->bodies[i].vel.y += d2 * acc[i].y * dt;
+        state->bodies[i].vel.z += d2 * acc[i].z * dt;
+    }
+
+    /* Step 5: x3 = x2 + c3 * v2 * dt */
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].pos.x += c3 * state->bodies[i].vel.x * dt;
+        state->bodies[i].pos.y += c3 * state->bodies[i].vel.y * dt;
+        state->bodies[i].pos.z += c3 * state->bodies[i].vel.z * dt;
+    }
+
+    /* Step 6: v3 = v2 + d3 * a(x3) * dt */
+    bhs_compute_accelerations(state, acc);
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].vel.x += d3 * acc[i].x * dt;
+        state->bodies[i].vel.y += d3 * acc[i].y * dt;
+        state->bodies[i].vel.z += d3 * acc[i].z * dt;
+    }
+
+    /* Step 7: x4 = x3 + c4 * v3 * dt */
+    for (int i=0; i<n; i++) {
+        if (!state->bodies[i].is_alive || state->bodies[i].is_fixed) continue;
+        state->bodies[i].pos.x += c4 * state->bodies[i].vel.x * dt;
+        state->bodies[i].pos.y += c4 * state->bodies[i].vel.y * dt;
+        state->bodies[i].pos.z += c4 * state->bodies[i].vel.z * dt;
+    }
+
+    state->time += dt;
 }
 
 /* ============================================================================

@@ -39,6 +39,15 @@ void bhs_celestial_system_update(bhs_scene_t scene, double dt)
 
 		/* Update Planet Rotation */
 		if (c->type == BHS_CELESTIAL_PLANET) {
+			/* Handle Tidal Locking */
+            bhs_orbital_component *orb = bhs_ecs_get_component(world, id, BHS_COMP_ORBITAL);
+            if (orb && (orb->flags & BHS_ORBITAL_FLAG_TIDAL_LOCK)) {
+                /* Synchronous Rotation: spin period = orbital period */
+                if (orb->period > 0.1) {
+                    c->data.planet.rotation_speed = (2.0 * M_PI) / orb->period;
+                }
+            }
+
 			c->data.planet.current_rotation_angle += c->data.planet.rotation_speed * dt;
 			
 			/* Normalize 0..2PI */

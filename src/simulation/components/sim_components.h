@@ -7,8 +7,26 @@
 enum {
     BHS_COMP_CELESTIAL = BHS_COMP_COUNT,
     BHS_COMP_ORBIT_DESC,
+    BHS_COMP_ORBITAL,
     SIM_COMP_COUNT
 };
+
+/**
+ * Values for orbital flags
+ */
+#define BHS_ORBITAL_FLAG_TIDAL_LOCK (1 << 0)
+
+/**
+ * struct bhs_orbital_component
+ * Defines parent-child relationships and orbital parameters.
+ */
+typedef struct {
+    bhs_entity_id parent;       /* Entity ID of the body this one orbits */
+    double semi_major_axis;     /* a (meters) - Cached for easy access */
+    double eccentricity;        /* e - Cached */
+    double period;              /* T (seconds) - Cached */
+    uint32_t flags;             /* Bitfield (e.g. TIDAL_LOCK) */
+} bhs_orbital_component;
 
 /* Celestial Types (Star, Planet, BlackHole) */
 typedef enum {

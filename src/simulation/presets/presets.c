@@ -14,6 +14,9 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "engine/ecs/ecs.h"
+#include "engine/scene/scene.h"
+#include "src/simulation/components/sim_components.h"
 
 /* ============================================================================
  * FUNÇÕES AUXILIARES
@@ -147,10 +150,15 @@ static void bhs_kepler_to_cartesian(struct bhs_planet_desc *d,
 static struct bhs_body create_body_from_module(struct bhs_planet_desc desc, 
 					       struct bhs_vec3 center_pos, 
 					       struct bhs_vec3 center_vel,
-					       double central_mass_sim)
+					       double central_mass_sim,
+                           bhs_entity_id parent_id,
+                           bhs_scene_t scene)
 {
 	struct bhs_vec3 pos = {0};
 	struct bhs_vec3 vel = {0};
+
+    (void)parent_id;
+    (void)scene;
 
 	/* Calculate realistic position/velocity IF we have orbital data */
 	if (desc.semimajor_axis > 0.0) {
@@ -180,8 +188,49 @@ static struct bhs_body create_body_from_module(struct bhs_planet_desc desc,
 	printf("[PRESET] %s: M=%.2e, R=%.4f (real), a=%.2e m\n", 
 		desc.name, b.state.mass, b.state.radius, desc.semimajor_axis);
 
+    /* Create the body first to define it, avoiding chicken-egg? 
+       No, we return the body struct to be added by caller? 
+       Wait, create_body_from_module returns struct bhs_body.
+       But we need to attach the COMPONENT to the ENTITY.
+       Typical flow: 
+       1. Create struct body.
+       2. Add to scene -> get ID.
+       3. Add extra components manually if needed.
+       
+       OR we change this helper to ADD to scene itself?
+       The callers (bhs_preset_solar_system) call bhs_scene_add_body_struct immediately after.
+       
+       Let's change this to create the entity directly?
+       No, let's keep it returning struct for composability, BUT we can't attach components to a struct buffer cleanly unless we extend struct bhs_body to hold generic components (it doesn't).
+       
+       BETTER: We return struct, and return the orbital data via out param? 
+       OR just add the component AFTER adding body in the caller.
+       
+       Let's modify the caller to handle component attachment using a helper.
+       Reverting signature change idea here.
+    */
 	return b;
 }
+
+/* Helper to attach orbital component */
+static void attach_orbital_component(bhs_scene_t scene, bhs_entity_id entity, bhs_entity_id parent, 
+                                     double semi_major_axis, double eccentricity, double period, bool tidal_lock)
+{
+    if (!scene || entity == BHS_ENTITY_INVALID || parent == BHS_ENTITY_INVALID) return;
+    
+    bhs_world_handle world = bhs_scene_get_world(scene);
+    
+    bhs_orbital_component orb = {
+        .parent = parent,
+        .semi_major_axis = semi_major_axis,
+        .eccentricity = eccentricity,
+        .period = period,
+        .flags = tidal_lock ? BHS_ORBITAL_FLAG_TIDAL_LOCK : 0
+    };
+    
+    bhs_ecs_add_component(world, entity, BHS_COMP_ORBITAL, sizeof(orb), &orb);
+}
+
 
 /* ============================================================================
  * MAIN PRESET LOADER
@@ -218,7 +267,7 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 	/* Sol é fixo no centro */
 	sun.is_fixed = true;
 	
-	bhs_scene_add_body_struct(scene, sun);
+	bhs_entity_id sun_id = bhs_scene_add_body_struct(scene, sun);
 
 	double M_sun = sun.state.mass;
 
@@ -238,27 +287,36 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 
 	/* Store Earth for Moon creation */
 	struct bhs_body earth_body = {0};
+	bhs_entity_id earth_id = BHS_ENTITY_INVALID;
 	bool earth_found = false;
 
 	for (int i = 0; planet_getters[i] != NULL; i++) {
 		struct bhs_planet_desc d = planet_getters[i]();
         
         /* [FIX] Pass 0 velocity for primary planets orbiting static Sun */
-		struct bhs_body b = create_body_from_module(d, sun.state.pos, (struct bhs_vec3){0,0,0}, M_sun);
-		bhs_scene_add_body_struct(scene, b);
+		struct bhs_body b = create_body_from_module(d, sun.state.pos, (struct bhs_vec3){0,0,0}, M_sun, BHS_ENTITY_INVALID, scene);
+		bhs_entity_id pid = bhs_scene_add_body_struct(scene, b);
+
+    /* Attach Orbital Info linking to SUN */
+        attach_orbital_component(scene, pid, sun_id, d.semimajor_axis, d.eccentricity, d.orbital_period, false);
 
 		if (strcmp(d.name, "Terra") == 0) {
 			earth_body = b;
+            earth_id = pid;
 			earth_found = true;
 		}
 	}
 
 	/* 3. MOON (If Earth exists) */
-	if (earth_found) {
+	if (earth_found && earth_id != BHS_ENTITY_INVALID) {
 		printf("[PRESET] Adicionando Lua corajosa...\n");
 		struct bhs_planet_desc d_moon = bhs_moon_get_desc();
-		struct bhs_body moon = create_body_from_module(d_moon, earth_body.state.pos, earth_body.state.vel, earth_body.state.mass);
-		bhs_scene_add_body_struct(scene, moon);
+		struct bhs_body moon = create_body_from_module(d_moon, earth_body.state.pos, earth_body.state.vel, earth_body.state.mass, earth_id, scene);
+		bhs_entity_id moon_id = bhs_scene_add_body_struct(scene, moon);
+        
+        /* Attach Orbital Info linking to EARTH */
+        /* Moon is tidally locked */
+        attach_orbital_component(scene, moon_id, earth_id, d_moon.semimajor_axis, d_moon.eccentricity, d_moon.orbital_period, true);
 	}
 
 	printf("[PRESET] Sistema Solar Completo Carregado!\n");
@@ -286,11 +344,11 @@ void bhs_preset_earth_moon_only(bhs_scene_t scene)
     /* 2. MOON */
     struct bhs_planet_desc d_moon = bhs_moon_get_desc();
     
-    /* Moon orbits Earth. 
+    /* Moon orbits Earth.
        Center mass for orbital calc is Earth's mass.
        Center pos is Earth (0,0,0). 
        Center vel is Earth (0,0,0). */
-    struct bhs_body moon = create_body_from_module(d_moon, center, (struct bhs_vec3){0,0,0}, earth.state.mass);
+    struct bhs_body moon = create_body_from_module(d_moon, center, (struct bhs_vec3){0,0,0}, earth.state.mass, BHS_ENTITY_INVALID, scene);
     
     bhs_scene_add_body_struct(scene, moon);
 
@@ -312,20 +370,22 @@ void bhs_preset_earth_moon_sun(bhs_scene_t scene)
 	sun.state.radius = sun.state.radius;
 	sun.is_fixed = true;
 	
-	bhs_scene_add_body_struct(scene, sun);
+	bhs_entity_id sun_id = bhs_scene_add_body_struct(scene, sun);
 
 	/* 2. EARTH */
 	struct bhs_planet_desc d_earth = bhs_earth_get_desc();
-	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, (struct bhs_vec3){0,0,0}, sun.state.mass);
+	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, (struct bhs_vec3){0,0,0}, sun.state.mass, BHS_ENTITY_INVALID, scene);
 	
-	bhs_scene_add_body_struct(scene, earth);
+	bhs_entity_id earth_id = bhs_scene_add_body_struct(scene, earth);
+    attach_orbital_component(scene, earth_id, sun_id, d_earth.semimajor_axis, d_earth.eccentricity, d_earth.orbital_period, false);
 
     /* 3. MOON */
     struct bhs_planet_desc d_moon = bhs_moon_get_desc();
     /* Moon orbits Earth, so center_pos is Earth's position, VELOCITY is Earth's VELOCITY, and central_mass is Earth's mass */
-    struct bhs_body moon = create_body_from_module(d_moon, earth.state.pos, earth.state.vel, earth.state.mass);
+    struct bhs_body moon = create_body_from_module(d_moon, earth.state.pos, earth.state.vel, earth.state.mass, earth_id, scene);
     
-    bhs_scene_add_body_struct(scene, moon);
+    bhs_entity_id moon_id = bhs_scene_add_body_struct(scene, moon);
+    attach_orbital_component(scene, moon_id, earth_id, d_moon.semimajor_axis, d_moon.eccentricity, d_moon.orbital_period, true);
 
 	printf("[PRESET] Sol, Terra e Lua carregados.\n");
 }
@@ -343,7 +403,7 @@ struct bhs_body bhs_preset_sun(struct bhs_vec3 pos) {
 struct bhs_body bhs_preset_earth(struct bhs_vec3 sun_pos) {
 	struct bhs_planet_desc d = bhs_earth_get_desc();
     /* Shim: assuming static sun */
-	return create_body_from_module(d, sun_pos, (struct bhs_vec3){0,0,0}, BHS_SIM_MASS_SUN);
+	return create_body_from_module(d, sun_pos, (struct bhs_vec3){0,0,0}, BHS_SIM_MASS_SUN, BHS_ENTITY_INVALID, NULL);
 }
 
 struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth_vel) {
@@ -353,5 +413,5 @@ struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth
        but here we just take Earth Sim Mass approx or rely on module defaults */
     struct bhs_planet_desc d = bhs_moon_get_desc();
     /* Assuming Earth Mass approx 5.97e24 */
-    return create_body_from_module(d, earth_pos, earth_vel, 5.972e24);
+    return create_body_from_module(d, earth_pos, earth_vel, 5.972e24, BHS_ENTITY_INVALID, NULL);
 }

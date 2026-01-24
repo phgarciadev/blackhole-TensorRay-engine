@@ -43,9 +43,9 @@ void physics_system_update(bhs_world_handle world, double dt)
         state.n_bodies++;
     }
 
-    /* 2. Run High-Fidelity Integrator (Leapfrog) */
+    /* 2. Run High-Fidelity Integrator (Yoshida - 4th Order Symplectic) */
     /* This handles Gravity (N^2), 1PN Relativity, and Symplectic Integration */
-    bhs_integrator_leapfrog(&state, dt);
+    bhs_integrator_yoshida(&state, dt);
 
     /* 3. Write back to ECS */
     for (int i = 0; i < state.n_bodies; i++) {

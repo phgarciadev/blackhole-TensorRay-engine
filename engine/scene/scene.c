@@ -210,11 +210,11 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 }
 
 // Full-Fidelity Create
-bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
+bhs_entity_id bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
 {
     extern bhs_world_handle bhs_engine_get_world_internal(void);
     bhs_world_handle world = bhs_engine_get_world_internal();
-    if (!world) return false;
+    if (!world) return BHS_ENTITY_INVALID;
     (void)scene;
 
     bhs_entity_id e = bhs_ecs_create_entity(world);
@@ -268,7 +268,7 @@ bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
     
     bhs_ecs_add_component(world, e, BHS_COMP_CELESTIAL, sizeof(c), &c);
     
-    return true;
+    return e;
 }
 
 /* Contador global para nomes únicos (lazy, mas funciona) */
@@ -283,7 +283,8 @@ void bhs_scene_reset_counters(void)
     g_asteroid_counter = 0;
 }
 
-bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
+
+bhs_entity_id bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
 			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
 			double radius, struct bhs_vec3 color)
 {
@@ -309,14 +310,14 @@ bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
     return bhs_scene_add_body_named(scene, type, pos, vel, mass, radius, color, name);
 }
 
-bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
 			      struct bhs_vec3 pos, struct bhs_vec3 vel,
 			      double mass, double radius, struct bhs_vec3 color,
 			      const char *name)
 {
     extern bhs_world_handle bhs_engine_get_world_internal(void);
     bhs_world_handle world = bhs_engine_get_world_internal();
-    if (!world) return false;
+    if (!world) return BHS_ENTITY_INVALID;
     (void)scene; // Mark unused
 
     bhs_entity_id e = bhs_ecs_create_entity(world);
@@ -358,7 +359,7 @@ bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
     // Since we included sim_components.h which defines BHS_COMP_CELESTIAL, use that.
     bhs_ecs_add_component(world, e, BHS_COMP_CELESTIAL, sizeof(c), &c);
 
-    return true;
+    return e;
 }
 
 

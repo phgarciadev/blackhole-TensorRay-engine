@@ -206,6 +206,17 @@ double bhs_integrator_rkf45(struct bhs_system_state *state,
 			    double *dt_out);
 
 /**
+ * bhs_integrator_yoshida - Integrador Simplético de 4ª Ordem
+ * @state: Estado atual
+ * @dt: Timestep
+ *
+ * Integrador de alta precisão p/ longo prazo. 
+ * Erro O(dt^4), conserva energia melhor que RK4.
+ * Custo: 3 avaliações de força por passo (vs 1 do Leapfrog, 4 do RK4).
+ */
+void bhs_integrator_yoshida(struct bhs_system_state *state, double dt);
+
+/**
  * bhs_compute_accelerations - Calcula acelerações gravitacionais
  * @state: Estado do sistema
  * @acc: Array de acelerações (output)
