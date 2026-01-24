@@ -98,6 +98,7 @@ struct bhs_planet_desc bhs_neptune_get_desc(void);
 
 /* Outros */
 struct bhs_planet_desc bhs_pluto_get_desc(void);
+struct bhs_planet_desc bhs_moon_get_desc(void); /* Lua */
 struct bhs_planet_desc bhs_ceres_get_desc(void);
 struct bhs_planet_desc bhs_haumea_get_desc(void);
 struct bhs_planet_desc bhs_makemake_get_desc(void);

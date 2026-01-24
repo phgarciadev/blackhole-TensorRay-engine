@@ -99,8 +99,8 @@ static bool load_solar_system(struct app_state *app)
 
 static bool load_earth_sun(struct app_state *app)
 {
-	BHS_LOG_INFO("Carregando Sol e Terra...");
-	bhs_preset_earth_sun_only(app->scene);
+	BHS_LOG_INFO("Carregando Sol, Terra e Lua...");
+	bhs_preset_earth_moon_sun(app->scene);
 	return true;
 }
 

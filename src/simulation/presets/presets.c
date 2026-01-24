@@ -242,11 +242,11 @@ void bhs_preset_solar_system(bhs_scene_t scene)
 	printf("[PRESET] Sistema Solar Completo Carregado!\n");
 }
 
-void bhs_preset_earth_sun_only(bhs_scene_t scene)
+void bhs_preset_earth_moon_sun(bhs_scene_t scene)
 {
 	if (!scene) return;
 
-	printf("[PRESET] Criando APENAS Sol e Terra (Escala Real)...\n");
+	printf("[PRESET] Criando Sol, Terra e Lua (Escala Real)...\n");
 
 	/* 1. SUN */
 	struct bhs_planet_desc d_sun = bhs_sun_get_desc();
@@ -265,7 +265,14 @@ void bhs_preset_earth_sun_only(bhs_scene_t scene)
 	
 	bhs_scene_add_body_struct(scene, earth);
 
-	printf("[PRESET] Sol e Terra carregados.\n");
+    /* 3. MOON */
+    struct bhs_planet_desc d_moon = bhs_moon_get_desc();
+    /* Moon orbits Earth, so center_pos is Earth's position and central_mass is Earth's mass */
+    struct bhs_body moon = create_body_from_module(d_moon, earth.state.pos, earth.state.mass);
+    
+    bhs_scene_add_body_struct(scene, moon);
+
+	printf("[PRESET] Sol, Terra e Lua carregados.\n");
 }
 
 /* Backward compatibility dummies if needed, but we replaced the main loop */
@@ -284,14 +291,11 @@ struct bhs_body bhs_preset_earth(struct bhs_vec3 sun_pos) {
 }
 
 struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos, struct bhs_vec3 earth_vel) {
-	(void)earth_pos;
-	(void)earth_vel;
-	// Moon is special, relative to Earth
-	// Implementing Moon via module would require specific handling, 
-	// for now we can approximate or skip or custom impl.
-	// Since the user asked for "Sol, Planetas, Buraco Negro", Moon is secondary.
-	// But let's keep the function signature valid.
-	struct bhs_body m = {0};
-	// Simplified return empty or custom logic
-    return m;
+    /* Not used in main preset anymore, but keeping for compatibility/API completeness */
+    (void)earth_vel;
+    /* Still need a central mass for detailed orbital calc if using create_body_from_module, 
+       but here we just take Earth Sim Mass approx or rely on module defaults */
+    struct bhs_planet_desc d = bhs_moon_get_desc();
+    /* Assuming Earth Mass approx 5.97e24 */
+    return create_body_from_module(d, earth_pos, 5.972e24);
 }

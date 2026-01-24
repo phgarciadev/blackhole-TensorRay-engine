@@ -245,8 +245,10 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				int end_idx = (start_idx + 1) % BHS_MAX_TRAIL_POINTS;
 
 				float x1 = planet->trail_positions[start_idx][0];
+				float y1 = planet->trail_positions[start_idx][1];
 				float z1 = planet->trail_positions[start_idx][2];
 				float x2 = planet->trail_positions[end_idx][0];
+				float y2 = planet->trail_positions[end_idx][1];
 				float z2 = planet->trail_positions[end_idx][2];
 				
 				/* [FIX] Transform Trail Points using Wall-to-Wall Logic */
@@ -254,14 +256,14 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				float tx2, ty2, tz2, tr2;
 
 				bhs_visual_transform_point(
-					x1, 0.0f, z1, 
+					x1, y1, z1, 
 					planet->state.radius, planet->type,
 					bodies, n_bodies, mode,
 					&tx1, &ty1, &tz1, &tr1
 				);
 
 				bhs_visual_transform_point(
-					x2, 0.0f, z2, 
+					x2, y2, z2, 
 					planet->state.radius, planet->type,
 					bodies, n_bodies, mode,
 					&tx2, &ty2, &tz2, &tr2
