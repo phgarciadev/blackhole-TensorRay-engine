@@ -56,6 +56,9 @@ typedef struct bhs_view_assets {
 
     /* [NEW] Interpolation Alpha (accumulator) */
     double sim_alpha;
+
+    /* [NEW] Strongest Attractor Index (for isolation context) */
+    int attractor_index; /* -1 if none */
 } bhs_view_assets_t;
 
 /* Proxy to renderer */

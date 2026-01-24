@@ -386,7 +386,8 @@ void app_run(struct app_state *app)
 
 		/* NOTA: Sync do time_scale foi movido para antes do acumulador */
 
-		/* [NEW] Object Inspector: Calculate Strongest Attractor */
+		/* [NEW] Object Inspector: Calculate Strongest Attractor System-Wide */
+		int attractor_idx = -1;
 		if (app->hud.selected_body_index != -1) {
 			int count = 0;
 			const struct bhs_body *bodies =
@@ -398,7 +399,6 @@ void app_run(struct app_state *app)
 					&bodies[app->hud.selected_body_index];
 
 				double max_force = -1.0;
-				int best_idx = -1;
 				double best_dist = 0.0;
 
 				for (int i = 0; i < count; i++) {
@@ -425,24 +425,24 @@ void app_run(struct app_state *app)
 					if (dist_sq < 0.0001)
 						continue; // Avoid singularity
 
-					// Force is proportional to Mass / Dist^2 (ignoring G and my mass as constants for comparison)
+					// Force is proportional to Mass / Dist^2
 					double force =
 						bodies[i].state.mass / dist_sq;
 
 					if (force > max_force) {
 						max_force = force;
-						best_idx = i;
+						attractor_idx = i;
 						best_dist = sqrt(dist_sq);
 					}
 				}
 
-				if (best_idx != -1) {
+				if (attractor_idx != -1) {
 					snprintf(app->hud.attractor_name, 64,
-						 "%s", bodies[best_idx].name);
+						 "%s", bodies[attractor_idx].name);
 
 					/* Surface-to-Surface Distance (Wall-to-Wall) */
 					double r_attractor =
-						bodies[best_idx].state.radius;
+						bodies[attractor_idx].state.radius;
 					double r_self = me->state.radius;
 					double surf_dist = best_dist -
 							   r_attractor - r_self;
@@ -498,7 +498,9 @@ void app_run(struct app_state *app)
 				/* [NEW] Sistema de marcadores de órbita */
 				.orbit_markers = &app->orbit_markers,
 				/* [NEW] Interpolation Alpha */
-				.sim_alpha = accumulator
+				.sim_alpha = accumulator,
+				/* [NEW] Attractor Index for visual context */
+				.attractor_index = attractor_idx
 			};
 			bhs_view_spacetime_draw(app->ui, app->scene, &app->camera,
 						win_w, win_h, &assets,

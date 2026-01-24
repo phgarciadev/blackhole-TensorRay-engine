@@ -299,7 +299,11 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
 		if (render_count >= 128) break;
-		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index) continue;
+		if (assets && assets->isolated_body_index >= 0) {
+            if (i != assets->isolated_body_index && i != assets->attractor_index) {
+                continue;
+            }
+        }
 
         float vx, vy, vz, vrad;
         /* SHARED LOGIC CALL */

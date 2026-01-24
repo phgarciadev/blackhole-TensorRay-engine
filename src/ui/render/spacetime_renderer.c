@@ -304,6 +304,9 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (m->planet_index >= 0 && m->planet_index < 128) {
 				if (m->orbit_number != latest_orbit[m->planet_index]) continue;
 			}
+            /* [NEW] Hide other markers if a body is selected */
+            if (assets->selected_body_index >= 0 && m->planet_index != assets->selected_body_index) continue;
+
 			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index) continue;
 
 			float m_x = (float)m->position.x;
@@ -342,8 +345,12 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	/* === Surface-to-Surface Body Rendering (Labels) === */
 	for (int i = 0; i < n_bodies; i++) {
 		const struct bhs_body *b = &bodies[i];
-		/* Isolamento */
-		if (assets && assets->isolated_body_index >= 0 && i != assets->isolated_body_index) continue;
+		/* Isolamento: Show if it's the target OR the attractor */
+		if (assets && assets->isolated_body_index >= 0) {
+            if (i != assets->isolated_body_index && i != assets->attractor_index) {
+                continue;
+            }
+        }
 		
 		float visual_x, visual_y, visual_z, visual_radius;
 		
