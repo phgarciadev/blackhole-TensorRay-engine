@@ -78,6 +78,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->top_down_view = false;
 		state->show_gravity_line = false;
 		state->show_orbit_trail = false;
+		state->show_satellite_orbits = false;
 		state->isolate_view = false;
 		state->selected_marker_index = -1;
 		state->selected_marker_index = -1;
@@ -396,6 +397,11 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			/* Orbit Trail Toggle */
 			struct bhs_ui_rect ot_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 			bhs_ui_checkbox(ctx, "Orbit Trail", ot_rect, &state->show_orbit_trail);
+			y += row_spacing;
+			
+			/* Satellite Orbits Toggle */
+			struct bhs_ui_rect so_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+			bhs_ui_checkbox(ctx, "Satellite Orbits", so_rect, &state->show_satellite_orbits);
 			y += row_spacing;
 			
 			/* Descrição do modo atual */

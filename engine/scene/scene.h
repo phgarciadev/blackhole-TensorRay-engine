@@ -47,6 +47,7 @@ struct bhs_planet_data {
 	double density;
 	double axis_tilt; // [NEW] Obliquity in radians
 	double rotation_period; // [NEW] Sidereal rotation period in seconds
+	double j2; /* [NEW] J2 harmonic */ // Added field
 	double albedo;
 	bool has_atmosphere;
 	double surface_pressure;

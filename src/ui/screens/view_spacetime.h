@@ -48,6 +48,9 @@ typedef struct bhs_view_assets {
     /* Orbit Trail Visualization */
     bool show_orbit_trail;
     
+    /* Satellite Orbits Visualization */
+    bool show_satellite_orbits;
+    
     /* [NEW] Isolated View Mode */
     int isolated_body_index; /* -1 = sem isolamento, >= 0 = índice do corpo isolado */
     

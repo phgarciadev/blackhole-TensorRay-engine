@@ -41,6 +41,7 @@ typedef enum {
 typedef struct {
     double density;
     double radius;
+    double j2; /* [NEW] Oblateness */
     bool has_atmosphere;
     char composition[64];
     struct bhs_vec3 color; // Visual color

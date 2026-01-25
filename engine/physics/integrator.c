@@ -104,6 +104,8 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 				}
 			}
 			
+
+			
 			/* Aceleração de j devido a i (só se j não é fixo) */
 			/* ISSO É CRÍTICO: mesmo que bi (Sol) seja fixo, 
 			 * bj (Terra) ainda precisa sentir a gravidade! */
@@ -123,6 +125,31 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
 						bi->gm, rel_pos, bj->vel, C_SIM);
 					bhs_kahan_vec3_add(&acc_kahan[j], a_1pn);
 				}
+				
+				/* [NEW] Correção J2 (Oblateness) se body i for achatado */
+				if (bi->j2 > 0.0 && bi->radius > 0.0) {
+					struct bhs_vec3 rel_pos_j = { -dx, -dy, -dz }; /* Pos de j relativa a i */
+					/* Assumindo que o corpo i está alinhado com Z (simplificação comum) 
+					   ou transformando para frame local. Aqui vamos aplicar assumindo alinhamento Z para P.O.C.
+					   Se o corpo estiver inclinado (axis_tilt), precisaríamos rotacionar rel_pos.
+					   TODO: Implementar rotação baseada em bi->rot_axis se necessário. 
+					   Por enquanto, J2 assume eixo Z alinhado com momento angular do sistema (eclíptica). 
+					   Para planetas, isso é razoável se Z for "Norte do Sistema". */
+					   
+					struct bhs_vec3 a_j2 = bhs_compute_j2_correction(
+						bi->gm, bi->j2, bi->radius, rel_pos_j);
+					bhs_kahan_vec3_add(&acc_kahan[j], a_j2);
+				}
+			}
+			
+			/* [NEW] Correção J2 inversa: Se J for achatado, I sente força?
+			   Sim, mas geralmente desprezível se I for o Sol ou outro planeta distante.
+			   Mas para sistemas binários, ambos sentem. */
+			if (!bi->is_fixed && bj->j2 > 0.0 && bj->radius > 0.0) {
+				struct bhs_vec3 rel_pos_i = { dx, dy, dz }; /* Pos de i relativa a j */
+				struct bhs_vec3 a_j2_i = bhs_compute_j2_correction(
+					bj->gm, bj->j2, bj->radius, rel_pos_i);
+				bhs_kahan_vec3_add(&acc_kahan[i], a_j2_i);
 			}
 		}
 	}
@@ -244,6 +271,95 @@ struct bhs_vec3 bhs_compute_j2_correction(double gm_central,
 }
 
 /* ============================================================================
+ * TORQUE DE MARÉ (TIDAL TORQUE) & SIMULAÇÃO 6-DOF
+ * ============================================================================
+ *
+ * Simula o torque que tende a sincronizar a rotação com a órbita.
+ * T = -k * (M_primario^2 / r^6) * (w_spin - w_orbital)
+ * 
+ * k é um coeficiente de eficiência de maré. Para visualização, 
+ * usamos um valor alto para ver o efeito em tempo útil.
+ */
+
+#define TIDAL_K  1.0e-5  /* Coeficiente fictício para acelerar locking */
+
+void bhs_compute_torques(const struct bhs_system_state *state,
+			 struct bhs_vec3 torques[])
+{
+	int n = state->n_bodies;
+	
+	/* Zera torques */
+	for(int i=0; i<n; i++) {
+		torques[i] = (struct bhs_vec3){0,0,0};
+	}
+
+	for (int i = 0; i < n; i++) {
+		if (state->bodies[i].is_fixed || !state->bodies[i].is_alive) continue;
+
+		for (int j = 0; j < n; j++) {
+			if (i == j) continue;
+			if (!state->bodies[j].is_alive) continue;
+			
+			/* Considerar apenas maré de corpos massivos (para otimizar) */
+			/* Mas para purismo, todo corpo exerce maré. */
+			/* Filtro: A massa do outro deve ser significativa */
+			if (state->bodies[j].mass < state->bodies[i].mass * 0.1) continue;
+			
+			const struct bhs_body_state_rk *bi = &state->bodies[i];
+			const struct bhs_body_state_rk *bj = &state->bodies[j];
+			
+			double dx = bj->pos.x - bi->pos.x;
+			double dy = bj->pos.y - bi->pos.y;
+			double dz = bj->pos.z - bi->pos.z;
+			double r2 = dx*dx + dy*dy + dz*dz;
+			double r = sqrt(r2);
+			
+			if (r < 1e-10) continue;
+			
+			/* Velocidade orbital relativa (w_orbital) */
+			/* W_orb = (r x v_rel) / r^2 */
+			/* v_rel = vj - vi */
+			double dvx = bj->vel.x - bi->vel.x;
+			double dvy = bj->vel.y - bi->vel.y;
+			double dvz = bj->vel.z - bi->vel.z;
+			
+			struct bhs_vec3 cross = {
+				.x = dy*dvz - dz*dvy,
+				.y = dz*dvx - dx*dvz,
+				.z = dx*dvy - dy*dvx
+			};
+			struct bhs_vec3 w_orb = {
+				.x = cross.x / r2,
+				.y = cross.y / r2,
+				.z = cross.z / r2
+			};
+			
+			/* Diferença de velocidade angular (Spin - Orbit) */
+			struct bhs_vec3 dw = {
+				.x = bi->rot_vel.x - w_orb.x,
+				.y = bi->rot_vel.y - w_orb.y,
+				.z = bi->rot_vel.z - w_orb.z
+			};
+			
+			/* Torque ~ - Dw / r^6 */
+			/* Usando fator amplificado para simulação visual e GM^2 */
+			/* Nota: Formula real complicada dependendo de Q factor e k2 Love number.
+			   Modelo simplificado proporcional a diferença de vel angular. */
+			
+			double r6 = r2 * r2 * r2;
+			double factor = TIDAL_K * (bj->gm * bj->gm) / r6;
+			
+			/* Limiter para evitar instabilidade numérica */
+			if (factor > 1.0) factor = 1.0;
+			
+			torques[i].x -= factor * dw.x;
+			torques[i].y -= factor * dw.y;
+			torques[i].z -= factor * dw.z;
+		}
+	}
+}
+
+/* ============================================================================
  * RK4 CLÁSSICO
  * ============================================================================
  * 
@@ -332,7 +448,22 @@ void bhs_integrator_rk4(struct bhs_system_state *state, double dt)
 	}
 
 	/* ===== Atualiza estado: y = y + dt/6 * (k1 + 2*k2 + 2*k3 + k4) ===== */
+	/* ===== Atualiza estado: y = y + dt/6 * (k1 + 2*k2 + 2*k3 + k4) ===== */
 	double dt6 = dt / 6.0;
+	
+	/* [NEW] Torque Integration */
+	/* Para rotação, usamos Euler simples ou integrador separado? 
+	   Para manter consistência, deveriamos fazer RK4 para rotação também.
+	   Simplificação: Usar Euler para rotação (já que torque muda lentamente) 
+	   OU chamar bhs_compute_torques em cada etapa K.
+	   
+	   Vou optar por Euler simples para rotação para economizar 4xN^2 checks de torque,
+	   pois maré é força fraca de variacao lenta comparada a orbita.
+	*/
+	
+	struct bhs_vec3 torques[BHS_MAX_BODIES];
+	bhs_compute_torques(state, torques);
+
 	for (int i = 0; i < n; i++) {
 		if (state->bodies[i].is_fixed)
 			continue;
@@ -344,6 +475,26 @@ void bhs_integrator_rk4(struct bhs_system_state *state, double dt)
 		state->bodies[i].vel.x += dt6 * (k1_vel[i].x + 2*k2_vel[i].x + 2*k3_vel[i].x + k4_vel[i].x);
 		state->bodies[i].vel.y += dt6 * (k1_vel[i].y + 2*k2_vel[i].y + 2*k3_vel[i].y + k4_vel[i].y);
 		state->bodies[i].vel.z += dt6 * (k1_vel[i].z + 2*k2_vel[i].z + 2*k3_vel[i].z + k4_vel[i].z);
+		
+		/* [NEW] Update Rotation */
+		/* w_new = w + (torque/I) * dt */
+		if (state->bodies[i].inertia > 0.0) {
+			double inv_I = 1.0 / state->bodies[i].inertia;
+			state->bodies[i].rot_vel.x += torques[i].x * inv_I * dt;
+			state->bodies[i].rot_vel.y += torques[i].y * inv_I * dt;
+			state->bodies[i].rot_vel.z += torques[i].z * inv_I * dt;
+			
+			/* Update Rotation Angle (Scalar magnitude integration for rendering) */
+			/* Assuming rotation roughly around Y local or main axis */
+			/* Magnitude of w */
+
+			
+			/* Sign? Dot product with Up Vector? Simplification: Just add magnitude */
+			/* state has no "angle" field in RK struct, only in ECS. 
+			   Wait, checking integrator.h struct... it doesn't have angle. 
+			   The ECS update needs to reconstruct angle from w * dt. 
+			   So we just update W here. Angle update happens in Physics System. */
+		}
 	}
 
 	state->time += dt;
@@ -406,6 +557,10 @@ void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt)
 	/* ===== KICK 2: v(t + dt) = v(t + dt/2) + a(t + dt) * dt/2 ===== */
 	bhs_compute_accelerations(state, acc);
 
+	/* [NEW] Torque Calculation (Once per step for Leapfrog too) */
+	struct bhs_vec3 torques[BHS_MAX_BODIES];
+	bhs_compute_torques(state, torques);
+
 	for (int i = 0; i < n; i++) {
 		if (state->bodies[i].is_fixed || !state->bodies[i].is_alive)
 			continue;
@@ -413,15 +568,20 @@ void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt)
 		state->bodies[i].vel.x += acc[i].x * half_dt;
 		state->bodies[i].vel.y += acc[i].y * half_dt;
 		state->bodies[i].vel.z += acc[i].z * half_dt;
+		
+		/* Update Rotation (Symplectic-ish? Just Euler Kick) */
+		if (state->bodies[i].inertia > 0.0) {
+			double inv_I = 1.0 / state->bodies[i].inertia;
+			state->bodies[i].rot_vel.x += torques[i].x * inv_I * dt;
+			state->bodies[i].rot_vel.y += torques[i].y * inv_I * dt;
+			state->bodies[i].rot_vel.z += torques[i].z * inv_I * dt;
+		}
 
 		// Debug Mercury (Index 1) acceleration
 		if (i == 1) {
 			static int debug_counter = 0;
 			if (debug_counter++ % 60 == 0) {
-				// printf("[DEBUG] Mercury Acc: (%.4f, %.4f, %.4f) | Vel: (%.4f) | dt: %.4f\n", 
-				// 	   acc[i].x, acc[i].y, acc[i].z, 
-				// 	   sqrt(state->bodies[i].vel.x*state->bodies[i].vel.x + state->bodies[i].vel.z*state->bodies[i].vel.z),
-				// 	   dt);
+				// ...
 			}
 		}
 	}

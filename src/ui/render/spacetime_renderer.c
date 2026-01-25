@@ -192,6 +192,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	/* Apenas visual: conecta o planeta (visual) ao atrator (visual) */
 	if (assets && assets->show_gravity_line && n_bodies > 0) {
 		struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
+		struct bhs_ui_color purple = { 0.8f, 0.4f, 1.0f, 0.8f }; /* [NEW] Purple for Moons */
 
 		int attractor_idx = -1;
 		double attractor_mass = -1.0;
@@ -214,18 +215,293 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 		for (int i = 0; i < n_bodies; i++) {
 			if (i == attractor_idx) continue;
-			if (bodies[i].type != BHS_BODY_PLANET) continue;
 			if (assets->selected_body_index >= 0 && i != assets->selected_body_index) continue;
 
+			/* Skip logic if irrelevant */
+			/* Agora tratamos todos os corpos iguais (exceto o próprio atrator) */
+			if (bodies[i].type == BHS_BODY_BLACKHOLE) continue;
+
+			/* Determine Target: Dynamic Hill Sphere Logic */
+			/* "Quem é meu pai gravitacional LOCAL?" */
+			
+			int target_idx = attractor_idx;
+			struct bhs_ui_color line_color = red;
+
+			/* [NEW] Dynamic Classification: Is this a Moon? */
+			/* Check who is the "Best Parent" using Hill Spheres */
+			int dynamic_parent = bhs_visual_find_parent(i, bodies, n_bodies, NULL);
+			
+			/* If my parent is NOT the system attractor (Star/BH), I am a satellite (Moon). 
+			   Moons should NOT show the Red Gravity Line to the Sun. 
+			   They have their own Purple line logic below. */
+			if (dynamic_parent != -1 && dynamic_parent != attractor_idx) {
+				continue;
+			}
+
+			/* Hill Sphere Search */
+			/* R_hill = a * cbrt(m / 3M) */
+			/* Onde 'a' é a distância ao corpo maior M, m é a massa do corpo menor.
+			   Aqui faremos o inverso: Estou dentro da esfera de Hill de alguém? */
+			
+			double best_parent_score = 1.0e50; /* Menor Hill Radius que me contém (mais local) */
+			int best_parent = -1;
+
+			for (int j = 0; j < n_bodies; j++) {
+				if (i == j) continue;
+				
+				/* Pai deve ser mais massivo (regra prática para hierarquia estável) */
+				if (bodies[j].state.mass <= bodies[i].state.mass) continue;
+				
+				/* Distância ao candidato a pai */
+				double dx = bodies[i].state.pos.x - bodies[j].state.pos.x;
+				double dy = bodies[i].state.pos.y - bodies[j].state.pos.y;
+				double dz = bodies[i].state.pos.z - bodies[j].state.pos.z;
+				double dist_sq = dx*dx + dy*dy + dz*dz;
+				double dist = sqrt(dist_sq);
+				
+				/* Calcula Hill Sphere do candidato J em relação ao Atrator Supremo (Sol/BH) */
+				/* R_H = Dist(J, Sun) * (M_j / 3 M_Sun)^(1/3) */
+				/* Se J for o próprio atrator, R_H é infinito. */
+				
+				double hill_radius_j;
+				if (j == attractor_idx) {
+					hill_radius_j = 1.0e50; /* Infinito */
+				} else {
+					double dx_s = bodies[j].state.pos.x - bodies[attractor_idx].state.pos.x;
+					double dy_s = bodies[j].state.pos.y - bodies[attractor_idx].state.pos.y;
+					double dz_s = bodies[j].state.pos.z - bodies[attractor_idx].state.pos.z;
+					double dist_sun = sqrt(dx_s*dx_s + dy_s*dy_s + dz_s*dz_s);
+					
+					double mass_ratio = bodies[j].state.mass / (3.0 * attractor_mass);
+					hill_radius_j = dist_sun * pow(mass_ratio, 0.333333);
+				}
+				
+				/* Teste: Estou dentro da Hill Sphere de J? */
+				if (dist < hill_radius_j) {
+					/* Sim! J é um pai possível. */
+					/* Queremos o pai "mais local", ou seja, aquele com MENOR Hill Radius 
+					   que ainda me contém. Ex: Lua está na Hill da Terra (raio pqno) e do Sol (raio enorme).
+					   Terra ganha. */
+					if (hill_radius_j < best_parent_score) {
+						best_parent_score = hill_radius_j;
+						best_parent = j;
+					}
+				}
+			}
+
+			if (best_parent != -1 && best_parent != attractor_idx) {
+				target_idx = best_parent;
+				line_color = purple;
+			}
+
+			/* Calculate positions */
 			float px, py, pz, pr;
 			bhs_visual_calculate_transform(&bodies[i], bodies, n_bodies, mode, &px, &py, &pz, &pr);
 
 			float spx, spy;
 			bhs_project_point(cam, px, py, pz, (float)width, (float)height, &spx, &spy);
+			
+			/* Calculate Target Position */
+			/* Reuse `sax`/`say` if target is attractor, else recalc */
+			float stx, sty;
+			if (target_idx == attractor_idx) {
+				stx = sax; sty = say;
+			} else {
+				const struct bhs_body *tgt = &bodies[target_idx];
+				float tx, ty, tz, tr;
+				bhs_visual_calculate_transform(tgt, bodies, n_bodies, mode, &tx, &ty, &tz, &tr);
+				bhs_project_point(cam, tx, ty, tz, (float)width, (float)height, &stx, &sty);
+			}
 
+			/* Draw if visible on screen (approx) */
 			if ((spx > -100 && spx < width + 100 && spy > -100 && spy < height + 100) ||
-			    (sax > -100 && sax < width + 100 && say > -100 && say < height + 100)) {
-				bhs_ui_draw_line(ctx, sax, say, spx, spy, red, 2.0f);
+			    (stx > -100 && stx < width + 100 && sty > -100 && sty < height + 100)) {
+				bhs_ui_draw_line(ctx, stx, sty, spx, spy, line_color, 2.0f);
+			}
+		}
+	}
+
+	/* 2.6. [NEW] Satellite Orbits Visualizer (Green + Purple) */
+	/* Separate Toggle for Moon Analysis as requested */
+	if (assets && assets->show_satellite_orbits && n_bodies > 0) {
+		struct bhs_ui_color purple = { 0.8f, 0.4f, 1.0f, 0.8f };
+
+		/* Find System Attractor (Sun) just to exclude it */
+		int attractor_idx = -1;
+		double max_mass = -1.0;
+		for (int i = 0; i < n_bodies; i++) {
+			if (bodies[i].type == BHS_BODY_STAR || bodies[i].type == BHS_BODY_BLACKHOLE) {
+				if (bodies[i].state.mass > max_mass) {
+					max_mass = bodies[i].state.mass;
+					attractor_idx = i;
+				}
+			}
+		}
+		if (attractor_idx == -1 && n_bodies > 0) attractor_idx = 0;
+
+		for (int i = 0; i < n_bodies; i++) {
+			if (i == attractor_idx) continue; /* Sun has no parent */
+			if (assets->selected_body_index >= 0 && i != assets->selected_body_index) continue;
+			
+			/* Dynamic Parent Detection (Hill Sphere) */
+			double best_score = 1.0e50;
+			int parent_idx = -1;
+
+			for (int j = 0; j < n_bodies; j++) {
+				if (i == j) continue;
+				if (bodies[j].state.mass <= bodies[i].state.mass) continue;
+
+				double dx = bodies[i].state.pos.x - bodies[j].state.pos.x;
+				double dy = bodies[i].state.pos.y - bodies[j].state.pos.y;
+				double dz = bodies[i].state.pos.z - bodies[j].state.pos.z;
+				double dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+				double hill_radius_j;
+				if (j == attractor_idx) {
+					hill_radius_j = 1.0e50; 
+				} else {
+					double dx_s = bodies[j].state.pos.x - bodies[attractor_idx].state.pos.x;
+					double dy_s = bodies[j].state.pos.y - bodies[attractor_idx].state.pos.y;
+					double dz_s = bodies[j].state.pos.z - bodies[attractor_idx].state.pos.z;
+					double dist_sun = sqrt(dx_s*dx_s + dy_s*dy_s + dz_s*dz_s);
+					double mass_ratio = bodies[j].state.mass / (3.0 * max_mass);
+					hill_radius_j = dist_sun * pow(mass_ratio, 0.333333);
+				}
+
+				if (dist < hill_radius_j) {
+					if (hill_radius_j < best_score) {
+						best_score = hill_radius_j;
+						parent_idx = j;
+					}
+				}
+			}
+			
+			/* Only if parent is NOT the Sun (meaning it's a Mooney orbit) */
+			if (parent_idx != -1 && parent_idx != attractor_idx) {
+				/* Draw Purple Line (Link to Parent) */
+				float px, py, pz, pr;
+				bhs_visual_calculate_transform(&bodies[i], bodies, n_bodies, mode, &px, &py, &pz, &pr);
+				
+				float tx, ty, tz, tr;
+				bhs_visual_calculate_transform(&bodies[parent_idx], bodies, n_bodies, mode, &tx, &ty, &tz, &tr);
+				
+				float sx1, sy1, sx2, sy2;
+				bhs_project_point(cam, px, py, pz, (float)width, (float)height, &sx1, &sy1);
+				bhs_project_point(cam, tx, ty, tz, (float)width, (float)height, &sx2, &sy2);
+				bhs_ui_draw_line(ctx, sx1, sy1, sx2, sy2, purple, 1.5f);
+				
+				/* Draw Green Line (Orbit Trail Relative to Parent) */
+				/* "Rastro de Lesma" - Path history relative to parent */
+				
+				/* Draw Green Line (Absolute Spirograph Path - Visually Anchored) */
+				/* "Rastro de Lesma" - O caminho real percorrido, mas attached ao sistema visual. */
+				
+				const struct bhs_body *parent = &bodies[parent_idx];
+				int history_len = bodies[i].trail_count;
+				if (parent->trail_count < history_len) history_len = parent->trail_count;
+
+				struct bhs_ui_color green_trail = { 0.2f, 1.0f, 0.2f, 0.6f };
+
+				/* Pre-calc Parent Radius Scaling for optimization */
+				float rad_mult_parent = (mode == BHS_VISUAL_MODE_CINEMATIC) ? 1200.0f : 1.0f;
+				if (mode == BHS_VISUAL_MODE_DIDACTIC) rad_mult_parent = 1200.0f;
+				float parent_vis_radius = (float)parent->state.radius * rad_mult_parent;
+				if (parent->type == BHS_BODY_STAR && mode != BHS_VISUAL_MODE_SCIENTIFIC) {
+					parent_vis_radius = (float)parent->state.radius * 100.0f;
+				}
+
+				float rad_mult_moon = (mode == BHS_VISUAL_MODE_CINEMATIC) ? 1200.0f : 1.0f;
+				if (mode == BHS_VISUAL_MODE_DIDACTIC) rad_mult_moon = 1200.0f;
+				float moon_vis_radius = (float)bodies[i].state.radius * rad_mult_moon;
+
+				/* Iterate Points */
+				for (int k = 1; k < history_len; k++) {
+					int idx_curr = (bodies[i].trail_head - k + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
+					int idx_prev = (bodies[i].trail_head - (k+1) + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
+					
+					int p_idx_curr = (parent->trail_head - k + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
+					int p_idx_prev = (parent->trail_head - (k+1) + BHS_MAX_TRAIL_POINTS) % BHS_MAX_TRAIL_POINTS;
+					
+					/* 1. Calculate Historical PARENT Visual Position */
+					/* We assume Parent's parent is ROOT/Sun (Stable at 0,0,0 usually). */
+					/* If Parent moves relative to Sun, transform(Parent_Hist) handles it. */
+					/* Trick: call transform on Parent_Hist but force index = PARENT_IDX */
+					
+					double px_curr = parent->trail_positions[p_idx_curr][0];
+					double py_curr = parent->trail_positions[p_idx_curr][1];
+					double pz_curr = parent->trail_positions[p_idx_curr][2];
+					
+					float p_vis_x1, p_vis_y1, p_vis_z1, p_vis_r1;
+					bhs_visual_transform_point(px_curr, py_curr, pz_curr, 
+											   parent->state.radius, parent->type,
+											   bodies, n_bodies, mode, 
+											   parent_idx, /* FORCE Index to use Parent Scaling Rules */
+											   &p_vis_x1, &p_vis_y1, &p_vis_z1, &p_vis_r1);
+
+					double px_prev = parent->trail_positions[p_idx_prev][0];
+					double py_prev = parent->trail_positions[p_idx_prev][1];
+					double pz_prev = parent->trail_positions[p_idx_prev][2];
+
+					float p_vis_x2, p_vis_y2, p_vis_z2, p_vis_r2;
+					bhs_visual_transform_point(px_prev, py_prev, pz_prev, 
+											   parent->state.radius, parent->type,
+											   bodies, n_bodies, mode, 
+											   parent_idx,
+											   &p_vis_x2, &p_vis_y2, &p_vis_z2, &p_vis_r2);
+
+					/* 2. Manually Calculate MOON Visual Position attached to that Parent */
+					/* Logic from visual_utils: VisPos = ParentVis + Dir * (ParentR + MoonR + Gap) */
+					
+					/* Point 1 */
+					double mx_curr = bodies[i].trail_positions[idx_curr][0];
+					double my_curr = bodies[i].trail_positions[idx_curr][1];
+					double mz_curr = bodies[i].trail_positions[idx_curr][2];
+					
+					double dx1 = mx_curr - px_curr;
+					double dy1 = my_curr - py_curr;
+					double dz1 = mz_curr - pz_curr;
+					double dist1 = sqrt(dx1*dx1 + dy1*dy1 + dz1*dz1);
+					if (dist1 < 1.0) dist1 = 1.0;
+					
+					double gap1 = dist1 - parent->state.radius - bodies[i].state.radius;
+					if (gap1 < 0) gap1 = 0;
+					/* In Cinematic, gap is usually 1:1, just radii scaled. */
+					/* Actually gap_scale = 1.0f in utils. */
+					double vis_dist1 = parent_vis_radius + moon_vis_radius + gap1;
+					
+					float m_vis_x1 = p_vis_x1 + (float)((dx1/dist1) * vis_dist1);
+					float m_vis_y1 = p_vis_y1 + (float)((dy1/dist1) * vis_dist1); 
+					float m_vis_z1 = p_vis_z1 + (float)((dz1/dist1) * vis_dist1);
+
+					/* Point 2 */
+					double mx_prev = bodies[i].trail_positions[idx_prev][0];
+					double my_prev = bodies[i].trail_positions[idx_prev][1];
+					double mz_prev = bodies[i].trail_positions[idx_prev][2];
+					
+					double dx2 = mx_prev - px_prev;
+					double dy2 = my_prev - py_prev;
+					double dz2 = mz_prev - pz_prev;
+					double dist2 = sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2);
+					if (dist2 < 1.0) dist2 = 1.0;
+					
+					double gap2 = dist2 - parent->state.radius - bodies[i].state.radius;
+					if (gap2 < 0) gap2 = 0;
+					double vis_dist2 = parent_vis_radius + moon_vis_radius + gap2;
+					
+					float m_vis_x2 = p_vis_x2 + (float)((dx2/dist2) * vis_dist2);
+					float m_vis_y2 = p_vis_y2 + (float)((dy2/dist2) * vis_dist2); 
+					float m_vis_z2 = p_vis_z2 + (float)((dz2/dist2) * vis_dist2);
+
+					/* Project */
+					float gx1, gy1, gx2, gy2;
+					bhs_project_point(cam, m_vis_x1, m_vis_y1, m_vis_z1, (float)width, (float)height, &gx1, &gy1);
+					bhs_project_point(cam, m_vis_x2, m_vis_y2, m_vis_z2, (float)width, (float)height, &gx2, &gy2);
+					
+					/* Cull off-screen? */
+					if (gx1 > -50 && gx1 < width+50 && gy1 > -50 && gy1 < height+50) {
+						bhs_ui_draw_line(ctx, gx1, gy1, gx2, gy2, green_trail, 1.5f);
+					}
+				}
 			}
 		}
 	}
@@ -238,6 +514,29 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			const struct bhs_body *planet = &bodies[i];
 			if (planet->type != BHS_BODY_PLANET) continue;
 			if (assets->selected_body_index >= 0 && i != assets->selected_body_index) continue;
+			
+			/* [NEW] Dynamic Classification: Is this a Moon? */
+			/* If so, suppress Blue Trail (Planetary Orbit). It gets a Green Trail elsewhere. */
+			int dynamic_parent = bhs_visual_find_parent(i, bodies, n_bodies, NULL);
+			
+			/* Find Attractor Index again (Duplicate logic, could optimize but safe) */
+			int attractor_idx = -1;
+			double max_mass = -1.0;
+			for (int k = 0; k < n_bodies; k++) {
+				if (bodies[k].type == BHS_BODY_STAR || bodies[k].type == BHS_BODY_BLACKHOLE) {
+					if (bodies[k].state.mass > max_mass) {
+						max_mass = bodies[k].state.mass;
+						attractor_idx = k;
+					}
+				}
+			}
+			if (attractor_idx == -1 && n_bodies > 0) attractor_idx = 0;
+
+			if (dynamic_parent != -1 && dynamic_parent != attractor_idx) {
+				/* I am a moon! Skip Blue Trail */
+				continue;
+			}
+
 			if (planet->trail_count < 2) continue;
 
 			for (int j = 0; j < planet->trail_count - 1; j++) {
@@ -259,6 +558,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					x1, y1, z1, 
 					planet->state.radius, planet->type,
 					bodies, n_bodies, mode,
+					i, /* FORCE: I am part of planet[i]'s history! */
 					&tx1, &ty1, &tz1, &tr1
 				);
 
@@ -266,6 +566,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					x2, y2, z2, 
 					planet->state.radius, planet->type,
 					bodies, n_bodies, mode,
+					i, /* FORCE: I am part of planet[i]'s history! */
 					&tx2, &ty2, &tz2, &tr2
 				);
 
@@ -325,6 +626,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					m_x, 0.0f, m_z, 
 					radius_for_calc, BHS_BODY_PLANET,
 					bodies, n_bodies, mode,
+					m->planet_index, /* FORCE: Marker attached to this planet */
 					&tx, &ty, &tz, &tr
 			);
 

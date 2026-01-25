@@ -31,9 +31,10 @@ struct bhs_planet_desc bhs_saturn_get_desc(void)
 	d.mass = 5.68e26;
 	d.radius = 5.8232e7;
 	d.density = 687.0; /* Menor que a água! */
-	d.rotation_period = 10.7 * 3600.0;
-	d.axis_tilt = 26.73 * (3.14159 / 180.0);
-	d.gravity = 10.44;
+	d.rotation_period = 10.656 * 3600;
+    d.axis_tilt = 0.4665;   /* rad (26.73 deg) */
+    d.gravity = 10.44;      /* m/s^2 */
+    d.j2 = 16.29e-3;        /* Oblateness (very significant) */
 	
 	/* Orbital */
 	d.semimajor_axis = 9.53707032 * 149597870700.0;

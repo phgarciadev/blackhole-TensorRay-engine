@@ -48,17 +48,18 @@ struct bhs_planet_desc {
 	double rotation_period; /* segundos (negativo = retrógrado) */
 	double axis_tilt;	/* radianos */
 	double gravity;		/* m/s² (superficial) */
+	double j2;		/* J2 Harmonic (Oblateness) */
 
 	/* Orbital (Keplerianos básicos para setup inicial) */
 	double semimajor_axis; /* m */
 	double eccentricity;   /* 0..1 */
 	double orbital_period; /* segundos */
-    
+
 	/* Keplerianos Completos (J2000) */
-	double inclination;       /* graus (em relação à eclíptica) */
-	double long_asc_node;     /* graus (Omega) */
-	double long_perihelion;   /* graus (varpi) */
-	double mean_longitude;    /* graus (L) */
+	double inclination;	/* graus (em relação à eclíptica) */
+	double long_asc_node;	/* graus (Omega) */
+	double long_perihelion; /* graus (varpi) */
+	double mean_longitude;	/* graus (L) */
 
 	/* Atmosfera & Superfície */
 	bool has_atmosphere;

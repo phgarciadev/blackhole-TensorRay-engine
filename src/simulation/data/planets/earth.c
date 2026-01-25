@@ -33,10 +33,10 @@ struct bhs_planet_desc bhs_earth_get_desc(void)
 	d.mass = 5.97e24;
 	d.radius = 6.371e6;
 	d.density = 5514.0;
-	/* Earth Sidereal Day: 23h 56m 4s */
-	d.rotation_period = 23.9345 * 3600.0;
-	d.axis_tilt = 23.44 * (3.14159 / 180.0);
-	d.gravity = 9.807;
+	/* Earth Sidereal Day: 23h 56m 4s */    d.rotation_period = 23.9345 * 3600; /* sidereal day */
+    d.axis_tilt = 0.4091;   /* rad */
+    d.gravity = 9.807;      /* m/s^2 */
+    d.j2 = 1.08263e-3;      /* Oblateness */
 	
 	/* Orbital */
 	d.semimajor_axis = 1.00000011 * 149597870700.0;

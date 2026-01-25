@@ -135,6 +135,13 @@ struct bhs_body_state_rk {
 	struct bhs_vec3 vel;
 	double mass;
 	double gm;      /* GM = G * mass (pré-calculado) */
+	double radius;  /* Raio Equatorial (p/ J2) */
+	double j2;      /* Termo J2 (achatamento) */
+	
+	/* [NEW] Rotational State (6-DOF) */
+	struct bhs_vec3 rot_vel; /* Velocidade Angular (rad/s) */
+	double inertia;          /* Momento de Inércia (kg*m^2) */
+	
 	bool is_fixed;
 	bool is_alive;
 };
@@ -243,6 +250,26 @@ struct bhs_vec3 bhs_compute_1pn_correction(double gm_central,
 					   struct bhs_vec3 pos,
 					   struct bhs_vec3 vel,
 					   double c);
+
+/**
+ * bhs_compute_j2_correction - Calcula perturbação J2 (Oblateness)
+ * @gm_central: GM do corpo central
+ * @j2: Coeficiente J2
+ * @r_eq: Raio equatorial do corpo
+ * @pos: Posição relativa
+ */
+struct bhs_vec3 bhs_compute_j2_correction(double gm_central,
+					  double j2,
+					  double r_eq,
+					  struct bhs_vec3 pos);
+
+/**
+ * bhs_compute_torques - Calcula Torques (Maré + Outros)
+ * @state: Estado do sistema
+ * @torques: Array de torques (output)
+ */
+void bhs_compute_torques(const struct bhs_system_state *state,
+			 struct bhs_vec3 torques[]);
 
 /* ============================================================================
  * INVARIANTES (CONSERVAÇÃO)

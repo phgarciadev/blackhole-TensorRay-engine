@@ -39,11 +39,10 @@ struct bhs_planet_desc bhs_jupiter_get_desc(void)
 	d.mass = 1.90e27;
 	d.radius = 6.9911e7;
 	d.density = 1326.0;
-	d.rotation_period = 9.925 * 3600.0; /* ~10h */
-	d.axis_tilt = 3.13 * (3.14159 / 180.0);
-	d.gravity = 24.79;
-	
-	/* Orbital */
+	    d.rotation_period = 9.925 * 3600;
+    d.axis_tilt = 0.05462;  /* rad (3.13 deg) */
+    d.gravity = 24.79;      /* m/s^2 */
+    d.j2 = 14.696e-3;       /* Oblateness (significant!) */
 	d.semimajor_axis = 5.20336301 * 149597870700.0;
 	d.eccentricity = 0.04839266;
 	d.orbital_period = 11.86 * 365.25 * 24 * 3600;

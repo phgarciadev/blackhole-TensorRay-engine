@@ -1,7 +1,7 @@
 /**
  * @file app_state.c
  * @brief Implementação do Ciclo de Vida da Aplicação
- *
+ *.
  * "O código que faz o circo funcionar sem que a plateia veja os palhaços."
  *
  * Este arquivo implementa o boot, loop principal e shutdown da aplicação.
@@ -398,54 +398,71 @@ void app_run(struct app_state *app)
 				const struct bhs_body *me =
 					&bodies[app->hud.selected_body_index];
 
-				double max_force = -1.0;
+				/* [FIX] Use Hill Sphere Logic for "Parent" detection instead of raw Force.
+				   Raw force says Sun > Earth for Moon (approx 2x), but Earth is the Moon's parent. */
+				
+				double best_hill_score = 1.0e50;
+				int parent_idx = -1;
 				double best_dist = 0.0;
-
-				for (int i = 0; i < count; i++) {
-					if (i == app->hud.selected_body_index)
-						continue; // Don't attract yourself
-					if (!bodies[i].is_alive)
-						continue;
-
-					// Only Stars and Black Holes are "Astros" for this check
-					if (bodies[i].type != BHS_BODY_STAR &&
-					    bodies[i].type !=
-						    BHS_BODY_BLACKHOLE)
-						continue;
-
-					double dx = bodies[i].state.pos.x -
-						    me->state.pos.x;
-					double dy = bodies[i].state.pos.y -
-						    me->state.pos.y;
-					double dz = bodies[i].state.pos.z -
-						    me->state.pos.z;
-					double dist_sq =
-						dx * dx + dy * dy + dz * dz;
-
-					if (dist_sq < 0.0001)
-						continue; // Avoid singularity
-
-					// Force is proportional to Mass / Dist^2
-					double force =
-						bodies[i].state.mass / dist_sq;
-
-					if (force > max_force) {
-						max_force = force;
-						attractor_idx = i;
-						best_dist = sqrt(dist_sq);
+				
+				/* Find System Attractor (Sun/BH) for Hill Calc */
+				int sys_attractor = -1;
+				double max_mass = -1.0;
+				for(int k=0; k<count; ++k) {
+					if ((bodies[k].type == BHS_BODY_STAR || bodies[k].type == BHS_BODY_BLACKHOLE) && 
+					    bodies[k].state.mass > max_mass) {
+						max_mass = bodies[k].state.mass;
+						sys_attractor = k;
 					}
 				}
+				if (sys_attractor == -1 && count > 0) sys_attractor = 0;
 
-				if (attractor_idx != -1) {
-					snprintf(app->hud.attractor_name, 64,
-						 "%s", bodies[attractor_idx].name);
+				for (int i = 0; i < count; i++) {
+					if (i == app->hud.selected_body_index) continue;
+					if (!bodies[i].is_alive) continue;
+					
+					/* Must be larger mass to be a parent */
+					if (bodies[i].state.mass <= me->state.mass) continue;
 
-					/* Surface-to-Surface Distance (Wall-to-Wall) */
-					double r_attractor =
-						bodies[attractor_idx].state.radius;
+					double dx = bodies[i].state.pos.x - me->state.pos.x;
+					double dy = bodies[i].state.pos.y - me->state.pos.y;
+					double dz = bodies[i].state.pos.z - me->state.pos.z;
+					double dist_sq = dx * dx + dy * dy + dz * dz;
+					double dist = sqrt(dist_sq);
+					
+					/* Calculate Hill Radius of candidate 'i' */
+					double hill_r = 1.0e50;
+					if (i != sys_attractor) {
+						double dx_s = bodies[i].state.pos.x - bodies[sys_attractor].state.pos.x;
+						double dy_s = bodies[i].state.pos.y - bodies[sys_attractor].state.pos.y;
+						double dz_s = bodies[i].state.pos.z - bodies[sys_attractor].state.pos.z;
+						double d_sun = sqrt(dx_s*dx_s + dy_s*dy_s + dz_s*dz_s);
+						hill_r = d_sun * pow(bodies[i].state.mass / (3.0 * max_mass), 0.333333);
+					}
+					
+					/* Am I inside their Hill Sphere? */
+					if (dist < hill_r) {
+						/* Pick the 'tightest' parent (smallest Hill Sphere I fit in) */
+						if (hill_r < best_hill_score) {
+							best_hill_score = hill_r;
+							parent_idx = i;
+							best_dist = dist;
+						}
+					}
+				}
+				
+				/* Fallback: If no parent found (e.g. I am the Sun), uses closest massive body? 
+				   No, show nothing or "None". 
+				   Actually, for the Sun, it shows nothing. Correct. */
+
+				if (parent_idx != -1) {
+					snprintf(app->hud.attractor_name, 64, "%s", bodies[parent_idx].name);
+
+					/* Surface-to-Surface Distance */
+					double r_parent = bodies[parent_idx].state.radius;
 					double r_self = me->state.radius;
-					double surf_dist = best_dist -
-							   r_attractor - r_self;
+					double surf_dist = best_dist - r_parent - r_self;
+					if (surf_dist < 0) surf_dist = 0;
 
 					app->hud.attractor_dist = surf_dist;
 				} else {
@@ -493,6 +510,8 @@ void app_run(struct app_state *app)
 				.selected_body_index = app->hud.selected_body_index,
 				/* Orbit Trail */
 				.show_orbit_trail = app->hud.show_orbit_trail,
+				/* Satellite Orbits */
+				.show_satellite_orbits = app->hud.show_satellite_orbits,
 				/* [NEW] Isolated View - propaga o índice se isolamento ativo */
 				.isolated_body_index = app->hud.isolate_view ? app->hud.selected_body_index : -1,
 				/* [NEW] Sistema de marcadores de órbita */

@@ -19,6 +19,7 @@ typedef struct {
 	bool top_down_view;	/* [NEW] */
 	bool show_gravity_line; /* [NEW] Show line to strongest attractor */
 	bool show_orbit_trail;	/* [NEW] Show blue orbit path */
+	bool show_satellite_orbits; /* [NEW] Show Green/Purple for moons */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */

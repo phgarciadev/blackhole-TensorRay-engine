@@ -154,6 +154,7 @@ struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc,
 		b.prop.planet.has_atmosphere = desc->has_atmosphere;
 		b.prop.planet.surface_pressure = desc->surface_pressure;
 		b.prop.planet.temperature = desc->mean_temperature;
+		b.prop.planet.j2 = desc->j2; /* [NEW] Copiar J2 */
 		break;
 	}
 
