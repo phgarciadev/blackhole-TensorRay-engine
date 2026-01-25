@@ -28,6 +28,7 @@
 struct bhs_orbit_marker {
 	bool active;
 	int planet_index;		/* Índice do planeta que completou */
+	int parent_index;       /* [NEW] Índice do corpo orbitado */
 	char planet_name[32];		/* Nome pro display */
 	double timestamp_seconds;	/* Tempo exato desde J2000 */
 	struct bhs_vec3 position;	/* Posição no momento da conclusão */

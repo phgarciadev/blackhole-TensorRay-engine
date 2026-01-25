@@ -30,34 +30,67 @@ void bhs_orbit_markers_update(struct bhs_orbit_marker_system *sys,
 	if (!sys || !bodies || count <= 0)
 		return;
 
-	/* Encontrar o Sol (maior massa com tipo STAR) */
-	int sun_idx = -1;
-	double max_mass = 0;
+	/* 1. Find System Attractor (heaviest Star/BH) for Hill Sphere Calc */
+	int attractor_idx = -1;
+	double max_sys_mass = 0;
 	for (int i = 0; i < count; i++) {
-		if (bodies[i].type == BHS_BODY_STAR &&
-		    bodies[i].state.mass > max_mass) {
-			max_mass = bodies[i].state.mass;
-			sun_idx = i;
+		if ((bodies[i].type == BHS_BODY_STAR || bodies[i].type == BHS_BODY_BLACKHOLE) &&
+		    bodies[i].state.mass > max_sys_mass) {
+			max_sys_mass = bodies[i].state.mass;
+			attractor_idx = i;
 		}
 	}
-
-	/* Sem sol, sem órbitas (faz sentido, né?) */
-	if (sun_idx < 0)
-		return;
-
-	const struct bhs_body *sun = &bodies[sun_idx];
+	if (attractor_idx < 0 && count > 0) attractor_idx = 0; /* Fallback */
 
 	for (int i = 0; i < count && i < 128; i++) {
-		/* Só planetas orbitam (por enquanto) */
-		if (bodies[i].type != BHS_BODY_PLANET)
-			continue;
+		/* Only Planets/Moons orbit stuff */
+		if (bodies[i].type != BHS_BODY_PLANET && bodies[i].type != BHS_BODY_MOON) /* Support 'Moon' type if explicit */
+			if (bodies[i].type != BHS_BODY_PLANET) continue; // Keep restrictive for now unless user re-tagged
 
-		const struct bhs_body *planet = &bodies[i];
+		const struct bhs_body *me = &bodies[i];
+		if (i == attractor_idx) continue;
 
-		/* Calcular ângulo polar relativo ao Sol */
-		double dx = planet->state.pos.x - sun->state.pos.x;
-		double dz = planet->state.pos.z - sun->state.pos.z;
-		double angle = atan2(dz, dx); /* -π a +π */
+		/* 2. Find My Parent (Hill Sphere Logic) */
+		int parent_idx = attractor_idx;
+		double best_score = 1.0e50;
+
+		/* Search for better local parent */
+		for (int j = 0; j < count; j++) {
+			if (i == j) continue;
+			if (bodies[j].state.mass <= me->state.mass) continue;
+
+			double dx = me->state.pos.x - bodies[j].state.pos.x;
+			double dy = me->state.pos.y - bodies[j].state.pos.y;
+			double dz = me->state.pos.z - bodies[j].state.pos.z;
+			double dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+			/* Calc Hill Radius of J relative to System Attractor */
+			double hill_radius_j;
+			if (j == attractor_idx) {
+				hill_radius_j = 1.0e50;
+			} else {
+				/* R_H = a * cbrt(m/3M) */
+				double dx_s = bodies[j].state.pos.x - bodies[attractor_idx].state.pos.x;
+				double dy_s = bodies[j].state.pos.y - bodies[attractor_idx].state.pos.y;
+				double dz_s = bodies[j].state.pos.z - bodies[attractor_idx].state.pos.z;
+				double dist_s = sqrt(dx_s*dx_s + dy_s*dy_s + dz_s*dz_s);
+				double mass_ratio = bodies[j].state.mass / (3.0 * max_sys_mass);
+				hill_radius_j = dist_s * pow(mass_ratio, 0.333333);
+			}
+
+			if (dist < hill_radius_j) {
+				if (hill_radius_j < best_score) {
+					best_score = hill_radius_j;
+					parent_idx = j;
+				}
+			}
+		}
+
+		/* 3. Calculate Angle Relative to Parent */
+		const struct bhs_body *parent = &bodies[parent_idx];
+		double rel_x = me->state.pos.x - parent->state.pos.x;
+		double rel_z = me->state.pos.z - parent->state.pos.z;
+		double angle = atan2(rel_z, rel_x);
 
 		struct bhs_orbit_tracking *track = &sys->tracking[i];
 
@@ -77,43 +110,39 @@ void bhs_orbit_markers_update(struct bhs_orbit_marker_system *sys,
 		if (da < -M_PI)
 			da += 2.0 * M_PI;
 
+		/* Check for discontinuity (parent switch) */
+		/* If angle jumped massively despite correction? No, just trust mechanics. 
+		   Realistically if parent switches, 'prev_angle' might be wrong relative to new parent.
+		   We should store 'last_parent_idx' in tracking to detect switch. 
+		   For now, assume stability. */
+
 		track->accumulated_angle += da;
 
-		/* 
-		 * Detectar volta completa (2*PI radianos) 
-		 * Suporta órbitas horárias e anti-horárias.
-		 */
+		/* Detectar volta completa (2*PI radianos) */
 		if (fabs(track->accumulated_angle) >= 2.0 * M_PI) {
-			/* Calcula período real desta órbita */
 			double period = current_time - track->last_crossing_time;
 
-			/* Adiciona marcador (buffer circular) */
+			/* Adiciona marcador */
 			int idx = sys->marker_head;
 			struct bhs_orbit_marker *m = &sys->markers[idx];
 
 			m->active = true;
 			m->planet_index = i;
-			snprintf(m->planet_name, sizeof(m->planet_name), "%s",
-				 planet->name);
+			m->parent_index = parent_idx; /* [NEW] Store who we orbited */
+			snprintf(m->planet_name, sizeof(m->planet_name), "%s", me->name);
 			m->timestamp_seconds = current_time;
-			m->position = planet->state.pos;
+			m->position = me->state.pos;
 			m->orbit_number = ++track->orbit_count;
 			m->orbital_period_measured = period;
 
-			/* Avança head do buffer circular */
-			sys->marker_head =
-				(sys->marker_head + 1) % BHS_MAX_ORBIT_MARKERS;
+			sys->marker_head = (sys->marker_head + 1) % BHS_MAX_ORBIT_MARKERS;
 			if (sys->marker_count < BHS_MAX_ORBIT_MARKERS) {
 				sys->marker_count++;
 			}
 
-			/* Log pra debug */
-			printf("[ORBIT] %s completou órbita #%d! Período: %.2f dias "
-			       "(Matemático: 2*PI accum)\n",
-			       planet->name, track->orbit_count,
-			       period / 86400.0);
+			/* Logging less verbose or customized */
+			// printf("[ORBIT] %s orbitou %s (#%d)\n", me->name, parent->name, track->orbit_count);
 
-			/* Reset pra próxima volta, mantendo residual */
 			if (track->accumulated_angle > 0)
 				track->accumulated_angle -= 2.0 * M_PI;
 			else

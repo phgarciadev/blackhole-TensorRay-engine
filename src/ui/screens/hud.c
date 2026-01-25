@@ -79,6 +79,8 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_gravity_line = false;
 		state->show_orbit_trail = false;
 		state->show_satellite_orbits = false;
+        state->show_planet_markers = true; /* Default ON */
+        state->show_moon_markers = true;   /* Default ON */
 		state->isolate_view = false;
 		state->selected_marker_index = -1;
 		state->selected_marker_index = -1;
@@ -403,6 +405,16 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			struct bhs_ui_rect so_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 			bhs_ui_checkbox(ctx, "Satellite Orbits", so_rect, &state->show_satellite_orbits);
 			y += row_spacing;
+
+            /* Planet Markers (Purple) */
+            struct bhs_ui_rect pm_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bhs_ui_checkbox(ctx, "Planet Markers (P)", pm_rect, &state->show_planet_markers);
+            y += row_spacing;
+
+            /* Moon Markers (Green) */
+            struct bhs_ui_rect mm_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bhs_ui_checkbox(ctx, "Moon Markers (G)", mm_rect, &state->show_moon_markers);
+            y += row_spacing;
 			
 			/* Descrição do modo atual */
 			y += 5.0f * ui_scale;

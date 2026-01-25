@@ -512,6 +512,9 @@ void app_run(struct app_state *app)
 				.show_orbit_trail = app->hud.show_orbit_trail,
 				/* Satellite Orbits */
 				.show_satellite_orbits = app->hud.show_satellite_orbits,
+                /* [NEW] Detailed visual control */
+                .show_planet_markers = app->hud.show_planet_markers,
+                .show_moon_markers = app->hud.show_moon_markers,
 				/* [NEW] Isolated View - propaga o índice se isolamento ativo */
 				.isolated_body_index = app->hud.isolate_view ? app->hud.selected_body_index : -1,
 				/* [NEW] Sistema de marcadores de órbita */

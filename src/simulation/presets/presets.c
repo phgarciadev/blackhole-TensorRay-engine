@@ -104,7 +104,9 @@ static void bhs_kepler_to_cartesian(struct bhs_planet_desc *d,
 	/* Orbital Velocity (Vis-viva derivative) */
 	/* Mean motion n = sqrt(mu / a^3) */
 	const double G = 6.67430e-11;
-	double mu = G * central_mass;
+	/* FIX: Include own mass for 2-body stability (reduced mass correction equivalent) */
+	/* If we neglect d->mass, v is too low, orbit shrinks, period decreases. */
+	double mu = G * (central_mass + d->mass);
 	double n = sqrt(mu / (a*a*a));
 	
 	double vx_orb = -(n * a * a / r) * sinE;

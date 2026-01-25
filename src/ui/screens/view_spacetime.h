@@ -56,6 +56,9 @@ typedef struct bhs_view_assets {
     
     /* [NEW] Ponteiro para sistema de marcadores de órbita */
     const struct bhs_orbit_marker_system *orbit_markers;
+    /* [NEW] Detailed visual control */
+    bool show_planet_markers; /* Purple */
+    bool show_moon_markers;   /* Green */
 
     /* [NEW] Interpolation Alpha (accumulator) */
     double sim_alpha;

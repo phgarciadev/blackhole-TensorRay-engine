@@ -586,6 +586,9 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	if (assets && assets->orbit_markers && assets->orbit_markers->marker_count > 0) {
 		struct bhs_ui_color purple = { 0.6f, 0.2f, 0.8f, 1.0f };
 		struct bhs_ui_color purple_outline = { 0.9f, 0.6f, 1.0f, 0.9f };
+		struct bhs_ui_color green = { 0.2f, 1.0f, 0.2f, 1.0f };
+		struct bhs_ui_color green_outline = { 0.6f, 1.0f, 0.6f, 0.9f };
+
 		const struct bhs_orbit_marker_system *sys = assets->orbit_markers;
 
 		/* Filter latest */
@@ -612,6 +615,23 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 			if (assets->isolated_body_index >= 0 && m->planet_index != assets->isolated_body_index) continue;
 
+			/* Determine Type & Visibility */
+			bool is_moon_orbit = false;
+			if (m->parent_index >= 0 && m->parent_index < n_bodies) {
+				/* If parent is PLANET/MOON -> It's a satellite orbit */
+				if (bodies[m->parent_index].type == BHS_BODY_PLANET || 
+				    bodies[m->parent_index].type == BHS_BODY_MOON) {
+					is_moon_orbit = true;
+				}
+			}
+			
+			/* Apply Toggles */
+			if (is_moon_orbit) {
+				if (!assets->show_moon_markers) continue;
+			} else {
+				if (!assets->show_planet_markers) continue;
+			}
+
 			float m_x = (float)m->position.x;
 			float m_z = (float)m->position.z;
             
@@ -636,13 +656,18 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (sx < -50 || sx > width + 50 || sy < -50 || sy > height + 50) continue;
 
 			float size = 10.0f;
-			bhs_ui_draw_circle_fill(ctx, sx, sy, size, purple);
-			bhs_ui_draw_circle_fill(ctx, sx, sy, size + 2.0f, (struct bhs_ui_color){ 0.9f, 0.6f, 1.0f, 0.3f });
+			struct bhs_ui_color dot_color = is_moon_orbit ? green : purple;
+			struct bhs_ui_color outline_color = is_moon_orbit ? green_outline : purple_outline;
+			struct bhs_ui_color ring_color = dot_color;
+			ring_color.a = 0.3f;
+
+			bhs_ui_draw_circle_fill(ctx, sx, sy, size, dot_color);
+			bhs_ui_draw_circle_fill(ctx, sx, sy, size + 2.0f, ring_color);
 			
 			char orbit_text[16];
 			snprintf(orbit_text, sizeof(orbit_text), "#%d", m->orbit_number);
 			float orbit_tw = bhs_ui_measure_text(ctx, orbit_text, 12.0f);
-			bhs_ui_draw_text(ctx, orbit_text, sx - orbit_tw * 0.5f, sy + size + 2.0f, 12.0f, purple_outline);
+			bhs_ui_draw_text(ctx, orbit_text, sx - orbit_tw * 0.5f, sy + size + 2.0f, 12.0f, outline_color);
 		}
 	}
 
