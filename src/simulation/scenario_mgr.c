@@ -52,6 +52,23 @@ static void set_camera_for_scenario(struct app_state *app, enum scenario_type ty
 		app->camera.fov = 1000.0f;
 		break;
 
+	case SCENARIO_JUPITER_PLUTO_PULL:
+		/* Câmera focada em Júpiter (5.2 AU) */
+		/* Júpiter r = 778.5e9 m. */
+		/* Queremos estar um pouco "atrás" e "acima" */
+		app->camera.x = 7.785e11f; /* Perto de Júpiter em X */
+		app->camera.y = 5.0e9f; /* Um pouco acima */
+		app->camera.z = -2.0e10f; /* Atrás (zoom in) */
+		/* Na verdade o preset coloca Júpiter em X orbital... 
+		   Vamos usar uma visão geral primeiro. */
+		app->camera.x = 7.0e11f; 
+		app->camera.y = 1.0e11f;
+		app->camera.z = -1.0e11f;
+		app->camera.pitch = -0.6f;
+		app->camera.yaw = 0.0f;
+		app->camera.fov = 2000.0f;
+		break;
+
 	case SCENARIO_KERR_BLACKHOLE:
 		/* Perto do evento horizon */
 		app->camera.x = 15.0f;
@@ -217,6 +234,12 @@ static bool load_earth_moon_only(struct app_state *app) {
     return true;
 }
 
+static bool load_jupiter_pluto_pull(struct app_state *app) {
+	BHS_LOG_INFO("Carregando cenário Júpiter & Plutão Pull...");
+	bhs_preset_jupiter_pluto_pull(app->scene);
+	return true;
+}
+
 /* ============================================================================
  * API PÚBLICA
  * ============================================================================
@@ -248,6 +271,9 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 	case SCENARIO_EARTH_MOON_ONLY:
 		ok = load_earth_moon_only(app);
 		break;
+	case SCENARIO_JUPITER_PLUTO_PULL:
+		ok = load_jupiter_pluto_pull(app);
+		break;
 	case SCENARIO_KERR_BLACKHOLE:
 		ok = load_kerr_blackhole(app);
 		break;
@@ -274,6 +300,9 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 			break;
 		case SCENARIO_EARTH_MOON_ONLY:
 			app->scenario = APP_SCENARIO_SOLAR_SYSTEM; /* Reusing solar system state for now */
+			break;
+		case SCENARIO_JUPITER_PLUTO_PULL:
+			app->scenario = APP_SCENARIO_SOLAR_SYSTEM; /* Uses solar system rendering constants */
 			break;
 		case SCENARIO_KERR_BLACKHOLE:
 			app->scenario = APP_SCENARIO_KERR_BLACKHOLE;
@@ -334,6 +363,8 @@ const char *scenario_get_name(enum scenario_type type)
 		return "Debug";
 	case SCENARIO_EARTH_MOON_ONLY:
 		return "Terra e Lua (Isolado)";
+	case SCENARIO_JUPITER_PLUTO_PULL:
+		return "Júpiter & Plutão Pull";
 	default:
 		return "Desconhecido";
 	}

@@ -73,6 +73,14 @@ void bhs_preset_earth_moon_sun(bhs_scene_t scene);
 void bhs_preset_earth_moon_only(bhs_scene_t scene);
 
 /**
+ * bhs_preset_jupiter_pluto_pull - Cria Júpiter e Plutão próximos
+ * @scene: Cena onde adicionar os corpos
+ *
+ * Posiciona Plutão próximo a Júpiter para demonstrar a atração gravitacional.
+ */
+void bhs_preset_jupiter_pluto_pull(bhs_scene_t scene);
+
+/**
  * bhs_preset_orbital_velocity - Calcula velocidade orbital
  * @central_mass: Massa do corpo central (unidades de simulação)
  * @orbital_radius: Distância orbital (unidades de simulação)

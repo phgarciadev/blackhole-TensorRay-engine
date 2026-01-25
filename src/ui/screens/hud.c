@@ -133,6 +133,10 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
     /* Start exactly where the layout says, robustly */
     x_cursor = layout.tab_start_x;
     
+	/* 3. Navigation Tabs */
+    /* Start exactly where the layout says, robustly */
+    x_cursor = layout.tab_start_x;
+    
 	for (int i = 0; i < MENU_COUNT; i++) {
         bool is_active = (state->active_menu_index == i);
         
@@ -172,6 +176,34 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 		x_cursor += width;
 	}
+    
+    /* [NEW] EXIT BUTTON (Right aligned before Telemetry?) or just next to tabs? */
+    /* Let's put it next to tabs for now as a distinct action */
+    {
+        const char *exit_label = "EXIT";
+        float item_padding = 20.0f * ui_scale;
+        float text_w = bhs_ui_measure_text(ctx, exit_label, layout.font_size_tab);
+        float width = text_w + (item_padding * 2.0f);
+        struct bhs_ui_rect item_rect = { x_cursor, 0, width, layout.top_bar_height };
+        
+        int mx, my;
+        bhs_ui_mouse_pos(ctx, &mx, &my);
+        bool hovered = is_inside(mx, my, item_rect.x, item_rect.y, item_rect.width, item_rect.height);
+        
+        if (hovered) {
+             bhs_ui_draw_rect(ctx, item_rect, (struct bhs_ui_color){ 1.0f, 0.2f, 0.2f, 0.2f }); /* Red tint for exit */
+             if (bhs_ui_mouse_clicked(ctx, 0)) {
+                 state->req_exit_to_menu = true; /* Need to ensure this exists in struct or add it */
+             }
+        }
+        
+        float text_y = (layout.top_bar_height - layout.font_size_tab) * 0.5f;
+        float text_x = x_cursor + item_padding;
+        bhs_ui_draw_text(ctx, exit_label, text_x, text_y, layout.font_size_tab, 
+                         hovered ? (struct bhs_ui_color){1.0f, 0.5f, 0.5f, 1.0f} : (struct bhs_ui_color){0.8f, 0.4f, 0.4f, 1.0f});
+                         
+        x_cursor += width;
+    }
     
     /* 4. Telemetry (Top Right) */
     if (state->show_fps) {

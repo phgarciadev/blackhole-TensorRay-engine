@@ -377,7 +377,6 @@ void bhs_preset_earth_moon_sun(bhs_scene_t scene)
 	/* 2. EARTH */
 	struct bhs_planet_desc d_earth = bhs_earth_get_desc();
 	struct bhs_body earth = create_body_from_module(d_earth, sun.state.pos, (struct bhs_vec3){0,0,0}, sun.state.mass, BHS_ENTITY_INVALID, scene);
-	
 	bhs_entity_id earth_id = bhs_scene_add_body_struct(scene, earth);
     attach_orbital_component(scene, earth_id, sun_id, d_earth.semimajor_axis, d_earth.eccentricity, d_earth.orbital_period, false);
 
@@ -390,6 +389,60 @@ void bhs_preset_earth_moon_sun(bhs_scene_t scene)
     attach_orbital_component(scene, moon_id, earth_id, d_moon.semimajor_axis, d_moon.eccentricity, d_moon.orbital_period, true);
 
 	printf("[PRESET] Sol, Terra e Lua carregados.\n");
+}
+
+void bhs_preset_jupiter_pluto_pull(bhs_scene_t scene)
+{
+	if (!scene) return;
+	
+	printf("[PRESET] Criando Workspace Júpiter & Plutão Pull...\n");
+	
+	/* 1. SUN (Fixo na origem para referência gravitacional do sistema solar) */
+	struct bhs_planet_desc d_sun = bhs_sun_get_desc();
+	struct bhs_body sun = bhs_body_create_from_desc(&d_sun, (struct bhs_vec3){0,0,0});
+	sun.is_fixed = true;
+	bhs_entity_id sun_id = bhs_scene_add_body_struct(scene, sun);
+	
+	/* 2. JUPITER (Orbitando o Sol normalmente) */
+	struct bhs_planet_desc d_jup = bhs_jupiter_get_desc();
+	struct bhs_body jup = create_body_from_module(d_jup, sun.state.pos, (struct bhs_vec3){0,0,0}, sun.state.mass, sun_id, scene);
+	bhs_entity_id jup_id = bhs_scene_add_body_struct(scene, jup);
+	
+	attach_orbital_component(scene, jup_id, sun_id, d_jup.semimajor_axis, d_jup.eccentricity, d_jup.orbital_period, false);
+	
+	/* 3. PLUTO (Puxado para Júpiter) */
+	struct bhs_planet_desc d_pluto = bhs_pluto_get_desc();
+	
+	/* Posição: Perto de Júpiter. Vamos usar 20x o raio de Júpiter como distância inicial. */
+	/* Radius Jup ~71k km. 20x ~ 1.4M km. 
+	   Comparação: Luas de Júpiter: Io ~421k, Europa ~671k, Ganymede ~1M, Callisto ~1.8M.
+	   Então 20x raio coloca Plutão entre Ganymede e Callisto. Perfeito para "pull". */
+	   
+	double offset_dist = jup.state.radius * 20.0; 
+	
+	/* Offset vector: apenas em X para simplificar visualização */
+	struct bhs_vec3 offset = { offset_dist, 0, 0 };
+	
+	/* Posição final: Júpiter Pos + Offset */
+	struct bhs_vec3 pluto_pos = {
+		jup.state.pos.x + offset.x,
+		jup.state.pos.y + offset.y,
+		jup.state.pos.z + offset.z
+	};
+	
+	/* Velocidade: IGUAL a Júpiter. 
+	   Se a velocidade for igual, eles estão em "repouso relativo".
+	   A única força atuando relativamente será a gravidade mútua (e maré solar, mas Júpiter domina aqui).
+	   Isso fará Plutão "cair" em direção a Júpiter. */
+	struct bhs_vec3 pluto_vel = jup.state.vel;
+	
+	struct bhs_body pluto = bhs_body_create_from_desc(&d_pluto, pluto_pos);
+	pluto.state.vel = pluto_vel;
+	
+	/* Adicionar à cena */
+	bhs_scene_add_body_struct(scene, pluto);
+	
+	printf("[PRESET] Júpiter e Plutão posicionados. Distância inicial: %.2f (Sim Units)\n", offset_dist);
 }
 
 /* Backward compatibility dummies if needed, but we replaced the main loop */

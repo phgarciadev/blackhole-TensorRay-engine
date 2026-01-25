@@ -294,6 +294,18 @@ void app_run(struct app_state *app)
 			app->hud.req_toggle_pause = false;
 		}
 
+        /* [NEW] Handle Exit Request from HUD */
+        if (app->hud.req_exit_to_menu) {
+            scenario_unload(app);
+            app->sim_status = APP_SIM_START_SCREEN;
+            app->hud.req_exit_to_menu = false;
+            
+            /* Reset HUD state */
+            app->hud.active_menu_index = -1;
+            app->hud.add_menu_category = -1;
+            app->hud.selected_body_index = -1;
+        }
+
 		/* Sync HUD state */
 		app->hud.is_paused = (app->sim_status == APP_SIM_PAUSED);
 

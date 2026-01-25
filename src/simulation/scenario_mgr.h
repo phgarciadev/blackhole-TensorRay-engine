@@ -33,6 +33,7 @@ enum scenario_type {
 	SCENARIO_KERR_BLACKHOLE,/* Black hole Kerr rotativo + partículas */
 	SCENARIO_BINARY_STAR,	/* Sistema estelar binário */
 	SCENARIO_EARTH_MOON_ONLY, /* Apenas Terra e Lua (Sem Sol) */
+	SCENARIO_JUPITER_PLUTO_PULL, /* Júpiter e Plutão (Interação Gravitacional) */
 	SCENARIO_DEBUG		/* Cenário simples de debug */
 };
 

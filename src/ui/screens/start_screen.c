@@ -162,13 +162,12 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 	float list_gap = 8.0f;
 	float curr_y = list_y + 20.0f;
 	
-	const char *ws_names[] = {"Estudo: Terra e Lua", "Empty Workspace", ""};
-	const char *ws_paths[] = {"~/Simulations/EarthMoonStudy", "~/Simulations/New", ""};
+	/* [MODIFIED] Added Jupiter Pull Scenario */
+	const char *ws_names[] = {"Estudo: Terra e Lua", "Júpiter & Plutão Pull", "Empty Workspace", ""};
+	const char *ws_paths[] = {"~/Simulations/EarthMoonStudy", "~/Simulations/JupiterPlutoPull", "~/Simulations/New", ""};
 	
-	/* Draw background box for list? Antigravity has transparent items usually or subtle cards. 
-	   We will use outlines as per previous step helper */
-	
-	for (int i = 0; i < 2; i++) {
+	/* Loop count increased to 3 */
+	for (int i = 0; i < 3; i++) {
         /* [NEW] Interactive Workspace - if clicked, load scenario */
 		// draw_workspace_item only draws, let's copy logic to make it clickable or just modify draw to return bool?
         // Modifying loop to inline logic for now since draw_workspace_item is static void
@@ -193,6 +192,10 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
         if (hovered && bhs_ui_mouse_clicked(ctx, 0)) {
             if (i == 0) {
                 scenario_load(app, SCENARIO_EARTH_MOON_ONLY);
+                app->sim_status = APP_SIM_RUNNING;
+            } else if (i == 1) {
+                /* Jupiter & Pluto */
+                scenario_load(app, SCENARIO_JUPITER_PLUTO_PULL);
                 app->sim_status = APP_SIM_RUNNING;
             } else {
                  /* Empty */

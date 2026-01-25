@@ -52,6 +52,9 @@ typedef struct {
 	/* [NEW] Time Control State */
 	bool is_paused;       /* Display only */
 	bool req_toggle_pause; /* Command to App */
+    
+    /* [NEW] Navigation Request */
+    bool req_exit_to_menu;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);
