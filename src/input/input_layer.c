@@ -348,17 +348,8 @@ static void handle_object_interaction(struct app_state *app)
 		}
 	}
 
-	/* Atualiza cache do corpo selecionado */
-	if (app->hud.selected_body_index != -1) {
-		int n;
-		const struct bhs_body *b = bhs_scene_get_bodies(app->scene, &n);
-		if (app->hud.selected_body_index < n) {
-			app->hud.selected_body_cache = 
-				b[app->hud.selected_body_index];
-		} else {
-			app->hud.selected_body_index = -1;
-		}
-	}
+	/* Atualiza cache do corpo selecionado - MOVIDO PARA APP_STATE (Frame update) */
+	/* if (app->hud.selected_body_index != -1) ... */
 }
 
 /* ============================================================================

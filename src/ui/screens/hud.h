@@ -22,6 +22,7 @@ typedef struct {
 	bool show_satellite_orbits; /* [NEW] Show Green/Purple for moons */
     bool show_planet_markers;   /* [NEW] Purple Dots (Orbit around Sun) */
     bool show_moon_markers;     /* [NEW] Green Dots (Orbit around Planets) */
+    bool fixed_planet_cam;  /* [NEW] Câmera fixa planeta-sol */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */

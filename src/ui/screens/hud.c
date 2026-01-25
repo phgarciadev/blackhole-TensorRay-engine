@@ -857,6 +857,11 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		y += btn_h + 10.0f * ui_scale;
 		struct bhs_ui_rect iso_rect = { x, y, w, 24.0f * ui_scale };
 		bhs_ui_checkbox(ctx, "Isolar Visao", iso_rect, &state->isolate_view);
+        
+        /* [NEW] Checkbox para Câmera Fixa */
+		y += 24.0f * ui_scale + 5.0f * ui_scale; 
+		struct bhs_ui_rect cam_rect = { x, y, w, 24.0f * ui_scale };
+		bhs_ui_checkbox(ctx, "Fixa: Planeta-Sol", cam_rect, &state->fixed_planet_cam);
 	}
 
 

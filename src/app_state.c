@@ -21,6 +21,7 @@
 #include "src/debug/telemetry.h"
 #include "src/input/input_layer.h"
 #include "src/ui/render/blackhole_pass.h" /* [NEW] */
+#include "src/ui/render/visual_utils.h" /* [NEW] Visual Transforms */
 #include "src/ui/screens/view_spacetime.h"
 #include "src/ui/screens/start_screen.h" /* [NEW] */
 
@@ -319,8 +320,103 @@ void app_run(struct app_state *app)
 		if (bhs_ui_begin_frame(app->ui) != BHS_UI_OK)
 			continue; /* Frame perdido, vida que segue */
 
-		/* Processar input (atualiza câmera e estado) */
-		input_process_frame(app, frame_time);
+		/* Processar input (APENAS se não estiver em modo Câmera Fixa) */
+		if (!app->hud.fixed_planet_cam || app->hud.selected_body_index == -1) {
+			input_process_frame(app, frame_time);
+		}
+
+		/* [NEW] Fixed Planet Camera Logic */
+		if (app->hud.fixed_planet_cam && app->hud.selected_body_index != -1) {
+			int count = 0;
+			const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &count);
+			
+			if (app->hud.selected_body_index < count) {
+				const struct bhs_body *target = &bodies[app->hud.selected_body_index];
+				
+				/* 1. Find the Sun (Major Force) */
+				int sun_idx = 0;
+				double max_mass = -1.0;
+				for (int i = 0; i < count; i++) {
+					if ((bodies[i].type == BHS_BODY_STAR || bodies[i].type == BHS_BODY_BLACKHOLE) &&
+					    bodies[i].state.mass > max_mass) {
+						max_mass = bodies[i].state.mass;
+						sun_idx = i;
+					}
+				}
+				
+				if (sun_idx != app->hud.selected_body_index) {
+					const struct bhs_body *sun = &bodies[sun_idx];
+						/* [FIX] Use Visual Coordinates to match Rendering Scale */
+						float tvx, tvy, tvz, tv_rad;
+						bhs_visual_calculate_transform(target, bodies, count, app->hud.visual_mode, 
+													   &tvx, &tvy, &tvz, &tv_rad);
+						
+						/* Sun/Attractor Visual Pos */
+						float svx, svy, svz, sv_rad;
+						bhs_visual_calculate_transform(sun, bodies, count, app->hud.visual_mode,
+													   &svx, &svy, &svz, &sv_rad);
+
+						/* Vector Sun(Vis) -> Planet(Vis) */
+						double dx = tvx - svx;
+						double dy = tvy - svy;
+						double dz = tvz - svz;
+						double dist = sqrt(dx*dx + dy*dy + dz*dz);
+						
+						if (dist > 1.0) { /* Avoid division by zero */
+							/* Normalized Direction (Sun -> Planet) */
+							double nx = dx / dist;
+							double ny = dy / dist;
+							double nz = dz / dist;
+							
+							/* Basis Vectors */
+							/* Right = Forward x Up = (-N) x (0,1,0) = (nz, 0, -nx) */
+							double rx = nz;
+							double rz = -nx;
+							double r_len = sqrt(rx*rx + rz*rz);
+							if (r_len > 0.001) {
+								rx /= r_len;
+								rz /= r_len;
+							}
+							
+							/* Offsets based on VISUAL RADIUS */
+							/* [TUNING] Increased distance to 5.0x for better framing */
+							double offset_dist = tv_rad * 5.0; 
+							if (offset_dist < 20.0) offset_dist = 20.0; /* Sanity minimum */
+							
+							/* [TUNING] Inverted Side Shift sign to place Planet on LEFT */
+							/* Previously: + (rx * side). If we move Right, Planet moves Left relative to center. 
+							   Wait. If I move Camera Right, I look Left to see object? No, I look forward. Object is to my Left.
+							   Correct. 
+							   If Object is at (0,0). I am at (0, -10). Looking at (0,0).
+							   If I move Right to (5, -10). Looking at (0,0).
+							   Object (0,0) is to my Left.
+							   So Positive Right Shift -> Object Left.
+							   
+							   So why was it on the Right?
+							   Maybe my Right vector (nz, 0, -nx) direction is flipped vs what I think.
+							   Let's just invert the sign here to flip it. 
+							*/
+							double side_offset = -tv_rad * 1.5; /* Inverted sign */
+							
+							double up_offset = tv_rad * 0.3;
+							
+							/* Position */
+							app->camera.x = tvx + (nx * offset_dist) + (rx * side_offset);
+							app->camera.y = tvy + (ny * offset_dist) + up_offset; 
+							app->camera.z = tvz + (nz * offset_dist) + (rz * side_offset);
+							
+							/* Look At Sun (Visual Pos) */
+							double lx = svx - app->camera.x;
+							double ly = svy - app->camera.y;
+							double lz = svz - app->camera.z;
+							
+							app->camera.yaw = atan2(lx, lz);
+							double gd = sqrt(lx*lx + lz*lz);
+							app->camera.pitch = -atan2(ly, gd);
+						}
+				}
+			}
+		}
 
 		/* Inicia gravação de comandos */
 		bhs_ui_cmd_begin(app->ui);
@@ -397,6 +493,17 @@ void app_run(struct app_state *app)
 		}
 
 		/* NOTA: Sync do time_scale foi movido para antes do acumulador */
+
+        /* [FIX] Update Object Inspector Cache manually here (decoupled from Input) */
+        if (app->hud.selected_body_index != -1) {
+            int count = 0;
+            const struct bhs_body *bodies = bhs_scene_get_bodies(app->scene, &count);
+            if (app->hud.selected_body_index < count) {
+                app->hud.selected_body_cache = bodies[app->hud.selected_body_index];
+            } else {
+                app->hud.selected_body_index = -1;
+            }
+        }
 
 		/* [NEW] Object Inspector: Calculate Strongest Attractor System-Wide */
 		int attractor_idx = -1;
