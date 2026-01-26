@@ -11,6 +11,7 @@
 #include "app_state.h"
 #include "simulation/scenario_mgr.h"
 #include "simulation/systems/systems.h" // [NEW] Logic Systems
+#include "system/config.h" /* [NEW] */
 
 #include <math.h> /* [NEW] for powf/fabs */
 #include "engine/assets/image_loader.h"
@@ -59,10 +60,17 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	if (!app)
 		return false;
 
+
+/* ... */
+
 	/* 0. Logging (PRIMEIRO - antes de qualquer log) */
 	bhs_log_init();
 	bhs_log_set_level(BHS_LOG_LEVEL_DEBUG); /* [DEBUG] Force Debug Level */
 	BHS_LOG_INFO("=== BlackHole TensorRay - Inicializando ===");
+
+    /* [NEW] Load User Config */
+    bhs_user_config_t user_cfg;
+    bhs_config_load(&user_cfg, "data/user_config.bin"); /* Loads file or defaults */
 
 	/* 1. Scene / Engine Memory */
 	BHS_LOG_INFO("Alocando memória da Engine...");
@@ -79,7 +87,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 					.width = width > 0 ? width : 1280,
 					.height = height > 0 ? height : 720,
 					.resizable = true,
-					.vsync = true,
+					.vsync = user_cfg.vsync_enabled, /* [FIX] Use loaded config */
 					.debug = true };
 
 	int ret = bhs_ui_create(&config, &app->ui);
@@ -90,6 +98,19 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 
 	/* 3. HUD State */
 	bhs_hud_init(&app->hud);
+    
+    /* [NEW] Apply Config to HUD */
+    app->hud.vsync_enabled = user_cfg.vsync_enabled;
+    app->hud.show_fps = user_cfg.show_fps;
+    app->hud.time_scale_val = user_cfg.time_scale_val;
+    
+    app->hud.visual_mode = (bhs_visual_mode_t)user_cfg.visual_mode;
+    app->hud.top_down_view = user_cfg.top_down_view;
+    app->hud.show_gravity_line = user_cfg.show_gravity_line;
+    app->hud.show_orbit_trail = user_cfg.show_orbit_trail;
+    app->hud.show_satellite_orbits = user_cfg.show_satellite_orbits;
+    app->hud.show_planet_markers = user_cfg.show_planet_markers;
+    app->hud.show_moon_markers = user_cfg.show_moon_markers;
 
 	/* 4. Assets - Skybox */
 	BHS_LOG_INFO("Carregando assets...");
@@ -288,6 +309,13 @@ void app_run(struct app_state *app)
 			float target_timescale = days_per_min * 1440.0f;
 			app_set_time_scale(app, (double)target_timescale);
 		}
+
+        /* [NEW] Handle VSync Request from HUD */
+        if (app->hud.req_update_vsync) {
+            bhs_ui_set_vsync(app->ui, app->hud.vsync_enabled);
+            app->hud.req_update_vsync = false;
+            BHS_LOG_INFO("VSync state update requested: %s", app->hud.vsync_enabled ? "ON" : "OFF");
+        }
 
 		/* [NEW] Handle Pause Request from HUD */
 		if (app->hud.req_toggle_pause) {
@@ -638,7 +666,13 @@ void app_run(struct app_state *app)
 						app->hud.visual_mode, app->planet_pass);
 
 			/* HUD */
+            /* [NEW] Calculate FPS for Display (Simple Low-Pass Filter) */
+            float instantaneous_fps = (frame_time > 0.0001) ? (1.0f / (float)frame_time) : 0.0f;
+            static float avg_fps = 60.0f;
+            avg_fps = (avg_fps * 0.9f) + (instantaneous_fps * 0.1f);
+            
 			app->hud.sim_time_seconds = app->accumulated_time; /* Sync J2000 time */
+            app->hud.current_fps = avg_fps;
 			app->hud.orbit_markers_ptr = &app->orbit_markers;   /* [NEW] Passa marcadores */
 			bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
 

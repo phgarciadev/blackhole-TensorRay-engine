@@ -43,6 +43,7 @@ build/
 bin/
 target/
 build_verify/
+data/
 
 # IDEs and Tools
 .vscode/

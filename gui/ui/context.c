@@ -165,14 +165,42 @@ int bhs_ui_begin_frame(bhs_ui_ctx_t ctx) {
   /* Processa eventos */
   bhs_ui_window_poll_events(ctx);
 
-  /* [FIX] Se houve resize durante frame anterior, recria recursos agora */
-  if (ctx->resize_pending) {
-    ctx->resize_pending = false;
+  /* [FIX] Se houve resize ou mudança de VSync, recria recursos agora */
+  if (ctx->resize_pending || ctx->vsync_pending) {
+    bool vsync_changed = ctx->vsync_pending;
     
-    /* Recria swapchain */
-    if (ctx->swapchain) {
-      bhs_gpu_swapchain_resize(ctx->swapchain, (uint32_t)ctx->width,
-                               (uint32_t)ctx->height);
+    ctx->resize_pending = false;
+    ctx->vsync_pending = false;
+    
+    /* Se mudou VSync, precisamos destruir e recriar, pois resize pode não suportar troca de modo */
+    if (vsync_changed) {
+        if (ctx->swapchain) {
+            bhs_gpu_swapchain_destroy(ctx->swapchain);
+            ctx->swapchain = NULL;
+        }
+        
+        struct bhs_gpu_swapchain_config swap_config = {
+            .native_display = bhs_platform_get_native_display(ctx->platform),
+            .native_window = bhs_window_get_native_handle(ctx->window),
+            .native_layer = bhs_window_get_native_layer(ctx->window),
+            .width = (uint32_t)ctx->width,
+            .height = (uint32_t)ctx->height,
+            .format = BHS_FORMAT_BGRA8_SRGB,
+            .buffer_count = 2,
+            .vsync = ctx->vsync_target,
+        };
+        
+        int r = bhs_gpu_swapchain_create(ctx->device, &swap_config, &ctx->swapchain);
+        if (r != BHS_GPU_OK) {
+            fprintf(stderr, "[ui] erro: falha ao recriar swapchain com novo VSync! (%d)\n", r);
+            /* Tenta fallback */
+        }
+    } else {
+        /* Apenas resize */
+        if (ctx->swapchain) {
+            bhs_gpu_swapchain_resize(ctx->swapchain, (uint32_t)ctx->width,
+                                    (uint32_t)ctx->height);
+        }
     }
     
     /* Recria depth texture */
@@ -318,3 +346,9 @@ float bhs_ui_mouse_scroll(bhs_ui_ctx_t ctx) {
  */
 
 /* Funções gráficas implementadas em render2d.c */
+
+void bhs_ui_set_vsync(bhs_ui_ctx_t ctx, bool enabled) {
+    if (!ctx) return;
+    ctx->vsync_target = enabled;
+    ctx->vsync_pending = true;
+}

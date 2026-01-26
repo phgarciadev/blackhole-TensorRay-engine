@@ -6,6 +6,8 @@
 #include "gui/ui/lib.h"
 #include "src/ui/screens/view_spacetime.h" /* bhs_visual_mode_t */
 
+struct bhs_planet_pass;
+
 /**
  * @brief Renderiza a malha do espaço-tempo
  * @param ctx Contexto de desenho
@@ -17,7 +19,8 @@
  */
 void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				 const bhs_camera_t *cam, int width, int height,
-				 const void *assets, bhs_visual_mode_t mode);
+				 const void *assets, bhs_visual_mode_t mode,
+				 struct bhs_planet_pass *planet_pass);
 
 /* [NEW] Exporting project point for hit testing in other modules */
 void bhs_project_point(const bhs_camera_t *cam, float x, float y, float z,

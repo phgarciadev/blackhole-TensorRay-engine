@@ -37,4 +37,12 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			  bhs_visual_mode_t mode,
 			  float output_width, float output_height);
 
+/**
+ * @brief Submit a 3D line to be drawn with depth testing
+ */
+void bhs_planet_pass_submit_line(bhs_planet_pass_t pass,
+				 float x1, float y1, float z1,
+				 float x2, float y2, float z2,
+				 float r, float g, float b, float a);
+
 #endif

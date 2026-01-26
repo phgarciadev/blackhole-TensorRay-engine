@@ -31,7 +31,7 @@ void bhs_view_spacetime_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	if (!ctx) return;
 
 	/* Draw 2.5D Elements (Skybox, BH Quad) */
-	bhs_spacetime_renderer_draw(ctx, scene, cam, width, height, assets, mode);
+	bhs_spacetime_renderer_draw(ctx, scene, cam, width, height, assets, mode, planet_pass);
 
 	/* Draw 3D Elements */
 	if (planet_pass) {

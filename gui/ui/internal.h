@@ -85,6 +85,8 @@ struct bhs_ui_ctx_impl {
   int32_t height;
   bool should_close;
   bool resize_pending;  /* [FIX] Frame deve ser pulado após resize */
+  bool vsync_pending;   /* [NEW] Request VSync change */
+  bool vsync_target;    /* [NEW] Target VSync state */
 
   /* === Input state === */
   struct {

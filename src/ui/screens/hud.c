@@ -4,9 +4,31 @@
 #include "math/units.h" /* [NEW] Para bhs_sim_time_to_date */
 #include <stdio.h>
 #include "src/simulation/data/orbit_marker.h" /* [NEW] */
+#include "system/config.h" /* [NEW] */
+
+/* ... Helper to save config ... */
+static void save_hud_config(const bhs_hud_state_t *state) {
+    bhs_user_config_t cfg;
+    bhs_config_defaults(&cfg); /* Init defaults/magic */
+    
+    cfg.vsync_enabled = state->vsync_enabled;
+    cfg.show_fps = state->show_fps;
+    cfg.time_scale_val = state->time_scale_val;
+    
+    cfg.visual_mode = state->visual_mode;
+    cfg.top_down_view = state->top_down_view;
+    cfg.show_gravity_line = state->show_gravity_line;
+    cfg.show_orbit_trail = state->show_orbit_trail;
+    cfg.show_satellite_orbits = state->show_satellite_orbits;
+    cfg.show_planet_markers = state->show_planet_markers;
+    cfg.show_moon_markers = state->show_moon_markers;
+    
+    bhs_config_save(&cfg, "data/user_config.bin");
+}
 
 static const char *MENU_ITEMS[] = { "Config", "Add", "View" };
 static const int MENU_COUNT = 3;
+static const int MENU_SYSTEM = 99; /* Special index for System Menu */
 
 static bool is_inside(int mx, int my, float x, float y, float w, float h);
 
@@ -118,7 +140,25 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
     const char* logo_text = "RiemannEngine";
     /* Vertically Center: (BarH - FontH) / 2 */
     float logo_y = (layout.top_bar_height - layout.font_size_logo) * 0.5f;
-    bhs_ui_draw_text(ctx, logo_text, x_cursor, logo_y, layout.font_size_logo, (struct bhs_ui_color){ 1.0f, 1.0f, 1.0f, 1.0f });
+    
+    /* Make Logo Clickable */
+    struct bhs_ui_rect logo_rect = { x_cursor, 0, layout.logo_width, layout.top_bar_height };
+    
+    /* Input Update for Logo */
+    int mx_logo, my_logo;
+    bhs_ui_mouse_pos(ctx, &mx_logo, &my_logo);
+    bool logo_hovered = is_inside(mx_logo, my_logo, logo_rect.x, logo_rect.y, logo_rect.width, logo_rect.height);
+    
+    if (logo_hovered) {
+         /* Subtle highlight */
+         bhs_ui_draw_rect(ctx, logo_rect, (struct bhs_ui_color){ 1.0f, 1.0f, 1.0f, 0.05f });
+         if (bhs_ui_mouse_clicked(ctx, 0)) {
+             state->active_menu_index = (state->active_menu_index == MENU_SYSTEM) ? -1 : MENU_SYSTEM;
+         }
+    }
+
+    bhs_ui_draw_text(ctx, logo_text, x_cursor, logo_y, layout.font_size_logo, 
+                     (state->active_menu_index == MENU_SYSTEM) ? theme_highlight : (struct bhs_ui_color){ 1.0f, 1.0f, 1.0f, 1.0f });
     
     /* Move cursor to end of logo column */
     x_cursor += layout.logo_width;
@@ -179,49 +219,50 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
     
     /* [NEW] EXIT BUTTON (Right aligned before Telemetry?) or just next to tabs? */
     /* Let's put it next to tabs for now as a distinct action */
-    {
-        const char *exit_label = "EXIT";
-        float item_padding = 20.0f * ui_scale;
-        float text_w = bhs_ui_measure_text(ctx, exit_label, layout.font_size_tab);
-        float width = text_w + (item_padding * 2.0f);
-        struct bhs_ui_rect item_rect = { x_cursor, 0, width, layout.top_bar_height };
-        
-        int mx, my;
-        bhs_ui_mouse_pos(ctx, &mx, &my);
-        bool hovered = is_inside(mx, my, item_rect.x, item_rect.y, item_rect.width, item_rect.height);
-        
-        if (hovered) {
-             bhs_ui_draw_rect(ctx, item_rect, (struct bhs_ui_color){ 1.0f, 0.2f, 0.2f, 0.2f }); /* Red tint for exit */
-             if (bhs_ui_mouse_clicked(ctx, 0)) {
-                 state->req_exit_to_menu = true; /* Need to ensure this exists in struct or add it */
-             }
-        }
-        
-        float text_y = (layout.top_bar_height - layout.font_size_tab) * 0.5f;
-        float text_x = x_cursor + item_padding;
-        bhs_ui_draw_text(ctx, exit_label, text_x, text_y, layout.font_size_tab, 
-                         hovered ? (struct bhs_ui_color){1.0f, 0.5f, 0.5f, 1.0f} : (struct bhs_ui_color){0.8f, 0.4f, 0.4f, 1.0f});
-                         
-        x_cursor += width;
-    }
+        /* [REMOVED] EXIT BUTTON (Movido para o menu do logo) */
+        x_cursor += (20.0f * ui_scale); /* Apenas espaço */
     
     /* 4. Telemetry (Top Right) */
-    if (state->show_fps) {
-        /* Calcula dias/min atual */
+    /* 4. Speed & FPS Display (Top Right) */
+    {
+        /* --- 1. SIMULATION SPEED (Always Visible) --- */
         float days_per_min = 0.1f * powf(3650.0f, state->time_scale_val);
         
-        char telemetry_text[128];
+        char speed_text[64];
         if (days_per_min < 1.0f) {
-            snprintf(telemetry_text, 128, "Speed: %.1f dias/min", days_per_min);
+            snprintf(speed_text, 64, "Speed: %.1f d/min", days_per_min);
         } else {
-            snprintf(telemetry_text, 128, "Speed: %.0f dias/min", days_per_min);
+            snprintf(speed_text, 64, "Speed: %.0f d/min", days_per_min);
         }
         
-        float text_w = bhs_ui_measure_text(ctx, telemetry_text, layout.font_size_tab); 
         float margin_right = 20.0f * layout.ui_scale;
+        float font_sz = layout.font_size_tab;
+        float speed_w = bhs_ui_measure_text(ctx, speed_text, font_sz);
+        float y_pos = 17.0f * layout.ui_scale;
         
-        bhs_ui_draw_text(ctx, telemetry_text, (float)window_w - text_w - margin_right, 
-                         17.0f * layout.ui_scale, layout.font_size_tab, theme_text_normal);
+        /* Draw Speed (Cyan-ish) */
+        bhs_ui_draw_text(ctx, speed_text, (float)window_w - speed_w - margin_right, 
+                         y_pos, font_sz, (struct bhs_ui_color){0.0f, 0.9f, 0.9f, 1.0f});
+                         
+        /* --- 2. FPS COUNTER (Conditional) --- */
+        if (state->show_fps) {
+            char fps_text[32];
+            snprintf(fps_text, 32, "FPS: %.0f", state->current_fps);
+            
+            float fps_w = bhs_ui_measure_text(ctx, fps_text, font_sz);
+            /* Left of Speed */
+            float x_fps = (float)window_w - speed_w - margin_right - fps_w - (15.0f * layout.ui_scale);
+            
+            /* Draw FPS (Green/Yellow/Red) */
+            struct bhs_ui_color fps_col = BHS_UI_COLOR_GREEN;
+            if (state->current_fps < 30.0f) fps_col = (struct bhs_ui_color){1.0f, 0.5f, 0.0f, 1.0f}; // Orange
+            if (state->current_fps < 15.0f) fps_col = BHS_UI_COLOR_RED;
+            
+            bhs_ui_draw_text(ctx, fps_text, x_fps, y_pos, font_sz, fps_col);
+            
+            /* Separator */
+            bhs_ui_draw_text(ctx, "|", x_fps + fps_w + (5.0f * layout.ui_scale), y_pos, font_sz, BHS_UI_COLOR_GRAY);
+        }
     }
 
 	/* 3. Dropdown Menu */
@@ -230,11 +271,14 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
         float dropdown_x = layout.tab_start_x;
         
         /* Calculate offset to active item */
-        for(int j=0; j<state->active_menu_index; ++j) {
-            /* Same width calc as Draw */
-            float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
-            float w = text_w + (40.0f * layout.ui_scale);
-            dropdown_x += w;
+        /* [FIX] Check bounds: if MENU_SYSTEM (99), skip this loop, as System Menu is positioned differently */
+        if (state->active_menu_index < MENU_COUNT) {
+            for(int j=0; j<state->active_menu_index; ++j) {
+                /* Same width calc as Draw */
+                float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
+                float w = text_w + (40.0f * layout.ui_scale);
+                dropdown_x += w;
+            }
         }
             
 		/* Calculate Dynamic Height */
@@ -249,15 +293,25 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             }
 		} else if (state->active_menu_index == 2) {
 			count = 6; /* 3 Modes + 3 Toggles */
-		} else {
-			count = 5; /* Config items */
+		} else if (state->active_menu_index == MENU_SYSTEM) {
+            count = 10; /* More items: Workspace(2), Diag(2), Exit(1) + Headers + Separators */
+        } else {
+			count = 12; /* Config items expanded */
 		}
 		
 		float row_h = 32.0f * layout.ui_scale; /* Aumentado */
 		float panel_h = (50.0f * layout.ui_scale) + (count * row_h);
 		if (panel_h < 150.0f * layout.ui_scale) panel_h = 150.0f * layout.ui_scale;
 
-		struct bhs_ui_rect panel_rect = { dropdown_x, layout.top_bar_height, 200.0f * layout.ui_scale, panel_h };
+		struct bhs_ui_rect panel_rect;
+        
+        if (state->active_menu_index == MENU_SYSTEM) {
+            /* System Menu aligns with Logo */
+            panel_rect = (struct bhs_ui_rect){ layout.padding_x, layout.top_bar_height, 200.0f * layout.ui_scale, panel_h };
+        } else {
+            /* Tab Menus align with tabs */
+		    panel_rect = (struct bhs_ui_rect){ dropdown_x, layout.top_bar_height, 200.0f * layout.ui_scale, panel_h };
+        }
 
 		/* Modern Menu Bg */
 		bhs_ui_panel(
@@ -275,54 +329,90 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 		/* INDEX 0: CONFIG */
 		if (state->active_menu_index == 0) {
-			bhs_ui_draw_text(ctx, "Appearance", panel_rect.x + item_pad,
+			bhs_ui_draw_text(ctx, "SETTINGS", panel_rect.x + item_pad,
 					 y, font_header, BHS_UI_COLOR_GRAY);
-			y += 25.0f * ui_scale;
+			y += 30.0f * ui_scale;
 
-			struct bhs_ui_rect item_rect = { panel_rect.x + item_pad, y,
-							 item_w, item_h };
-			bhs_ui_checkbox(ctx, "Show FPS", item_rect,
-					&state->show_fps);
-			
-			y += row_spacing;
-			item_rect.y = y;
+            /* --- SECTION: DISPLAY --- */
+            bhs_ui_draw_text(ctx, "Display", panel_rect.x + item_pad, y, font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+            y += 18.0f * ui_scale;
 
-			y += row_spacing;
-			item_rect.y = y;
+			struct bhs_ui_rect item_rect = { panel_rect.x + item_pad, y, item_w, item_h };
 
-			/* [MOVED] Pause Toggle moved into Reference Frame Panel */
+            /* VSYNC */
+			bool vsync_prev = state->vsync_enabled;
+			bhs_ui_checkbox(ctx, "Enable VSync", item_rect, &state->vsync_enabled);
+			if (state->vsync_enabled != vsync_prev) {
+				state->req_update_vsync = true;
+                save_hud_config(state); /* [NEW] Autosave */
+			}
+            y += row_spacing;
+            item_rect.y = y;
 
+            /* FPS Counter */
+            bool fps_prev = state->show_fps;
+			bhs_ui_checkbox(ctx, "Show FPS Overlay", item_rect, &state->show_fps);
+            if (state->show_fps != fps_prev) save_hud_config(state);
+            
+			y += row_spacing + 5.0f * ui_scale;
+
+            bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y - (row_spacing*0.5f) + 5.0f, 
+                             panel_rect.x + panel_rect.width - item_pad, y - (row_spacing*0.5f) + 5.0f, 
+                             (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 0.5f}, 1.0f);
+
+            /* --- SECTION: SIMULATION --- */
+            bhs_ui_draw_text(ctx, "Time Flow", panel_rect.x + item_pad, y, font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+            y += 18.0f * ui_scale;
 
 			/* Time Scale Control */
 			/* Nova formula: dias terrestres por minuto real */
-			/* 0.1 * 3650^val = dias/min (val=0 -> 0.1, val=1 -> 365) */
 			float days_per_min = 0.1f * powf(3650.0f, state->time_scale_val);
 			char time_label[64];
 			if (days_per_min < 1.0f) {
-				snprintf(time_label, 64, "Speed: %.1f dias/min", days_per_min);
+				snprintf(time_label, 64, "Speed: %.1f days/min", days_per_min);
 			} else if (days_per_min < 30.0f) {
-				snprintf(time_label, 64, "Speed: %.0f dias/min", days_per_min);
+				snprintf(time_label, 64, "Speed: %.0f days/min", days_per_min);
 			} else {
-				snprintf(time_label, 64, "Speed: %.0f dias/min", days_per_min);
+				snprintf(time_label, 64, "Speed: %.0f days/min", days_per_min);
 			}
 			
-			bhs_ui_draw_text(ctx, time_label, panel_rect.x + item_pad, y - 5.0f * ui_scale, font_label, BHS_UI_COLOR_GRAY);
-			y += 12.0f * ui_scale;
+			/* Label aligned */
+            bhs_ui_draw_text(ctx, time_label, panel_rect.x + item_pad, y, 13.0f * ui_scale, BHS_UI_COLOR_WHITE);
+            y += 15.0f * ui_scale;
+            
 			item_rect.y = y;
-			item_rect.height = item_h * 0.8f;  /* Slider um pouco mais baixo */
-			bhs_ui_slider(ctx, item_rect, &state->time_scale_val);
-
+			item_rect.height = 12.0f * ui_scale;  /* Slider mais fino */
+            float old_ts_val = state->time_scale_val;
+			if (bhs_ui_slider(ctx, item_rect, &state->time_scale_val)) {
+                 /* Mouse still down/dragging? Slider returns true if changed OR active? 
+                    According to lib.h "Slider horizontal". Implementation usually returns true if interacted.
+                    To avoid spamming save on drag, we could verify mouse release? 
+                    But lib doesn't expose it easily here. Saving 60 times/sec is bad.
+                    However, `bhs_config_save` is fast binary write. But let's check input provided by ctx.
+                    Actually, let's just save on release if possible, or save always. 
+                    Given "immediate mode", detecting release requires state tracking.
+                    For now, I'll just save. Modern SSDs can handle it, file is tiny (100 bytes).
+                 */
+                 /* Optimization: Only save if value changed significantly? */
+                 if (fabs(state->time_scale_val - old_ts_val) > 0.001f) {
+                     /* Delay save? No, let's just do it. It's a prototype. */
+                     save_hud_config(state);
+                 }
+            }
 			y += row_spacing;
-			item_rect.y = y;
-			item_rect.height = item_h;  /* Restaura altura */
 
-			bool vsync_prev = state->vsync_enabled;
-			bhs_ui_checkbox(ctx, "Enable VSync", item_rect,
-					&state->vsync_enabled);
-			if (state->vsync_enabled != vsync_prev) {
-				printf("[HUD] VSync changed (Restart "
-				       "required)\n");
-			}
+            /* Separator */
+            bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y - (row_spacing*0.5f), 
+                             panel_rect.x + panel_rect.width - item_pad, y - (row_spacing*0.5f), 
+                             (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 0.5f}, 1.0f);
+
+            /* --- SECTION: INTERFACE --- */
+            bhs_ui_draw_text(ctx, "Interface", panel_rect.x + item_pad, y, font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+            y += 18.0f * ui_scale;
+            
+            /* Placeholders for FOV/Scale */
+            bhs_ui_draw_text(ctx, "UI Scale (Auto)", panel_rect.x + item_pad, y, 13.0f * ui_scale, (struct bhs_ui_color){0.6f, 0.6f, 0.6f, 1.0f});
+            y += row_spacing * 0.8f;
 		}
 /* ... inside logic ... */
 		/* INDEX 1: ADD */
@@ -413,6 +503,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 				if (bhs_ui_button(ctx, modes[k], btn_rect)) {
 					state->visual_mode = vals[k];
 					/* Auto-close? No, let user switch and see.*/
+                    save_hud_config(state);
 				}
 				y += row_spacing;
 			}
@@ -420,32 +511,50 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			/* Top Down Camera Toggle */
 			y += 5.0f * ui_scale;
 			struct bhs_ui_rect td_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool td_prev = state->top_down_view;
 			bhs_ui_checkbox(ctx, "Top Down Camera", td_rect, &state->top_down_view);
+            if (state->top_down_view != td_prev) save_hud_config(state);
+            
 			y += row_spacing;
 
 			/* Gravity Line Toggle */
 			struct bhs_ui_rect gl_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool gl_prev = state->show_gravity_line;
 			bhs_ui_checkbox(ctx, "Gravity Line", gl_rect, &state->show_gravity_line);
+            if (state->show_gravity_line != gl_prev) save_hud_config(state);
+            
 			y += row_spacing;
 
 			/* Orbit Trail Toggle */
 			struct bhs_ui_rect ot_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool ot_prev = state->show_orbit_trail;
 			bhs_ui_checkbox(ctx, "Orbit Trail", ot_rect, &state->show_orbit_trail);
+            if (state->show_orbit_trail != ot_prev) save_hud_config(state);
+            
 			y += row_spacing;
 			
 			/* Satellite Orbits Toggle */
 			struct bhs_ui_rect so_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool so_prev = state->show_satellite_orbits;
 			bhs_ui_checkbox(ctx, "Satellite Orbits", so_rect, &state->show_satellite_orbits);
+            if (state->show_satellite_orbits != so_prev) save_hud_config(state);
+            
 			y += row_spacing;
 
             /* Planet Markers (Purple) */
             struct bhs_ui_rect pm_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool pm_prev = state->show_planet_markers;
             bhs_ui_checkbox(ctx, "Planet Markers (P)", pm_rect, &state->show_planet_markers);
+            if (state->show_planet_markers != pm_prev) save_hud_config(state);
+            
             y += row_spacing;
 
             /* Moon Markers (Green) */
             struct bhs_ui_rect mm_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            bool mm_prev = state->show_moon_markers;
             bhs_ui_checkbox(ctx, "Moon Markers (G)", mm_rect, &state->show_moon_markers);
+            if (state->show_moon_markers != mm_prev) save_hud_config(state);
+            
             y += row_spacing;
 			
 			/* Descrição do modo atual */
@@ -461,6 +570,104 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			}
 			bhs_ui_draw_text(ctx, desc, panel_rect.x + item_pad, y, font_label, BHS_UI_COLOR_GRAY);
 		}
+        
+        /* INDEX MENU_SYSTEM: SYSTEM OPTIONS */
+        /* INDEX MENU_SYSTEM: SYSTEM OPTIONS */
+        else if (state->active_menu_index == MENU_SYSTEM) {
+            bhs_ui_draw_text(ctx, "SYSTEM CONTROL", panel_rect.x + item_pad,
+                     y, font_header, BHS_UI_COLOR_GRAY);
+            y += 30.0f * ui_scale;
+            
+            /* --- GROUP 1: STATE MANAGEMENT --- */
+            bhs_ui_draw_text(ctx, "Workspace", panel_rect.x + item_pad, y, font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+            y += 18.0f * ui_scale;
+
+            /* Save Snapshot */
+            struct bhs_ui_rect save_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            if (bhs_ui_button(ctx, "Save Snapshot", save_rect)) {
+                printf("[HUD] Save requested (Not implemented yet)\n");
+                state->active_menu_index = -1;
+            }
+            y += row_spacing;
+
+            /* Reload Scenario */
+            struct bhs_ui_rect reset_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            if (bhs_ui_button(ctx, "Reload Workspace", reset_rect)) {
+                printf("[HUD] Reload requested\n");
+                state->active_menu_index = -1;
+            }
+            y += row_spacing + 5.0f * ui_scale;
+            
+            /* Separator */
+            bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y - (row_spacing*0.5f) + 5.0f, 
+                             panel_rect.x + panel_rect.width - item_pad, y - (row_spacing*0.5f) + 5.0f, 
+                             (struct bhs_ui_color){0.3f, 0.3f, 0.3f, 0.5f}, 1.0f);
+
+            /* --- GROUP 2: TOOLS & DIAGNOSTICS --- */
+            bhs_ui_draw_text(ctx, "Diagnostics", panel_rect.x + item_pad, y, font_label, (struct bhs_ui_color){0.5f, 0.5f, 0.6f, 1.0f});
+            y += 18.0f * ui_scale;
+
+            struct bhs_ui_rect export_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            /* Draw as disabled (grayed out) manually if button tool doesn't support it, 
+               but standard button works. We'll just print "Coming Soon". */
+            if (bhs_ui_button(ctx, "Export Metrics", export_rect)) {
+                 printf("[HUD] Export (Planned Feature)\n");
+            }
+            y += row_spacing;
+
+            struct bhs_ui_rect bug_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            if (bhs_ui_button(ctx, "Report Bug", bug_rect)) {
+                 printf("[HUD] Bug Report clicked\n");
+            }
+            y += row_spacing + 10.0f * ui_scale;
+
+            /* Separator (Reddish before Exit) */
+            bhs_ui_draw_line(ctx, panel_rect.x + item_pad, y - (row_spacing*0.5f), 
+                             panel_rect.x + panel_rect.width - item_pad, y - (row_spacing*0.5f), 
+                             (struct bhs_ui_color){0.5f, 0.2f, 0.2f, 0.5f}, 1.0f);
+
+            /* --- GROUP 3: EXIT --- */
+            struct bhs_ui_rect exit_rect = { panel_rect.x + item_pad, y, item_w, item_h };
+            
+            if (state->show_exit_confirmation) {
+                /* Confirmed State: "Really Exit?" and "Cancel" */
+                /* Split width for two buttons */
+                float sub_w = (item_w - 10.0f * ui_scale) * 0.5f;
+                struct bhs_ui_rect confirm_rect = { panel_rect.x + item_pad, y, sub_w, item_h };
+                struct bhs_ui_rect cancel_rect = { panel_rect.x + item_pad + sub_w + 10.0f*ui_scale, y, sub_w, item_h };
+                
+                /* Custom Draw for Red Button */
+                bhs_ui_draw_rect(ctx, confirm_rect, (struct bhs_ui_color){0.6f, 0.1f, 0.1f, 1.0f});
+                if (is_inside(0,0,0,0,0,0)) {} /* Dummy to suppress unused warning if logic differs */
+                int mx, my; bhs_ui_mouse_pos(ctx, &mx, &my);
+                
+                /* Confirm Logic */
+                bool hover_conf = is_inside(mx, my, confirm_rect.x, confirm_rect.y, confirm_rect.width, confirm_rect.height);
+                if (hover_conf) {
+                    bhs_ui_draw_rect(ctx, confirm_rect, (struct bhs_ui_color){0.8f, 0.2f, 0.2f, 1.0f});
+                    if (bhs_ui_mouse_clicked(ctx, 0)) {
+                        state->req_exit_to_menu = true;
+                    }
+                }
+                float tw_c = bhs_ui_measure_text(ctx, "CONFIRM", font_label);
+                bhs_ui_draw_text(ctx, "CONFIRM", confirm_rect.x + (sub_w - tw_c)*0.5f, confirm_rect.y + 5.0f*ui_scale, font_label, BHS_UI_COLOR_WHITE);
+
+                /* Cancel Logic */
+                if (bhs_ui_button(ctx, "Cancel", cancel_rect)) {
+                    state->show_exit_confirmation = false;
+                }
+
+                /* Show prompt text below */
+                y += row_spacing;
+                bhs_ui_draw_text(ctx, "Unsaved changes will be lost!", panel_rect.x + item_pad, y, font_label * 0.9f, (struct bhs_ui_color){0.8f, 0.4f, 0.4f, 1.0f});
+
+            } else {
+                /* Normal State */
+                if (bhs_ui_button(ctx, "EXIT APP", exit_rect)) {
+                    state->show_exit_confirmation = true;
+                }
+            }
+        }
 		}
 
 
@@ -890,11 +1097,13 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int m
          float dropdown_x = layout.tab_start_x;
          
         /* Calculate offset to active item */
-        for(int j=0; j<state->active_menu_index; ++j) {
-             /* Same width calc as Draw */
-            float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
-            float w = text_w + (40.0f * layout.ui_scale);
-            dropdown_x += w;
+        if (state->active_menu_index < MENU_COUNT) {
+            for(int j=0; j<state->active_menu_index; ++j) {
+                 /* Same width calc as Draw */
+                float text_w = bhs_ui_measure_text(ctx, MENU_ITEMS[j], layout.font_size_tab);
+                float w = text_w + (40.0f * layout.ui_scale);
+                dropdown_x += w;
+            }
         }
 
 		if (is_inside(mx, my, dropdown_x, layout.top_bar_height, 

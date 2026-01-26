@@ -42,6 +42,7 @@ typedef struct {
 
 	/* [NEW] Tempo simulado em segundos desde J2000.0 (passado pelo app_state) */
 	double sim_time_seconds;
+    float current_fps; /* [NEW] FPS calculated by app */
 
 	/* [NEW] Acesso ao sistema de marcadores para exibição de detalhes */
 	const struct bhs_orbit_marker_system *orbit_markers_ptr;
@@ -54,8 +55,13 @@ typedef struct {
 	bool is_paused;       /* Display only */
 	bool req_toggle_pause; /* Command to App */
     
+    /* [NEW] System Requests */
+    bool req_update_vsync;
+    bool req_reset_sim; /* Reload workspace */
+    
     /* [NEW] Navigation Request */
     bool req_exit_to_menu;
+    bool show_exit_confirmation; /* [NEW] Ask before quit */
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

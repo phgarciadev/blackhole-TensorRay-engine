@@ -164,6 +164,11 @@ void bhs_ui_quit(bhs_ui_ctx_t ctx);
  * Use no loop: while (!bhs_ui_should_close(ctx)) { ... }
  */
 bool bhs_ui_should_close(bhs_ui_ctx_t ctx);
+/**
+ * bhs_ui_set_vsync - Habilita/Desabilita VSync em tempo de execução
+ * Requer recriar o swapchain, que ocorrerá no próximo frame.
+ */
+void bhs_ui_set_vsync(bhs_ui_ctx_t ctx, bool enabled);
 
 /**
  * bhs_ui_begin_frame - Inicia um frame
