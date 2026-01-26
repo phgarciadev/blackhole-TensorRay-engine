@@ -78,6 +78,11 @@ typedef struct {
     /* [NEW] Camera State Restoration for Fixed Cam */
     bhs_camera_t saved_camera_state;
     bool has_saved_camera;
+
+    /* [NEW] Icon Texture Handles */
+    void *tex_icon_camera;
+    void *tex_icon_swap;
+    void *tex_icon_trash;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

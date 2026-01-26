@@ -7,6 +7,8 @@
 #include "src/simulation/scenario_mgr.h" /* [NEW] For scenario_get_name */
 #include "src/simulation/data/orbit_marker.h" /* [NEW] */
 #include "system/config.h" /* [NEW] */
+#include "engine/assets/svg_loader.h" /* [NEW] */
+#include "engine/assets/image_loader.h" /* [NEW] */
 
 /* ... Helper to save config ... */
 static void save_hud_config(const bhs_hud_state_t *state) {
@@ -115,10 +117,43 @@ void bhs_hud_init(bhs_hud_state_t *state)
 	} /* End Info Panel */
 }
 
+static void* load_icon_tex(bhs_ui_ctx_t ctx, const char* path) {
+    bhs_svg_t *svg = bhs_svg_load(path);
+    if (!svg) {
+        /* Try src/ prefix if running from root without install */
+        char buf[256];
+        snprintf(buf, 256, "src/%s", path);
+        svg = bhs_svg_load(buf);
+        if (!svg) return NULL;
+    }
+    /* Render high-res enough for UI (Anti-aliasing via supersampling) */
+    bhs_image_t img_large = bhs_svg_rasterize_fit(svg, 256, 256);
+    bhs_svg_free(svg);
+    
+    if (!img_large.data) return NULL;
+    
+    /* Software AA: Downsample 4x (256 -> 64) */
+    bhs_image_t img_final = bhs_image_downsample_4x(img_large);
+    bhs_image_free(img_large);
+    
+    if (!img_final.data) return NULL;
+    
+    void* tex = bhs_ui_create_texture_from_rgba(ctx, img_final.width, img_final.height, img_final.data);
+    bhs_image_free(img_final);
+    return tex;
+}
+
 void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		  int window_h)
 {
 	(void)window_h;
+
+    /* Lazy Load Icons */
+    if (!state->tex_icon_camera) {
+        state->tex_icon_camera = load_icon_tex(ctx, "assets/icons/camera.svg");
+        state->tex_icon_swap = load_icon_tex(ctx, "assets/icons/swap.svg");
+        state->tex_icon_trash = load_icon_tex(ctx, "assets/icons/trash.svg");
+    }
 	
     /* --- LAYOUT CALCULATION --- */
     bhs_ui_layout_t layout = get_ui_layout(ctx, window_w, window_h);
@@ -922,18 +957,13 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
         /* [NEW] Quick Actions Row (Camera, Swap, Delete) */
         {
-            float btn_gap = 10.0f * ui_scale;
+            float btn_gap = 12.0f * ui_scale;
             float btn_w = (w - (btn_gap * 2.0f)) / 3.0f;
-            float btn_h = 32.0f * ui_scale; /* "Maiorzinhos" */
+            float btn_h = 48.0f * ui_scale; /* "Bem Grandes" */
+            float icon_pad = 8.0f * ui_scale;
             
             /* 1. Camera Button */
             struct bhs_ui_rect rect_cam = { x, y, btn_w, btn_h };
-            /* Determine active state style override? 
-               The lib might not support style property override easily per button logic without digging deep.
-               BUT we can just draw a colored rectangle BEHIND it and make the button transparent,
-               OR just rely on the label indicating status. 
-               Let's try drawing the rect first, then button with text.
-            */
             struct bhs_ui_color cam_bg = state->fixed_planet_cam ? 
                 (struct bhs_ui_color){0.0f, 0.5f, 0.6f, 1.0f} : /* Active: Teal */
                 (struct bhs_ui_color){0.15f, 0.15f, 0.2f, 1.0f}; /* Inactive: Dark */
@@ -941,29 +971,48 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             bhs_ui_draw_rect(ctx, rect_cam, cam_bg);
             bhs_ui_draw_rect_outline(ctx, rect_cam, (struct bhs_ui_color){0.4f, 0.4f, 0.5f, 0.5f}, 1.0f);
             
-            /* Use a transparent button on top with label */
-            /* If the library button draws a background, it will cover ours. 
-               Let's pass the text to it. If it draws bg, fine. */
-            if (bhs_ui_button(ctx, "[ O ]", rect_cam)) { 
+            if (bhs_ui_button(ctx, "", rect_cam)) { 
                state->fixed_planet_cam = !state->fixed_planet_cam;
+            }
+            if (state->tex_icon_camera) {
+                 bhs_ui_draw_texture(ctx, state->tex_icon_camera, 
+                     rect_cam.x + icon_pad, rect_cam.y + icon_pad, 
+                     rect_cam.width - 2*icon_pad, rect_cam.height - 2*icon_pad,
+                     BHS_UI_COLOR_WHITE);
+            } else {
+                 bhs_ui_draw_text(ctx, "[O]", rect_cam.x + 10.0f*ui_scale, rect_cam.y + 5.0f*ui_scale, 14.0f*ui_scale, BHS_UI_COLOR_WHITE);
             }
 
             /* 2. Swap Button */
             struct bhs_ui_rect rect_swp = { x + btn_w + btn_gap, y, btn_w, btn_h };
-            /* Redundant custom draw if button draws bg, but let's keep consistent style attempt */
-            /* bhs_ui_draw_rect(ctx, rect_swp, ...); // skip custom bg to see if default is better */
-            
-            if (bhs_ui_button(ctx, "<->", rect_swp)) {
-                /* Placeholder */
-            }
+            bhs_ui_draw_rect(ctx, rect_swp, (struct bhs_ui_color){0.2f, 0.2f, 0.25f, 1.0f});
+             if (bhs_ui_button(ctx, "", rect_swp)) {
+                 /* Placeholder */
+             }
+             if (state->tex_icon_swap) {
+                 bhs_ui_draw_texture(ctx, state->tex_icon_swap, 
+                     rect_swp.x + icon_pad, rect_swp.y + icon_pad, 
+                     rect_swp.width - 2*icon_pad, rect_swp.height - 2*icon_pad,
+                     BHS_UI_COLOR_WHITE);
+             } else {
+                 bhs_ui_draw_text(ctx, "<->", rect_swp.x + 10.0f*ui_scale, rect_swp.y + 5.0f*ui_scale, 14.0f*ui_scale, BHS_UI_COLOR_WHITE);
+             }
 
             /* 3. Delete Button */
             struct bhs_ui_rect rect_del = { x + (btn_w + btn_gap) * 2.0f, y, btn_w, btn_h };
-            /* Red tint manually? */
+            /* Red tint for delete */
             bhs_ui_draw_rect(ctx, rect_del, (struct bhs_ui_color){0.3f, 0.1f, 0.1f, 1.0f});
             
-            if (bhs_ui_button(ctx, "X", rect_del)) {
+            if (bhs_ui_button(ctx, "", rect_del)) {
                  state->req_delete_body = true;
+            }
+            if (state->tex_icon_trash) {
+                 bhs_ui_draw_texture(ctx, state->tex_icon_trash, 
+                     rect_del.x + icon_pad, rect_del.y + icon_pad, 
+                     rect_del.width - 2*icon_pad, rect_del.height - 2*icon_pad,
+                     BHS_UI_COLOR_WHITE);
+            } else {
+                 bhs_ui_draw_text(ctx, "X", rect_del.x + 10.0f*ui_scale, rect_del.y + 5.0f*ui_scale, 14.0f*ui_scale, BHS_UI_COLOR_WHITE);
             }
             
             y += btn_h + 15.0f * ui_scale;

@@ -79,8 +79,9 @@ static float parse_float(const char **s)
 		val = val * powf(10.0f, exp_sign * exp_val);
 	}
 	
-	/* Pula 'px' etc */
-	while (*ptr && isalpha(*ptr)) ptr++;
+	/* Pula 'px' etc - REMOVIDO pois quebra comandos compactados como '10l' */
+	/* if (*ptr == 'e'...) handle exponent above */
+	/* No SVG path data, units are forbidden. In attributes, we stop parsing number and leave suffix. */
 
 	*s = ptr;
 	return val * sign;
@@ -199,17 +200,27 @@ static void parse_path_d(bhs_shape_t *shape, const char *d)
 	float cur_x = 0, cur_y = 0;
 	float start_x = 0, start_y = 0;
 	float c1x, c1y, c2x, c2y;
+	float last_c2x = 0, last_c2y = 0; /* Para S/s e T/t reflection */
 	char cmd = 0;
+	char last_cmd = 0;
 
 	while (*d) {
 		d = skip_ws(d);
 		if (!*d) break;
 
 		if (isalpha(*d)) {
+			last_cmd = cmd;
 			cmd = *d++;
 		}
 		/* Se nao for letra, repete o comando anterior (implicito) 
 		   Para M vira L */
+		
+		/* Reset control point se comando anterior não foi Curva */
+		if (last_cmd != 'C' && last_cmd != 'c' && last_cmd != 'S' && last_cmd != 's' &&
+			last_cmd != 'Q' && last_cmd != 'q' && last_cmd != 'T' && last_cmd != 't') {
+			last_c2x = cur_x;
+			last_c2y = cur_y;
+		}
 		
 		switch (cmd) {
 			case 'M': /* Move Absolute */
@@ -260,7 +271,7 @@ static void parse_path_d(bhs_shape_t *shape, const char *d)
 			case 'V': cur_y = parse_float(&d); if(path) add_point(path, cur_x, cur_y); break;
 			case 'v': cur_y += parse_float(&d); if(path) add_point(path, cur_x, cur_y); break;
 
-			case 'C': /* Cubic Bezier */
+			case 'C': /* Cubic Bezier Absolute */
 				c1x = parse_float(&d); c1y = parse_float(&d);
 				c2x = parse_float(&d); c2y = parse_float(&d);
 				{
@@ -268,16 +279,83 @@ static void parse_path_d(bhs_shape_t *shape, const char *d)
 					float end_y = parse_float(&d);
 					if (path) tess_cubic(path, cur_x, cur_y, c1x, c1y, c2x, c2y, end_x, end_y, 0);
 					cur_x = end_x; cur_y = end_y;
+					last_c2x = c2x; last_c2y = c2y;
 				}
 				break;
 
-			case 'Q': /* Quad Bezier */
+			case 'c': /* Cubic Bezier Relative */
+				c1x = cur_x + parse_float(&d); c1y = cur_y + parse_float(&d);
+				c2x = cur_x + parse_float(&d); c2y = cur_y + parse_float(&d);
+				{
+					float end_x = cur_x + parse_float(&d);
+					float end_y = cur_y + parse_float(&d);
+					if (path) tess_cubic(path, cur_x, cur_y, c1x, c1y, c2x, c2y, end_x, end_y, 0);
+					cur_x = end_x; cur_y = end_y;
+					last_c2x = c2x; last_c2y = c2y;
+				}
+				break;
+
+			case 'S': /* Smooth Cubic Absolute */
+			case 's': /* Smooth Cubic Relative */
+				/* Reflexão do último control point (c2) em relação ao ponto atual. */
+				{
+					float next_c2x = parse_float(&d);
+					float next_c2y = parse_float(&d);
+					float end_x = parse_float(&d);
+					float end_y = parse_float(&d);
+					
+					if (cmd == 's') {
+						next_c2x += cur_x; next_c2y += cur_y;
+						end_x += cur_x; end_y += cur_y;
+					}
+
+					/* C1 = reflexao de last_c2 em relacao a cur */
+					/* cur + (cur - last_c2) = 2*cur - last_c2 */
+					float inf_c1x = 2.0f * cur_x - last_c2x; 
+					float inf_c1y = 2.0f * cur_y - last_c2y;
+
+					if (path) tess_cubic(path, cur_x, cur_y, inf_c1x, inf_c1y, next_c2x, next_c2y, end_x, end_y, 0);
+					cur_x = end_x; cur_y = end_y;
+					last_c2x = next_c2x; last_c2y = next_c2y;
+				}
+				break;
+
+			case 'Q': /* Quad Bezier Abs */
 				c1x = parse_float(&d); c1y = parse_float(&d);
 				{
 					float end_x = parse_float(&d);
 					float end_y = parse_float(&d);
 					if (path) tess_quad(path, cur_x, cur_y, c1x, c1y, end_x, end_y);
 					cur_x = end_x; cur_y = end_y;
+					last_c2x = c1x; last_c2y = c1y; /* Quad control point */
+				}
+				break;
+
+			case 'q': /* Quad Bezier Rel */
+				c1x = cur_x + parse_float(&d); c1y = cur_y + parse_float(&d);
+				{
+					float end_x = cur_x + parse_float(&d);
+					float end_y = cur_y + parse_float(&d);
+					if (path) tess_quad(path, cur_x, cur_y, c1x, c1y, end_x, end_y);
+					cur_x = end_x; cur_y = end_y;
+					last_c2x = c1x; last_c2y = c1y;
+				}
+				break;
+			
+			case 'T': /* Smooth Quad Abs */
+			case 't': /* Smooth Quad Rel */
+				{
+					float end_x = parse_float(&d);
+					float end_y = parse_float(&d);
+					if (cmd == 't') { end_x += cur_x; end_y += cur_y; }
+					
+					/* C1 inferido */
+					float inf_c1x = 2.0f * cur_x - last_c2x; 
+					float inf_c1y = 2.0f * cur_y - last_c2y;
+
+					if (path) tess_quad(path, cur_x, cur_y, inf_c1x, inf_c1y, end_x, end_y);
+					cur_x = end_x; cur_y = end_y;
+					last_c2x = inf_c1x; last_c2y = inf_c1y; /* Para T subsequente, o novo ctrl point é o inferido */
 				}
 				break;
 
@@ -292,6 +370,7 @@ static void parse_path_d(bhs_shape_t *shape, const char *d)
 				break;
 
 			default:
+				/* Consome floats orfaos para evitar loop infinito se parse falhar */
 				parse_float(&d); 
 				break;
 		}
@@ -509,16 +588,16 @@ bhs_svg_t *bhs_svg_parse(const char *buffer)
 		if (p) p++; else break;
 	}
 
-    printf("[SVG] Parsed SVG: %dx%d, %p shapes\n", (int)svg->width, (int)svg->height, (void*)svg->shapes);
-    for(bhs_shape_t *s = svg->shapes; s; s=s->next) {
-        printf("[SVG]   Shape: fill=%d(%08X) stroke=%d(%08X) paths=%p\n", 
-            s->has_fill, s->fill_color, s->has_stroke, s->stroke_color, (void*)s->paths);
-        for(bhs_path_t *path = s->paths; path; path=path->next) {
-            printf("[SVG]     Path: %d points\n", path->n_pts);
-            if(path->n_pts > 0) printf("[SVG]       Start: %.1f, %.1f\n", path->pts[0].x, path->pts[0].y);
-        }
-    }
-    fflush(stdout);
+    // printf("[SVG] Parsed SVG: %dx%d, %p shapes\n", (int)svg->width, (int)svg->height, (void*)svg->shapes);
+    // for(bhs_shape_t *s = svg->shapes; s; s=s->next) {
+    //     printf("[SVG]   Shape: fill=%d(%08X) stroke=%d(%08X) paths=%p\n", 
+    //         s->has_fill, s->fill_color, s->has_stroke, s->stroke_color, (void*)s->paths);
+    //     for(bhs_path_t *path = s->paths; path; path=path->next) {
+    //         printf("[SVG]     Path: %d points\n", path->n_pts);
+    //         if(path->n_pts > 0) printf("[SVG]       Start: %.1f, %.1f\n", path->pts[0].x, path->pts[0].y);
+    //     }
+    // }
+    // fflush(stdout);
 
 	return svg;
 }
@@ -585,20 +664,19 @@ bhs_image_t bhs_svg_rasterize(const bhs_svg_t *svg, float scale)
 		uint8_t b = (s->fill_color >> 16) & 0xFF;
 		uint8_t a = 255; /* Default opacity 1.0 */
 
-		/* Para cada Path do shape */
-		for (bhs_path_t *p = s->paths; p; p = p->next) {
-			if (p->n_pts < 3) continue;
-
-			/* Simple Scanline Poly Fill */
-			/* Limitação: Não lida com furos e complexidade even-odd corretamente
-			   em todos os casos, mas serve para ícones convexos/simples */
+		
+		/* Rasteriza scanline por scanline considerando TODOS os paths do shape juntos
+		   Isso implementa implicitamente a regra Even-Odd para furos */
+		for (int y = 0; y < h; y++) {
+			float ly = (float)y / scale;
 			
-			for (int y = 0; y < h; y++) {
-				/* Find intersections */
-				float nodes[64]; /* Max intersections per line arbitrary */
-				int nodes_cnt = 0;
-				
-				float ly = (float)y / scale;
+			/* Coleta intersecções de TODOS os paths deste shape */
+			int cap = 64; 
+			float *nodes = malloc(cap * sizeof(float));
+			int nodes_cnt = 0;
+			
+			for (bhs_path_t *p = s->paths; p; p = p->next) {
+				if (p->n_pts < 3) continue;
 				
 				int j = p->n_pts - 1;
 				for (int i = 0; i < p->n_pts; i++) {
@@ -608,49 +686,51 @@ bhs_image_t bhs_svg_rasterize(const bhs_svg_t *svg, float scale)
 					float x2 = p->pts[j].x;
 					
 					if ((y1 < ly && y2 >= ly) || (y2 < ly && y1 >= ly)) {
+						if (nodes_cnt >= cap) {
+							cap *= 2;
+							float *new_nodes = realloc(nodes, cap * sizeof(float));
+							if (!new_nodes) break; 
+							nodes = new_nodes;
+						}
 						nodes[nodes_cnt++] = x1 + (ly - y1) / (y2 - y1) * (x2 - x1);
 					}
 					j = i;
 				}
-				
-				/* Sort nodes */
-				for (int i = 0; i < nodes_cnt - 1; i++) {
-					for (int k = i + 1; k < nodes_cnt; k++) {
-						if (nodes[i] > nodes[k]) {
-							float tmp = nodes[i];
-							nodes[i] = nodes[k];
-							nodes[k] = tmp;
-						}
-					}
-				}
-				
-				/* Fill spans */
-				if (y % 10 == 0 && nodes_cnt > 0) printf("[SVG] Scanline %d: %d nodes, Range [%.1f - %.1f]\n", y, nodes_cnt, nodes[0], nodes[1]);
-				for (int i = 0; i < nodes_cnt; i += 2) {
-					if (i + 1 >= nodes_cnt) break;
-					int sx = (int)(nodes[i] * scale);
-					int ex = (int)(nodes[i+1] * scale);
-					
-					if (sx < 0) sx = 0;
-					if (ex >= w) ex = w - 1;
-					
-					for (int x = sx; x < ex; x++) {
-						uint8_t *pix = img.data + (y * w + x) * 4;
-						
-						/* Se pixel atual for transparente, apenas preenche */
-						if (pix[3] == 0) {
-							pix[0] = r; pix[1] = g; pix[2] = b; pix[3] = a;
-						} else {
-							/* Se ja houver algo, sobrepõe (Alpha blending simples) */
-							/* Como nosso rasterizador é básico, apenas sobrescrevemos
-							 * por enquanto, pois o scanline simple polyfill pode
-							 * visitar o mesmo pixel várias vezes em formas complexas.
-							 */
-							pix[0] = r; pix[1] = g; pix[2] = b; pix[3] = a;
-						}
+			}
+			
+			if (nodes_cnt == 0) {
+				free(nodes);
+				continue;
+			}
+			
+			/* Sort nodes */
+			for (int i = 0; i < nodes_cnt - 1; i++) {
+				for (int k = i + 1; k < nodes_cnt; k++) {
+					if (nodes[i] > nodes[k]) {
+						float tmp = nodes[i];
+						nodes[i] = nodes[k];
+						nodes[k] = tmp;
 					}
 				}
 			}
+			
+			/* Fill spans */
+			for (int i = 0; i < nodes_cnt; i += 2) {
+				if (i + 1 >= nodes_cnt) break;
+				int sx = (int)(nodes[i] * scale);
+				int ex = (int)(nodes[i+1] * scale);
+				
+				if (sx < 0) sx = 0;
+				if (ex >= w) ex = w - 1;
+				
+				for (int x = sx; x < ex; x++) {
+					uint8_t *pix = img.data + (y * w + x) * 4;
+					
+					/* Simple overwrite for now */
+					pix[0] = r; pix[1] = g; pix[2] = b; pix[3] = a;
+				}
+			}
+			free(nodes);
 		}
 	}
 

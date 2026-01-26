@@ -44,4 +44,14 @@ struct bhs_planet_desc; /* Forward declare */
  */
 bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int width, int height);
 
+/**
+ * @brief Downsample image by 4x using box filter (Software Anti-Aliasing).
+ * Creates a new image with 1/4 width and 1/4 height.
+ * The original image is NOT freed.
+ * 
+ * @param src Source image (RGBA)
+ * @return bhs_image_t Downsampled image
+ */
+bhs_image_t bhs_image_downsample_4x(bhs_image_t src);
+
 #endif /* BHS_LIB_LOADER_IMAGE_H */

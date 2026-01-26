@@ -17,4 +17,19 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_scene_lifecycle.c")
     add_test(NAME SceneLifecycleTest COMMAND integration_tests)
 endif()
 
+# SVG Reproduction Test
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/repro_issue.c")
+    add_executable(repro_svg_issue "${CMAKE_CURRENT_SOURCE_DIR}/repro_issue.c")
+    target_link_libraries(repro_svg_issue PRIVATE bhs_engine bhs_math)
+    target_include_directories(repro_svg_issue PRIVATE ${CMAKE_SOURCE_DIR})
+    add_test(NAME SVGReproTest COMMAND repro_svg_issue)
+endif()
+
+# Legacy Manual Test
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_svg_manual.c")
+    add_executable(test_svg_manual "${CMAKE_CURRENT_SOURCE_DIR}/test_svg_manual.c")
+    target_link_libraries(test_svg_manual PRIVATE bhs_engine bhs_math)
+    target_include_directories(test_svg_manual PRIVATE ${CMAKE_SOURCE_DIR})
+endif()
+
 message(STATUS "Testes configurados.")

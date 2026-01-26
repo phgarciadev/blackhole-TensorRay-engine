@@ -504,3 +504,46 @@ void bhs_image_free(bhs_image_t img)
 {
 	if (img.data) free(img.data);
 }
+
+bhs_image_t bhs_image_downsample_4x(bhs_image_t src)
+{
+	bhs_image_t dst = {0};
+	if (!src.data || src.width % 4 != 0 || src.height % 4 != 0) {
+		fprintf(stderr, "[IMAGE] Downsample 4x requer dimensoes multipas de 4. (Got %dx%d)\n", src.width, src.height);
+		/* Fallback: copy or return empty? Return empty makes it fail load_icon and standard path might handle null?
+		   Actually, better to return invalid so caller knows. */
+		return dst;
+	}
+
+	dst.width = src.width / 4;
+	dst.height = src.height / 4;
+	dst.channels = 4;
+	dst.data = calloc(dst.width * dst.height * 4, 1);
+	if (!dst.data) return dst;
+
+	for (int y = 0; y < dst.height; y++) {
+		for (int x = 0; x < dst.width; x++) {
+			uint32_t r = 0, g = 0, b = 0, a = 0;
+			/* Box filter 4x4 sample */
+			for (int dy = 0; dy < 4; dy++) {
+				for (int dx = 0; dx < 4; dx++) {
+					int sx = x * 4 + dx;
+					int sy = y * 4 + dy;
+					int idx = (sy * src.width + sx) * 4;
+					
+					r += src.data[idx + 0];
+					g += src.data[idx + 1];
+					b += src.data[idx + 2];
+					a += src.data[idx + 3];
+				}
+			}
+			
+			int dst_idx = (y * dst.width + x) * 4;
+			dst.data[dst_idx + 0] = (uint8_t)(r / 16);
+			dst.data[dst_idx + 1] = (uint8_t)(g / 16);
+			dst.data[dst_idx + 2] = (uint8_t)(b / 16);
+			dst.data[dst_idx + 3] = (uint8_t)(a / 16);
+		}
+	}
+	return dst;
+}
