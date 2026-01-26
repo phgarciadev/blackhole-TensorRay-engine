@@ -348,6 +348,15 @@ void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture, float x, float y,
                             float v1, struct bhs_ui_color color);
 
 /**
+ * @brief Cria uma textura a partir de dados RGBA em memória.
+ * @param width Largura da imagem
+ * @param height Altura da imagem
+ * @param data Ponteiro para dados RGBA (uint8_t), row-major.
+ * @return Handle opaco da textura ou NULL em erro.
+ */
+void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, const void *data);
+
+/**
  * @brief Desenha um quad com UVs arbitrários para cada vértice (TL, TR, BR, BL)
  * Essencial para distorções complexas (esferas, etc).
  */

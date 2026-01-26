@@ -37,6 +37,8 @@
 *.hex
 blackhole_sim
 quicksave.bhs
+*.ppm
+*.log
 
 # Build Directories
 build/
@@ -54,6 +56,7 @@ data/
 *~
 compile_commands.json
 .cache/
+.gemini/
 
 # Debug files
 *.dSYM/

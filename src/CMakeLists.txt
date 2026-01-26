@@ -41,6 +41,7 @@ set_project_warnings(blackhole_sim)
 # O makefile tinha SHADER_OUT_DIR := assets/shaders na raiz.
 # Vamos copiar a pasta assets da raiz para o build dir para rodar facil.
 file(COPY "${CMAKE_SOURCE_DIR}/assets" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/assets" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 # Compilação de Shaders (Chamada ao módulo)
 target_compile_shaders(blackhole_sim)

@@ -546,6 +546,43 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture, float x, float y,
 			       color);
 }
 
+void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, const void *data)
+{
+	BHS_ASSERT(ctx != NULL);
+	BHS_ASSERT(data != NULL);
+
+	struct bhs_gpu_texture_config tex_cfg = {
+		.width = (uint32_t)width,
+		.height = (uint32_t)height,
+		.depth = 1,
+		.format = BHS_FORMAT_RGBA8_UNORM,
+		.usage = BHS_TEXTURE_SAMPLED | BHS_TEXTURE_TRANSFER_DST,
+		.mip_levels = 1,
+		.array_layers = 1,
+		.label = "UI Icon",
+	};
+
+	bhs_gpu_texture_t tex;
+	if (bhs_gpu_texture_create(ctx->device, &tex_cfg, &tex) != BHS_GPU_OK) {
+		fprintf(stderr, "[ui] Falha ao criar textura de icone %dx%d\n", width, height);
+		return NULL;
+	}
+
+	/* Upload imediato (assumindo que nao estamos no meio de um render pass que conflite) */
+	/* create_texture apenas aloca. upload faz copy buffer to image. */
+	/* Se estivermos dentro de um renderpass, upload pode falhar se usar cmd buffer ocupado? 
+	   RHI usa staging buffer e copy command. 
+	   Se ctx->cmd estiver gravando, pode ser ok se RHI usar cmd dedicado ou injetar?
+	   bhs_gpu_texture_upload geralmente submete e espera ou grava no cmd?
+	   A implementacao padrao do RHI costuma bloquear ou usar transfer queue.
+	   Assumindo safe para chamar no init ou pre-render. */
+	
+    /* FIXME: Tamanho do buffer: w * h * 4 bytes */
+	bhs_gpu_texture_upload(tex, 0, 0, data, width * height * 4);
+
+	return (void*)tex;
+}
+
 /* Compatibility helpers */
 void bhs_ui_draw_rect(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
 		      struct bhs_ui_color color)

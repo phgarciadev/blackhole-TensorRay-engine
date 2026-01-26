@@ -130,6 +130,9 @@ add_subdirectory(engine)
 # 4. Source/App (Glue code, Executable)
 add_subdirectory(src)
 
+# 5. Lua Bindings (PUC)
+# add_subdirectory(lua/puc)
+
 # ==============================================================================
 # Testing
 # ==============================================================================

@@ -3,6 +3,7 @@
 pub const BHS_EPSILON: f64 = 0.000000001;
 pub const BHS_ENTITY_INVALID: u32 = 0;
 pub const BHS_MAX_ENTITIES: u32 = 10000;
+pub const BHS_MAX_TRAIL_POINTS: u32 = 65536;
 pub const BHS_LOG_CHANNEL_ALL: u32 = 4294967295;
 pub const BHS_COLOR_RESET: &[u8; 5] = b"\x1B[0m\0";
 pub const BHS_COLOR_RED: &[u8; 6] = b"\x1B[31m\0";
@@ -212,6 +213,24 @@ unsafe extern "C" {
     #[doc = " bhs_ecs_load_world - Carrega estado do mundo (sobrescreve atual).\n @world: Mundo a carregar\n @filename: Caminho do arquivo\n Retorna true se sucesso."]
     pub fn bhs_ecs_load_world(world: bhs_world_handle, filename: *const core::ffi::c_char) -> bool;
 }
+unsafe extern "C" {
+    #[doc = " @brief Lê apenas um componente específico do arquivo sem carregar o mundo todo.\n Útil para ler metadados (título, data) de múltiplos arquivos rapidamente."]
+    pub fn bhs_ecs_peek_metadata(
+        filename: *const core::ffi::c_char,
+        out_metadata: *mut core::ffi::c_void,
+        metadata_size: usize,
+        metadata_type_id: u32,
+    ) -> bool;
+}
+unsafe extern "C" {
+    #[doc = " bhs_ecs_update_metadata - Atualiza metadados sem carregar o mundo todo\n\n Abre o arquivo modo rb+, acha o chunk de metadados e sobrescreve.\n Requer que o tamanho da struct seja compatível."]
+    pub fn bhs_ecs_update_metadata(
+        filename: *const core::ffi::c_char,
+        new_metadata: *const core::ffi::c_void,
+        metadata_size: usize,
+        metadata_type_id: u32,
+    ) -> bool;
+}
 pub type __gnuc_va_list = __builtin_va_list;
 pub type va_list = __gnuc_va_list;
 #[doc = " struct bhs_metric - Tensor métrico covariante g_μν\n\n Matriz 4x4 simétrica: g[μ][ν] = g[ν][μ]\n Índices: 0=t, 1=x/r, 2=y/θ, 3=z/φ\n\n Alinhamento 16 bytes para compatibilidade com GPU (std140/std430)"]
@@ -418,6 +437,8 @@ pub type bhs_star_stage = core::ffi::c_uint;
 pub struct bhs_planet_data {
     pub density: f64,
     pub axis_tilt: f64,
+    pub rotation_period: f64,
+    pub j2: f64,
     pub albedo: f64,
     pub has_atmosphere: bool,
     pub surface_pressure: f64,
@@ -476,6 +497,9 @@ pub struct bhs_body {
     pub is_fixed: bool,
     pub is_alive: bool,
     pub name: [core::ffi::c_char; 32usize],
+    pub trail_positions: [[f32; 3usize]; 65536usize],
+    pub trail_head: core::ffi::c_int,
+    pub trail_count: core::ffi::c_int,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -506,7 +530,7 @@ unsafe extern "C" {
     ) -> *const bhs_body;
 }
 unsafe extern "C" {
-    pub fn bhs_scene_add_body_struct(scene: bhs_scene_t, b: bhs_body) -> bool;
+    pub fn bhs_scene_add_body_struct(scene: bhs_scene_t, b: bhs_body) -> bhs_entity_id;
 }
 unsafe extern "C" {
     pub fn bhs_scene_add_body(
@@ -517,7 +541,7 @@ unsafe extern "C" {
         mass: f64,
         radius: f64,
         color: bhs_vec3,
-    ) -> bool;
+    ) -> bhs_entity_id;
 }
 unsafe extern "C" {
     pub fn bhs_scene_add_body_named(
@@ -529,7 +553,7 @@ unsafe extern "C" {
         radius: f64,
         color: bhs_vec3,
         name: *const core::ffi::c_char,
-    ) -> bool;
+    ) -> bhs_entity_id;
 }
 unsafe extern "C" {
     pub fn bhs_scene_remove_body(scene: bhs_scene_t, index: core::ffi::c_int);
@@ -1283,6 +1307,10 @@ unsafe extern "C" {
     pub fn bhs_ui_should_close(ctx: bhs_ui_ctx_t) -> bool;
 }
 unsafe extern "C" {
+    #[doc = " bhs_ui_set_vsync - Habilita/Desabilita VSync em tempo de execução\n Requer recriar o swapchain, que ocorrerá no próximo frame."]
+    pub fn bhs_ui_set_vsync(ctx: bhs_ui_ctx_t, enabled: bool);
+}
+unsafe extern "C" {
     #[doc = " bhs_ui_begin_frame - Inicia um frame\n\n Faz poll de eventos, atualiza input state, prepara batching.\n DEVE ser chamado antes de qualquer widget ou desenho.\n\n Retorna: BHS_UI_OK ou BHS_UI_ERR_* se swapchain morreu"]
     pub fn bhs_ui_begin_frame(ctx: bhs_ui_ctx_t) -> core::ffi::c_int;
 }
@@ -1392,6 +1420,11 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Mede as dimensões de um texto com o sistema de fontes atual"]
+    pub fn bhs_ui_measure_text(ctx: bhs_ui_ctx_t, text: *const core::ffi::c_char, size: f32)
+        -> f32;
+}
+unsafe extern "C" {
     #[doc = " bhs_ui_draw_texture - Desenha textura (quad texturizado)\n\n Fundamental para o Viewport do simulador.\n @texture: Se NULL, desenha retângulo branco (equivalente a draw_rect)"]
     pub fn bhs_ui_draw_texture(
         ctx: bhs_ui_ctx_t,
@@ -1418,6 +1451,15 @@ unsafe extern "C" {
         v1: f32,
         color: bhs_ui_color,
     );
+}
+unsafe extern "C" {
+    #[doc = " @brief Cria uma textura a partir de dados RGBA em memória.\n @param width Largura da imagem\n @param height Altura da imagem\n @param data Ponteiro para dados RGBA (uint8_t), row-major.\n @return Handle opaco da textura ou NULL em erro."]
+    pub fn bhs_ui_create_texture_from_rgba(
+        ctx: bhs_ui_ctx_t,
+        width: core::ffi::c_int,
+        height: core::ffi::c_int,
+        data: *const core::ffi::c_void,
+    ) -> *mut core::ffi::c_void;
 }
 unsafe extern "C" {
     #[doc = " @brief Desenha um quad com UVs arbitrários para cada vértice (TL, TR, BR, BL)\n Essencial para distorções complexas (esferas, etc)."]
@@ -1505,6 +1547,16 @@ unsafe extern "C" {
         label: *const core::ffi::c_char,
         rect: bhs_ui_rect,
         checked: *mut bool,
+    ) -> bool;
+}
+unsafe extern "C" {
+    #[doc = " bhs_ui_text_field - Campo de Texto\n\n @focused: Estado de foco gerido externamente (ou internamente se NULL)\n Returns true se o texto mudou."]
+    pub fn bhs_ui_text_field(
+        ctx: bhs_ui_ctx_t,
+        rect: bhs_ui_rect,
+        buf: *mut core::ffi::c_char,
+        max_len: usize,
+        focused: *mut bool,
     ) -> bool;
 }
 pub const bhs_ui_key_BHS_KEY_ESCAPE: bhs_ui_key = 1;

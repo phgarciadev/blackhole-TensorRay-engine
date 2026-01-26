@@ -10,7 +10,6 @@
 
 /// Módulo contendo os bindings brutos gerados automaticamente.
 /// NÃO EDITE este módulo manualmente.
-#[path = "../include/bindings.rs"]
 pub mod bindings;
 
 // Re-exporta para facilitar o uso
