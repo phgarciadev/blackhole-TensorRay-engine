@@ -378,9 +378,43 @@ void input_process_frame(struct app_state *app, double dt)
 	if (!app || !app->ui)
 		return;
 
+	/* 
+	 * 1. Global Commands & HUD Requests (Always active) 
+	 * Even if focused, we want ESC to work (unless we want to block it too? 
+	 * For now, keep it for safety).
+	 */
 	handle_global_input(app);
-    handle_hud_commands(app); /* [NEW] Process UI requests */
-	handle_simulation_input(app, dt);
-	handle_camera_input(app, dt);
-	handle_object_interaction(app);
+    handle_hud_commands(app); /* Process requests from UI (Save, etc) */
+
+	/* 2. Check UI Blocking State */
+	/* If a text field has focus, COMPLETELY block simulation commands (WASD, etc) */
+	if (app->hud.input_focused) {
+		return;
+	}
+
+	/* 3. Check Mouse Over UI for spatial interactions */
+	int32_t mx, my, win_w, win_h;
+	bhs_ui_mouse_pos(app->ui, &mx, &my);
+	bhs_ui_get_size(app->ui, &win_w, &win_h);
+	bool mouse_on_ui = bhs_hud_is_mouse_over(app->ui, &app->hud, mx, my, win_w, win_h);
+
+	/* 
+	 * 4. Simulation Controls (Time Shortcuts, etc)
+	 * Usually blocked if on UI to avoid accidental speed changes while clicking buttons 
+	 */
+	if (!mouse_on_ui) {
+		handle_simulation_input(app, dt);
+	}
+
+	/* 5. Spatial Interactions (Camera & Object selection) */
+	if (!mouse_on_ui) {
+		handle_camera_input(app, dt);
+		handle_object_interaction(app);
+	} else {
+		/* 
+		 * Special Case: Even if mouse is on UI, we might want to let selection 
+		 * logic clean up (e.g. handle_object_interaction calls bhs_hud_is_mouse_over internally).
+		 * But since we already have the flag, we just skip.
+		 */
+	}
 }
