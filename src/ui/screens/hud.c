@@ -920,6 +920,55 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
         bhs_ui_draw_line(ctx, x, y, x + w, y, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.3f}, 1.0f * ui_scale);
 		y += 15.0f * ui_scale;
 
+        /* [NEW] Quick Actions Row (Camera, Swap, Delete) */
+        {
+            float btn_gap = 10.0f * ui_scale;
+            float btn_w = (w - (btn_gap * 2.0f)) / 3.0f;
+            float btn_h = 32.0f * ui_scale; /* "Maiorzinhos" */
+            
+            /* 1. Camera Button */
+            struct bhs_ui_rect rect_cam = { x, y, btn_w, btn_h };
+            /* Determine active state style override? 
+               The lib might not support style property override easily per button logic without digging deep.
+               BUT we can just draw a colored rectangle BEHIND it and make the button transparent,
+               OR just rely on the label indicating status. 
+               Let's try drawing the rect first, then button with text.
+            */
+            struct bhs_ui_color cam_bg = state->fixed_planet_cam ? 
+                (struct bhs_ui_color){0.0f, 0.5f, 0.6f, 1.0f} : /* Active: Teal */
+                (struct bhs_ui_color){0.15f, 0.15f, 0.2f, 1.0f}; /* Inactive: Dark */
+            
+            bhs_ui_draw_rect(ctx, rect_cam, cam_bg);
+            bhs_ui_draw_rect_outline(ctx, rect_cam, (struct bhs_ui_color){0.4f, 0.4f, 0.5f, 0.5f}, 1.0f);
+            
+            /* Use a transparent button on top with label */
+            /* If the library button draws a background, it will cover ours. 
+               Let's pass the text to it. If it draws bg, fine. */
+            if (bhs_ui_button(ctx, "[ O ]", rect_cam)) { 
+               state->fixed_planet_cam = !state->fixed_planet_cam;
+            }
+
+            /* 2. Swap Button */
+            struct bhs_ui_rect rect_swp = { x + btn_w + btn_gap, y, btn_w, btn_h };
+            /* Redundant custom draw if button draws bg, but let's keep consistent style attempt */
+            /* bhs_ui_draw_rect(ctx, rect_swp, ...); // skip custom bg to see if default is better */
+            
+            if (bhs_ui_button(ctx, "<->", rect_swp)) {
+                /* Placeholder */
+            }
+
+            /* 3. Delete Button */
+            struct bhs_ui_rect rect_del = { x + (btn_w + btn_gap) * 2.0f, y, btn_w, btn_h };
+            /* Red tint manually? */
+            bhs_ui_draw_rect(ctx, rect_del, (struct bhs_ui_color){0.3f, 0.1f, 0.1f, 1.0f});
+            
+            if (bhs_ui_button(ctx, "X", rect_del)) {
+                 state->req_delete_body = true;
+            }
+            
+            y += btn_h + 15.0f * ui_scale;
+        }
+
 		/* --- UNIVERSAL DATA --- */
 		const char* type_str = "Unknown";
 		if (b->name[0] != '\0') type_str = b->name;
@@ -1049,30 +1098,14 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 		y += 20.0f * ui_scale; /* Spacing before buttons */
 
-		/* Delete Button (Styled) */
-		float btn_h = 28.0f * ui_scale;
-		struct bhs_ui_rect del_rect = { x, y, w, btn_h };
-        /* Background */
-		bhs_ui_draw_rect(ctx, del_rect, (struct bhs_ui_color){ 0.4f, 0.1f, 0.1f, 1.0f });
-        /* Border */
-        bhs_ui_draw_rect_outline(ctx, del_rect, (struct bhs_ui_color){ 0.8f, 0.2f, 0.2f, 1.0f }, 1.0f * ui_scale);
-        
-        /* Centered Text */
-		if (bhs_ui_button(ctx, "", del_rect)) {
-			state->req_delete_body = true;
-		}
-		float text_w = 11.0f * (font_prop * 0.65f);  /* Aprox largura de "DELETE BODY" */
-        bhs_ui_draw_text(ctx, "DELETE BODY", x + (w - text_w) / 2.0f, y + btn_h * 0.25f, font_prop, BHS_UI_COLOR_WHITE);
+		y += 20.0f * ui_scale; /* Spacing before buttons */
 
 		/* [NEW] Checkbox para Isolamento Visual */
-		y += btn_h + 10.0f * ui_scale;
+		/* (Delete button removed, Fixed camera toggle moved to top) */
+		/* y += btn_h + 10.0f * ui_scale; <-- adjust spacing */
+		
 		struct bhs_ui_rect iso_rect = { x, y, w, 24.0f * ui_scale };
 		bhs_ui_checkbox(ctx, "Isolar Visao", iso_rect, &state->isolate_view);
-        
-        /* [NEW] Checkbox para Câmera Fixa */
-		y += 24.0f * ui_scale + 5.0f * ui_scale; 
-		struct bhs_ui_rect cam_rect = { x, y, w, 24.0f * ui_scale };
-		bhs_ui_checkbox(ctx, "Fixa: Planeta-Sol", cam_rect, &state->fixed_planet_cam);
 	}
 
 

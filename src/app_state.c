@@ -555,13 +555,13 @@ void app_run(struct app_state *app)
 				/* [FIX] Use Hill Sphere Logic for "Parent" detection instead of raw Force.
 				   Raw force says Sun > Earth for Moon (approx 2x), but Earth is the Moon's parent. */
 				
-				double best_hill_score = 1.0e50;
+				double best_hill_score = 1.0e52; /* [FIX] Init larger than any possible Hill R (was 1.0e50) */
 				int parent_idx = -1;
 				double best_dist = 0.0;
 				
 				/* Find System Attractor (Sun/BH) for Hill Calc */
 				int sys_attractor = -1;
-				double max_mass = -1.0;
+				double max_mass = 0.0; /* [FIX] Init to 0.0 */
 				for(int k=0; k<count; ++k) {
 					if ((bodies[k].type == BHS_BODY_STAR || bodies[k].type == BHS_BODY_BLACKHOLE) && 
 					    bodies[k].state.mass > max_mass) {
@@ -569,7 +569,18 @@ void app_run(struct app_state *app)
 						sys_attractor = k;
 					}
 				}
-				if (sys_attractor == -1 && count > 0) sys_attractor = 0;
+				/* Fallback: Heaviest Object if no Star */
+				if (sys_attractor == -1 && count > 0) {
+                    for(int k=0; k<count; ++k) {
+                        if (bodies[k].state.mass > max_mass) {
+                            max_mass = bodies[k].state.mass;
+                            sys_attractor = k;
+                        }
+                    }
+                }
+                
+                /* Safety: avoid div by zero if max_mass is 0 (empty scene) */
+                if (max_mass < 1.0) max_mass = 1.0;
 
 				for (int i = 0; i < count; i++) {
 					if (i == app->hud.selected_body_index) continue;
