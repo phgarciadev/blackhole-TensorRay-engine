@@ -27,7 +27,7 @@ target_include_directories(blackhole_sim PRIVATE
 # Linkagem
 target_link_libraries(blackhole_sim PRIVATE 
     bhs_engine
-    bhs_gui-framework
+    bhs_gui
     bhs_math
 )
 

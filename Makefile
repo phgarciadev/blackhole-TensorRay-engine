@@ -1,11 +1,7 @@
 # Makefile - Wrapper do CMake para Black Hole Simulator
 #
-# Uso Simplificado:
-#   make          -> 1. Detecta Ambiente  2. Configura  3. Compila Tudo
+# Este arquivo makefile não faz nada além de delegar a compilação propriamente dita ao cmake.
 #
-# Compatibilidade:
-#   Funciona em qualquer shell Unix-like (Bash, Zsh, Git Bash).
-#   Requer: cmake
 
 # Configurações
 MAKEFLAGS += --no-print-directory
@@ -21,9 +17,9 @@ NPROCS := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 # ==============================================================================
 
 .PHONY: all auto clean help
-.PHONY: linux-x11 linux-wayland windows mac
+.PHONY: linux-x11 linux-wayland windows mac rust-binds
 
-# Se rodar 'make' puro, faz tudo no sistema detectado automático
+# Se rodar 'make' puro, faz tudo automático no sistema detectado pelo cmake 
 all: auto
 
 help:
@@ -37,6 +33,7 @@ help:
 	@echo "  make linux-wayland"
 	@echo "  make windows"
 	@echo "  make mac"
+	@echo "  make rust-binds   : Atualiza bindings Rust (via CMake)"
 
 # ------------------------------------------------------------------------------
 # Lógica de Build
@@ -89,6 +86,12 @@ fbsd-wayland:
 
 navigator:
 	$(call run_pipeline,-DPLATFORM=NAVIGATOR -DGPU_API=webgpu,Forcando NAVIGATOR + WebGPU)
+
+# --- Tools ---
+rust-binds:
+	@cmake --build $(BUILD_DIR) --target rust-binds
+
+
 
 # --- Limpeza ---
 clean:

@@ -16,7 +16,7 @@
  * @param time Tempo total de simulação
  */
 /* Dashboard style (Clears screen) */
-void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid, double phys_ms, double render_ms);
+void bhs_telemetry_print_scene(bhs_scene_t scene, double time, double phys_ms, double render_ms);
 
 /* Scrolling Log style (Append) - Good for history analysis */
 void bhs_telemetry_log_orbits(bhs_scene_t scene, double time);

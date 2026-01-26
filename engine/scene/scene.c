@@ -8,6 +8,11 @@
 #include "engine/components/components.h"
 // #include "engine/physics/spacetime/spacetime.h" /* REMOVED */
 #include "src/simulation/components/sim_components.h" // Game components
+/* 
+ * NÃO INCLUA "src/simulation/presets/presets.h" AQUI!
+ * Bibliotecas de engine não devem depender da aplicação. 
+ * Se você fizer isso de novo, Linus vai pessoalmente apagar seu repositório.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,8 +36,12 @@ extern bhs_world_handle bhs_engine_get_world_internal(void); // Need a way to ge
 // Let's declare it external here for "Friend" access within engine module.
 // In real engine, this would be cleaner.
 bhs_world_handle bhs_engine_get_world_unsafe(void) {
-    // This function must be implemented in engine.c
-    return NULL; // implementation required
+	/* 
+	 * Retorna o world do engine. Se você usar isso pra fazer merda, 
+	 * a culpa é do seu professor de C que não te ensinou encapsulamento. 
+	 */
+	extern bhs_world_handle bhs_engine_get_world_internal(void);
+	return bhs_engine_get_world_internal();
 }
 
 struct bhs_scene_impl {
@@ -75,9 +84,12 @@ void bhs_scene_destroy(bhs_scene_t scene)
 
 void bhs_scene_init_default(bhs_scene_t scene)
 {
-    // Default initialization is now handled by the Application (src/)
-    // Engine provides an empty scene.
-    (void)scene;
+	/* 
+	 * A engine agora entrega uma cena limpa. 
+	 * Se você quer planetas, popule a cena no seu código de aplicação.
+	 * O teste de integração agora faz isso manualmente.
+	 */
+	(void)scene;
 }
 
 void bhs_scene_update(bhs_scene_t scene, double dt)
@@ -153,6 +165,25 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
                 b->color = c->data.planet.color;
                 b->prop.planet.density = c->data.planet.density;
                 b->prop.planet.has_atmosphere = c->data.planet.has_atmosphere;
+                
+                /* Map Rotation State */
+                b->state.rot_speed = c->data.planet.rotation_speed;
+                b->state.rot_axis = c->data.planet.rotation_axis;
+                b->state.current_rotation_angle = c->data.planet.current_rotation_angle;
+                
+                /* [FIX] Reconstruct Properties for UI (Inspector) */
+                /* Tilt = angle between Up(0,1,0) and Axis? 
+                   Factory: axis = (sin(tilt), cos(tilt), 0)
+                   So tilt = atan2(x, y) */
+                b->prop.planet.axis_tilt = atan2(b->state.rot_axis.x, b->state.rot_axis.y);
+                
+                /* Period = 2pi / speed */
+                if (fabs(b->state.rot_speed) > 1e-9) {
+                    b->prop.planet.rotation_period = (2.0 * 3.14159265359) / b->state.rot_speed;
+                } else {
+                    b->prop.planet.rotation_period = 0.0;
+                }
+                
             } else if (c->type == BHS_CELESTIAL_STAR) {
                 b->type = BHS_BODY_STAR;
                 b->prop.star.luminosity = c->data.star.luminosity;
@@ -179,11 +210,11 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 }
 
 // Full-Fidelity Create
-bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
+bhs_entity_id bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
 {
     extern bhs_world_handle bhs_engine_get_world_internal(void);
     bhs_world_handle world = bhs_engine_get_world_internal();
-    if (!world) return false;
+    if (!world) return BHS_ENTITY_INVALID;
     (void)scene;
 
     bhs_entity_id e = bhs_ecs_create_entity(world);
@@ -215,6 +246,14 @@ bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
         c.data.planet.color = b.color;
         c.data.planet.density = b.prop.planet.density;
         c.data.planet.has_atmosphere = b.prop.planet.has_atmosphere;
+        
+        /* Rotation Logic - Use calculated state from factory */
+        c.data.planet.rotation_speed = b.state.rot_speed;
+        c.data.planet.rotation_axis = b.state.rot_axis;
+        
+        /* [DEBUG] Force initialization of current angle */
+        c.data.planet.current_rotation_angle = 0.0;
+
     } else if (b.type == BHS_BODY_STAR) {
         c.type = BHS_CELESTIAL_STAR;
         c.data.star.luminosity = b.prop.star.luminosity;
@@ -229,7 +268,7 @@ bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
     
     bhs_ecs_add_component(world, e, BHS_COMP_CELESTIAL, sizeof(c), &c);
     
-    return true;
+    return e;
 }
 
 /* Contador global para nomes únicos (lazy, mas funciona) */
@@ -244,7 +283,8 @@ void bhs_scene_reset_counters(void)
     g_asteroid_counter = 0;
 }
 
-bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
+
+bhs_entity_id bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
 			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
 			double radius, struct bhs_vec3 color)
 {
@@ -270,14 +310,14 @@ bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
     return bhs_scene_add_body_named(scene, type, pos, vel, mass, radius, color, name);
 }
 
-bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
 			      struct bhs_vec3 pos, struct bhs_vec3 vel,
 			      double mass, double radius, struct bhs_vec3 color,
 			      const char *name)
 {
     extern bhs_world_handle bhs_engine_get_world_internal(void);
     bhs_world_handle world = bhs_engine_get_world_internal();
-    if (!world) return false;
+    if (!world) return BHS_ENTITY_INVALID;
     (void)scene; // Mark unused
 
     bhs_entity_id e = bhs_ecs_create_entity(world);
@@ -319,7 +359,7 @@ bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
     // Since we included sim_components.h which defines BHS_COMP_CELESTIAL, use that.
     bhs_ecs_add_component(world, e, BHS_COMP_CELESTIAL, sizeof(c), &c);
 
-    return true;
+    return e;
 }
 
 

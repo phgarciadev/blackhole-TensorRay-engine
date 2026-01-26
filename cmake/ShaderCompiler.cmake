@@ -22,8 +22,8 @@ function(target_compile_shaders target_name)
     file(GLOB SHADER_SOURCES_VERT "${SHADER_SRC_DIR}/*.vert")
     file(GLOB SHADER_SOURCES_FRAG "${SHADER_SRC_DIR}/*.frag")
     
-    # UI Shaders from gui-framework
-    set(GUI_SHADER_DIR "${CMAKE_SOURCE_DIR}/gui-framework/ui/render/shaders")
+    # UI Shaders from gui
+    set(GUI_SHADER_DIR "${CMAKE_SOURCE_DIR}/gui/ui/render/shaders")
     file(GLOB UI_SHADERS_VERT "${GUI_SHADER_DIR}/*.vert")
     file(GLOB UI_SHADERS_FRAG "${GUI_SHADER_DIR}/*.frag")
 

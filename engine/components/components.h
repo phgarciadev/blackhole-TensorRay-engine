@@ -21,6 +21,7 @@ typedef enum {
     BHS_COMP_METRIC,     // Cria distorcao no espaco-tempo (Buraco Negro, Estrela)
     BHS_COMP_RENDER,     // Mesh/Material
     BHS_COMP_TAG,        // Nome/Type tag
+    BHS_COMP_METADATA,   // [NEW] Global simulation metadata (Time, Scenario, etc)
     BHS_COMP_COUNT
 } bhs_component_type_id;
 

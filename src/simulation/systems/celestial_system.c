@@ -25,27 +25,40 @@
 
 void bhs_celestial_system_update(bhs_scene_t scene, double dt)
 {
-	int count = 0;
-	const struct bhs_body *bodies_const = bhs_scene_get_bodies(scene, &count);
-	/* Cast const away because we are the system updating the state. 
-	 * Ideally bhs_scene_get_bodies_mutable() would exist. */
-	struct bhs_body *bodies = (struct bhs_body *)bodies_const;
+	bhs_world_handle world = bhs_scene_get_world(scene);
+	if (!world) return;
 
-	for (int i = 0; i < count; i++) {
-		struct bhs_body *b = &bodies[i];
-		
-		/* Verifica se é um corpo que deve rotacionar */
-		if (b->type == BHS_BODY_PLANET || b->type == BHS_BODY_STAR || 
-		    b->type == BHS_BODY_MOON) {
+	bhs_ecs_query q;
+	/* Query all entities with CELESTIAL component */
+	bhs_ecs_query_init(&q, world, (1 << BHS_COMP_CELESTIAL));
+
+	bhs_entity_id id;
+	while (bhs_ecs_query_next(&q, &id)) {
+		bhs_celestial_component *c = bhs_ecs_get_component(world, id, BHS_COMP_CELESTIAL);
+		if (!c) continue;
+
+		/* Update Planet Rotation */
+		if (c->type == BHS_CELESTIAL_PLANET) {
+			/* Handle Tidal Locking */
+            bhs_orbital_component *orb = bhs_ecs_get_component(world, id, BHS_COMP_ORBITAL);
+            if (orb && (orb->flags & BHS_ORBITAL_FLAG_TIDAL_LOCK)) {
+                /* Synchronous Rotation: spin period = orbital period */
+                if (orb->period > 0.1) {
+                    c->data.planet.rotation_speed = (2.0 * M_PI) / orb->period;
+                }
+            }
+
+			c->data.planet.current_rotation_angle += c->data.planet.rotation_speed * dt;
 			
-			/* Integrar rotação */
-			b->state.current_rotation_angle += b->state.rot_speed * dt;
-
-			/* Normalizar para 0..2PI */
-			if (b->state.current_rotation_angle > 2.0 * M_PI) {
-				b->state.current_rotation_angle = fmod(b->state.current_rotation_angle, 2.0 * M_PI);
+			/* Normalize 0..2PI */
+			if (c->data.planet.current_rotation_angle > 2.0 * M_PI) {
+				c->data.planet.current_rotation_angle = fmod(c->data.planet.current_rotation_angle, 2.0 * M_PI);
+			} else if (c->data.planet.current_rotation_angle < 0.0) {
+				/* Handle retrograde negative overflow */
+				c->data.planet.current_rotation_angle = fmod(c->data.planet.current_rotation_angle, 2.0 * M_PI) + 2.0 * M_PI;
 			}
 		}
+		/* Simplesmente ignore Stars for now, or rotate them too */
 	}
 }
 

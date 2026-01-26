@@ -19,13 +19,14 @@
 
 #include <stdbool.h>
 #include "engine/scene/scene.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/ui/lib.h"
+#include "gui/rhi/rhi.h"
 #include "src/ui/screens/hud.h"
 #include "src/ui/render/planet_renderer.h"
 #include "src/ui/render/planet_renderer.h"
 #include "src/ui/camera/camera.h"
-#include "include/bhs_fabric.h" /* [NEW] Doppler Fabric */
+#include "src/simulation/data/orbit_marker.h"  /* [NEW] Sistema de marcadores */
+
 
 /* ============================================================================
  * ENUMS DE ESTADO
@@ -37,7 +38,8 @@
  */
 enum app_sim_state {
 	APP_SIM_RUNNING,
-	APP_SIM_PAUSED
+	APP_SIM_PAUSED,
+	APP_SIM_START_SCREEN /* [NEW] Tela de boot estilizada */
 };
 
 /**
@@ -72,7 +74,7 @@ enum app_scenario {
  */
 struct app_state {
 	/* ---- Subsistemas ---- */
-	bhs_ui_ctx_t ui;		/* gui-framework: Janela, GPU, Input */
+	bhs_ui_ctx_t ui;		/* gui: Janela, GPU, Input */
 	bhs_scene_t scene;		/* Engine: ECS, Physics, Bodies */
 
 	/* ---- Assets de Rendering ---- */
@@ -89,7 +91,6 @@ struct app_state {
 	/* ---- Compute Passes ---- */
 	struct bhs_blackhole_pass *bh_pass; /* [NEW] Opaque handle */
 	struct bhs_planet_pass *planet_pass; /* [NEW] 3D Renderer */
-	struct bhs_fabric *fabric; /* [NEW] Doppler Visual Fabric */
 
 	/* ---- Estado da Câmera ---- */
 	bhs_camera_t camera;		/* Posição, rotação, FOV */
@@ -103,6 +104,9 @@ struct app_state {
 	/* ---- Estado de UI ---- */
 	bhs_hud_state_t hud;		/* HUD: menus, seleção, etc */
 
+	/* ---- [NEW] Sistema de Marcadores de Órbita ---- */
+	struct bhs_orbit_marker_system orbit_markers;
+
 	/* ---- Timing / Profiling ---- */
 	double last_frame_time;		/* Timestamp do último frame */
 	double phys_ms;			/* ms gastos em física */
@@ -110,8 +114,10 @@ struct app_state {
 	int frame_count;		/* Contador de frames */
 
 	/* ---- Flags de Controle ---- */
-	bool show_grid;			/* Show/Hide Doppler Fabric */
 	bool should_quit;		/* Hora de ir embora */
+    
+    /* ---- [NEW] Persistence State ---- */
+    char current_workspace[256]; /* Path of currently loaded file (for Reload) */
 };
 
 /* ============================================================================
@@ -120,7 +126,7 @@ struct app_state {
  */
 
 /**
- * app_init - Inicializa TUDO: logs, gui-framework, engine, scene, câmera
+ * app_init - Inicializa TUDO: logs, gui, engine, scene, câmera
  * @app: Estado da aplicação (deve estar zerado)
  * @title: Título da janela
  * @width: Largura inicial
@@ -132,7 +138,7 @@ struct app_state {
  * Ordem de inicialização:
  * 1. Logging
  * 2. Scene/Engine memory
- * 3. gui-framework/UI (Window + Vulkan)
+ * 3. gui/UI (Window + Vulkan)
  * 4. Assets (texturas)
  * 5. Camera (valores padrão)
  * 6. HUD state
@@ -160,7 +166,7 @@ void app_run(struct app_state *app);
  *
  * Ordem de cleanup (inversa do init):
  * 1. Texturas
- * 2. UI/gui-framework
+ * 2. UI/gui
  * 3. Scene/Engine
  * 4. Logging
  */
@@ -195,8 +201,13 @@ static inline void app_set_time_scale(struct app_state *app, double scale)
 		return;
 	if (scale < 0.1)
 		scale = 0.1;
-	if (scale > 100.0)
-		scale = 100.0;
+	/*
+	 * MAX: 1e6 = ~694 dias/minuto = ~1.9 anos por minuto real.
+	 * Suficiente pra ver órbitas planetárias em segundos.
+	 * O limite anterior de 100x era completamente inútil pra astronomia.
+	 */
+	if (scale > 1.0e6)
+		scale = 1.0e6;
 	app->time_scale = scale;
 }
 

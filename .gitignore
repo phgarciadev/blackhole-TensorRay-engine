@@ -36,11 +36,14 @@
 *.x86_64
 *.hex
 blackhole_sim
+quicksave.bhs
 
 # Build Directories
 build/
 bin/
 target/
+build_verify/
+data/
 
 # IDEs and Tools
 .vscode/

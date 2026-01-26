@@ -23,9 +23,10 @@
 
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
+#include "simulation/scenario_mgr.h" /* [NEW] Persistence API */
 #include "math/units.h"
-#include "gui-framework/ui/lib.h"
-#include "gui-framework/log.h"
+#include "gui/ui/lib.h"
+#include "gui/log.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -37,35 +38,9 @@
  * ============================================================================
  */
 
-/**
- * Projeta ponto 3D para coordenadas de tela
- * (Código duplicado do antigo main.c - poderia ir pra um módulo de math)
- */
-static void project_point(const bhs_camera_t *c, float x, float y, float z,
-			  float sw, float sh, float *ox, float *oy)
-{
-	float dx = x - c->x;
-	float dy = y - c->y;
-	float dz = z - c->z;
-
-	float cos_yaw = cosf(c->yaw);
-	float sin_yaw = sinf(c->yaw);
-	float x1 = dx * cos_yaw - dz * sin_yaw;
-	float z1 = dx * sin_yaw + dz * cos_yaw;
-	float y1 = dy;
-
-	float cos_pitch = cosf(c->pitch);
-	float sin_pitch = sinf(c->pitch);
-	float y2 = y1 * cos_pitch - z1 * sin_pitch;
-	float z2 = y1 * sin_pitch + z1 * cos_pitch;
-	float x2 = x1;
-
-	if (z2 < 0.1f)
-		z2 = 0.1f;
-	float factor = c->fov / z2;
-	*ox = x2 * factor + sw * 0.5f;
-	*oy = (sh * 0.5f) - (y2 * factor);
-}
+#include "src/math/mat4.h"
+#include "src/ui/render/spacetime_renderer.h"
+#include "src/ui/render/visual_utils.h"
 
 /* ============================================================================
  * HANDLERS ESPECÍFICOS
@@ -77,6 +52,29 @@ static void project_point(const bhs_camera_t *c, float x, float y, float z,
  */
 static void handle_camera_input(struct app_state *app, double dt)
 {
+	/* Sync HUD State with Camera State */
+	if (app->hud.top_down_view != app->camera.is_top_down_mode) {
+		app->camera.is_top_down_mode = app->hud.top_down_view;
+
+		if (app->camera.is_top_down_mode) {
+			/* Entering Top-Down: Reset to high altitude, looking down */
+			app->camera.x = 0.0;
+			app->camera.z = 0.0;
+			app->camera.y = 1.0e13; /* ~66 AU - Good overview */
+			app->camera.pitch = -1.57079632679f; /* -90 degrees */
+			app->camera.yaw = 0.0f;
+		} else {
+			/* Exiting: Restore comfortable pitch */
+			app->camera.pitch = -0.3f;
+		}
+	}
+
+	/* Force pitch lock if in mode (redundant safety) */
+	if (app->camera.is_top_down_mode) {
+		app->camera.pitch = -1.57079632679f;
+		/* We don't lock X/Z so user can pan */
+	}
+
 	/* Delega pro camera_controller existente */
 	bhs_camera_controller_update(&app->camera, app->ui, dt);
 }
@@ -86,6 +84,7 @@ static void handle_camera_input(struct app_state *app, double dt)
  */
 static void handle_simulation_input(struct app_state *app, double dt)
 {
+	(void)dt; /* Agora não usado após remoção do grid control */
 	/* Toggle pause com Space */
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_SPACE)) {
 		app_toggle_pause(app);
@@ -109,16 +108,6 @@ static void handle_simulation_input(struct app_state *app, double dt)
 		app_set_time_scale(app, 2.0);
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_5))
 		app_set_time_scale(app, 4.0);
-		
-	/* Grid Size Control Keys: 9 and 0 */
-	if (bhs_ui_key_down(app->ui, BHS_KEY_9)) {
-		app->hud.fabric_size_val -= 0.5f * dt; /* Slow decrease */
-		if (app->hud.fabric_size_val < 0.0f) app->hud.fabric_size_val = 0.0f;
-	}
-	if (bhs_ui_key_down(app->ui, BHS_KEY_0)) {
-		app->hud.fabric_size_val += 0.5f * dt;
-		if (app->hud.fabric_size_val > 1.0f) app->hud.fabric_size_val = 1.0f;
-	}
 }
 
 /**
@@ -126,19 +115,14 @@ static void handle_simulation_input(struct app_state *app, double dt)
  */
 static void handle_global_input(struct app_state *app)
 {
-	/* QuickSave */
-	if (bhs_ui_key_pressed(app->ui, BHS_KEY_S) &&
-	    !bhs_ui_key_down(app->ui, BHS_KEY_W)) { /* Só S, não WS juntos */
-		BHS_LOG_INFO("Salvando mundo...");
-		bhs_ecs_save_world(bhs_scene_get_world(app->scene),
-				   "saves/quicksave.bhs");
-	}
+	/* QuickSave REMOVED as per user request */
+	/* if (bhs_ui_key_pressed(app->ui, BHS_KEY_S) ... */
 
 	/* QuickLoad */
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_L)) {
 		BHS_LOG_INFO("Carregando mundo...");
-		bhs_ecs_load_world(bhs_scene_get_world(app->scene),
-				   "saves/quicksave.bhs");
+		/* [FIX] For now keep L but point to debug file if any, or just ignore. 
+		   Reload Workspace button is the canonical way now. */
 	}
 
 	/* Quit com ESC */
@@ -149,6 +133,8 @@ static void handle_global_input(struct app_state *app)
 /**
  * Processa interação com objetos (seleção e deleção)
  */
+/* Helper duplicate: Gravity Depth removed (Now in visual_utils.h) */
+
 static void handle_object_interaction(struct app_state *app)
 {
 	int win_w, win_h;
@@ -182,9 +168,9 @@ static void handle_object_interaction(struct app_state *app)
 
 			new_body = bhs_body_create_from_desc(&desc, pos);
 			
-			/* Use Canonical Unit Conversion (SI -> Sim) */
-			new_body.state.mass = BHS_KG_TO_SIM(new_body.state.mass);
-			new_body.state.radius = BHS_RADIUS_TO_SIM(new_body.state.radius);
+			/* Use Canonical Unit Conversion (SI -> Sim) - REMOVED for SI Scale */
+			new_body.state.mass = new_body.state.mass;
+			new_body.state.radius = new_body.state.radius;
 
 			if (new_body.state.mass < 1e-10)
 				new_body.state.mass = 1e-10;
@@ -202,12 +188,12 @@ static void handle_object_interaction(struct app_state *app)
 			double radius = 0.5;
 
 			if (app->hud.req_add_body_type == BHS_BODY_STAR) {
-				mass = 2.0;
-				radius = 1.0;
+				mass = 2.0e30; /* Solar Mass */
+				radius = 7.0e8; /* Solar Radius */
 				col = (struct bhs_vec3){ 1.0, 0.8, 0.2 };
 			} else if (app->hud.req_add_body_type == BHS_BODY_BLACKHOLE) {
-				mass = 10.0;
-				radius = 2.0;
+				mass = 1.0e31; /* 5 Solar Masses */
+				radius = 30000.0; /* Schwarzschild Radius approx */
 				col = (struct bhs_vec3){ 0.0, 0.0, 0.0 };
 			}
 
@@ -259,7 +245,7 @@ static void handle_object_interaction(struct app_state *app)
 		bhs_ui_mouse_pos(app->ui, &mx, &my);
 
 		/* Verifica se click foi na HUD */
-		if (bhs_hud_is_mouse_over(&app->hud, mx, my, win_w, win_h))
+		if (bhs_hud_is_mouse_over(app->ui, &app->hud, mx, my, win_w, win_h))
 			return; /* Ignora picking */
 
 		int n_bodies;
@@ -267,59 +253,119 @@ static void handle_object_interaction(struct app_state *app)
 			bhs_scene_get_bodies(app->scene, &n_bodies);
 
 		int best_idx = -1;
-		float best_dist = 10000.0f;
-
+		float best_dist = 1e9f;
+		
 		for (int i = 0; i < n_bodies; i++) {
-			float sx, sy;
-            
-            float visual_x = (float)bodies[i].state.pos.x;
-            float visual_z = (float)bodies[i].state.pos.z;
-            float visual_y = (float)bodies[i].state.pos.y;
+			const struct bhs_body *b = &bodies[i];
+			
+			/* Filter types */
+			if (b->type != BHS_BODY_PLANET && 
+			    b->type != BHS_BODY_STAR && 
+			    b->type != BHS_BODY_MOON) continue;
 
-            if (bodies[i].type == BHS_BODY_PLANET) {
-                 /* Calculate depth based on gravity well (Doppler Logic) */
-                 float potential = 0.0f;
-                 for (int j = 0; j < n_bodies; j++) {
-                     if (i == j) continue; 
-                     float dx = visual_x - bodies[j].state.pos.x;
-                     float dz = visual_z - bodies[j].state.pos.z; 
-                     float r = sqrtf(dx*dx + dz*dz + 0.1f);
-                     potential -= bodies[j].state.mass / r;
-                 }
-                 visual_y = potential * 5.0f; 
-                 if (visual_y < -50.0f) visual_y = -50.0f;
+			/* [NEW] Isolamento check */
+			if (app->hud.isolate_view && app->hud.selected_body_index != -1) {
+				if (i != app->hud.selected_body_index) continue;
+			}
+
+            /* [FIX] Apply Visual Scaling using Shared Helper */
+            float visual_x, visual_y, visual_z, visual_radius;
+            bhs_visual_calculate_transform(b, bodies, n_bodies, app->hud.visual_mode, &visual_x, &visual_y, &visual_z, &visual_radius);
+
+			/* Projeta usando coordenadas absolutas */
+			float sx, sy;
+			bhs_project_point(&app->camera, visual_x, visual_y, visual_z,
+				      (float)win_w, (float)win_h, &sx, &sy);
+
+            /* Só processa se estiver na tela */
+            if (sx < -100 || sx > win_w + 100 || sy < -100 || sy > win_h + 100) continue;
+
+			/* Visual Size / Distance */
+			float dx = visual_x - app->camera.x;
+			float dy = visual_y - app->camera.y;
+			float dz = visual_z - app->camera.z;
+			float dist_to_cam = sqrtf(dx*dx + dy*dy + dz*dz);
+			
+			/* Body Picking Radius */
+			float s_radius = 2.0f;
+			if (dist_to_cam > 0.1f) {
+				s_radius = (visual_radius / dist_to_cam) * app->camera.fov;
+			}
+			float pick_radius = s_radius * 1.5f; /* Largura um pouco maior pra facilitar */
+			if (pick_radius < 15.0f) pick_radius = 15.0f;
+			if (pick_radius > 200.0f) pick_radius = 200.0f;
+
+			/* Distance Check (Sphere) */
+			float d2 = (sx - (float)mx) * (sx - (float)mx) + (sy - (float)my) * (sy - (float)my);
+			float radius_sq = pick_radius * pick_radius;
+
+			bool hit = (d2 < radius_sq);
+
+            /* Text Label Picking */
+            if (!hit) {
+                const char *label = (b->name[0]) ? b->name : "Planet";
+				float font_size = 15.0f; /* Match renderer */
+				float tw = bhs_ui_measure_text(app->ui, label, font_size);
+                
+                /* Text Rect: Centered at sx, below by s_radius + 5.0f */
+                float tx = sx - tw * 0.5f;
+                float ty = sy + s_radius + 5.0f;
+                float th = font_size;
+                
+                /* Hit Test Box (com padding extra) */
+                if (mx >= tx - 5 && mx <= tx + tw + 5 &&
+                    my >= ty - 5 && my <= ty + th + 5) {
+                    hit = true;
+                }
             }
 
-			project_point(&app->camera,
-				      visual_x,
-				      visual_y,
-				      visual_z,
-				      (float)win_w, (float)win_h,
-				      &sx, &sy);
-
-			float d2 = (sx - mx) * (sx - mx) + (sy - my) * (sy - my);
-			float radius_sq = 20.0f * 20.0f;
-
-			if (d2 < radius_sq && d2 < best_dist) {
+			if (hit && d2 < best_dist) {
 				best_dist = d2;
 				best_idx = i;
 			}
 		}
 
-		app->hud.selected_body_index = best_idx;
-	}
+		/* [NEW] Picking de Marcadores de Órbita (se não clicou em corpo próximo) */
+		int best_marker = bhs_orbit_markers_get_at_screen(&app->orbit_markers, 
+								(float)mx, (float)my, 
+								&app->camera, win_w, win_h);
 
-	/* Atualiza cache do corpo selecionado */
-	if (app->hud.selected_body_index != -1) {
-		int n;
-		const struct bhs_body *b = bhs_scene_get_bodies(app->scene, &n);
-		if (app->hud.selected_body_index < n) {
-			app->hud.selected_body_cache = 
-				b[app->hud.selected_body_index];
-		} else {
+		/* Prioridade: se clicou em corpo, limpa marcador. Se clicou em marcador e não em corpo, seleciona. */
+		if (best_idx != -1) {
+			app->hud.selected_body_index = best_idx;
+			app->hud.selected_marker_index = -1;
+		} else if (best_marker != -1) {
+			app->hud.selected_marker_index = best_marker;
 			app->hud.selected_body_index = -1;
+		} else {
+			/* Clicou no vazio: limpa ambos */
+			app->hud.selected_body_index = -1;
+			app->hud.selected_marker_index = -1;
 		}
 	}
+
+	/* Atualiza cache do corpo selecionado - MOVIDO PARA APP_STATE (Frame update) */
+	/* if (app->hud.selected_body_index != -1) ... */
+}
+
+/**
+ * Processa comandos vindos da HUD (Botões)
+ */
+static void handle_hud_commands(struct app_state *app)
+{
+    if (app->hud.req_save_snapshot) {
+        if (scenario_save_snapshot(app)) {
+            BHS_LOG_INFO("Snapshot salvo via HUD.");
+        }
+        app->hud.req_save_snapshot = false;
+    }
+
+    if (app->hud.req_reload_workspace) {
+        if (scenario_reload_current(app)) {
+            BHS_LOG_INFO("Workspace recarregado via HUD.");
+        }
+        app->hud.req_reload_workspace = false;
+    }
 }
 
 /* ============================================================================
@@ -332,8 +378,43 @@ void input_process_frame(struct app_state *app, double dt)
 	if (!app || !app->ui)
 		return;
 
+	/* 
+	 * 1. Global Commands & HUD Requests (Always active) 
+	 * Even if focused, we want ESC to work (unless we want to block it too? 
+	 * For now, keep it for safety).
+	 */
 	handle_global_input(app);
-	handle_simulation_input(app, dt);
-	handle_camera_input(app, dt);
-	handle_object_interaction(app);
+    handle_hud_commands(app); /* Process requests from UI (Save, etc) */
+
+	/* 2. Check UI Blocking State */
+	/* If a text field has focus, COMPLETELY block simulation commands (WASD, etc) */
+	if (app->hud.input_focused) {
+		return;
+	}
+
+	/* 3. Check Mouse Over UI for spatial interactions */
+	int32_t mx, my, win_w, win_h;
+	bhs_ui_mouse_pos(app->ui, &mx, &my);
+	bhs_ui_get_size(app->ui, &win_w, &win_h);
+	bool mouse_on_ui = bhs_hud_is_mouse_over(app->ui, &app->hud, mx, my, win_w, win_h);
+
+	/* 
+	 * 4. Simulation Controls (Time Shortcuts, etc)
+	 * Usually blocked if on UI to avoid accidental speed changes while clicking buttons 
+	 */
+	if (!mouse_on_ui) {
+		handle_simulation_input(app, dt);
+	}
+
+	/* 5. Spatial Interactions (Camera & Object selection) */
+	if (!mouse_on_ui) {
+		handle_camera_input(app, dt);
+		handle_object_interaction(app);
+	} else {
+		/* 
+		 * Special Case: Even if mouse is on UI, we might want to let selection 
+		 * logic clean up (e.g. handle_object_interaction calls bhs_hud_is_mouse_over internally).
+		 * But since we already have the flag, we just skip.
+		 */
+	}
 }

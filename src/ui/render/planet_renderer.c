@@ -7,30 +7,38 @@
 #include "src/engine/geometry/mesh_gen.h"
 #include "src/math/mat4.h"
 #include "engine/assets/image_loader.h" /* Utils if needed */
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include <stdlib.h>
 #include <string.h>
-
-/* Shaders (embed via build system or file load? Using file load for now based on pattern) */
-/* Actually, codebase uses `bhs_read_file` or embedded? 
-   Let's check `blackhole_pass.c`... It reads `.spv` from `assets/shaders/`.
-   I need to make sure my shaders are compiled to SPV by CMake.
-   The CMakeLists.txt handles `blackhole_sim_shaders` target?
-   Yes, `[ 6%] Built target blackhole_sim_shaders` seen in logs.
-   I need to check if it automatically picks up new shaders in `src/assets/shaders`.
-*/
+#include "visual_utils.h"
 
 #ifndef PI
 #define PI 3.14159265359f
 #endif
 
+#define MAX_LINES 16384 /* Max lines per frame */
+
+struct line_vertex {
+	float pos[3];
+	float color[4];
+};
+
 struct bhs_planet_pass {
 	bhs_ui_ctx_t ctx;
+	
+	/* Planet Pipeline */
 	bhs_gpu_pipeline_t pipeline;
 	bhs_gpu_shader_t vs, fs;
 	bhs_gpu_buffer_t vbo, ibo;
 	bhs_gpu_sampler_t sampler;
 	uint32_t index_count;
+
+	/* Line Pipeline */
+	bhs_gpu_pipeline_t line_pipeline;
+	bhs_gpu_shader_t line_vs, line_fs;
+	bhs_gpu_buffer_t line_vbo;
+	struct line_vertex *line_cpu_buffer;
+	uint32_t line_count;
 };
 
 /* Push Constants matching shader */
@@ -43,30 +51,9 @@ struct planet_pc {
 	float colorParams[4];   /* xyz=color, w=pad */
 }; /* Total 128 bytes */
 
-/* Helper: Gravity Depth (Copied from spacetime_renderer.c to match grid) */
-static float calculate_gravity_depth(float x, float z, const struct bhs_body *bodies, int n_bodies)
-{
-	if (!bodies || n_bodies == 0) return 0.0f;
-	
-	float potential = 0.0f;
-	for (int i = 0; i < n_bodies; i++) {
-		float dx = x - bodies[i].state.pos.x;
-		float dz = z - bodies[i].state.pos.z;
-		
-		float dist_sq = dx*dx + dz*dz;
-		float dist = sqrtf(dist_sq + 0.1f);
-		
-		double eff_mass = bodies[i].state.mass;
-		if (bodies[i].type == BHS_BODY_PLANET) {
-			eff_mass *= 5000.0; /* Match bhs_fabric visual boost */
-		}
-		
-		potential -= (eff_mass) / dist;
-	}
-	float depth = potential * 5.0f;
-	if (depth < -50.0f) depth = -50.0f;
-	return depth;
-}
+struct line_pc {
+	bhs_mat4_t viewProj;
+};
 
 /* Private Helper: Load Shader Code */
 static int load_shader(bhs_gpu_device_t dev, const char *rel_path, enum bhs_gpu_shader_stage stage, bhs_gpu_shader_t *out) {
@@ -130,8 +117,7 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 	p->ctx = ctx;
 	bhs_gpu_device_t dev = bhs_ui_get_gpu_device(ctx);
 	
-	/* 1. Load Shaders (Hope CMake compiled them to SPV) */
-	/* Paths relative to binary CWD? */
+	/* 1. Load Planet Shaders */
 	if (load_shader(dev, "assets/shaders/planet.vert.spv", BHS_SHADER_VERTEX, &p->vs) != 0) {
 		BHS_LOG_ERROR("Failed to load planet.vert.spv");
 		free(p); return -1;
@@ -139,6 +125,15 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 	if (load_shader(dev, "assets/shaders/planet.frag.spv", BHS_SHADER_FRAGMENT, &p->fs) != 0) {
 		BHS_LOG_ERROR("Failed to load planet.frag.spv");
 		free(p); return -1;
+	}
+
+	/* 1b. Load Line Shaders */
+	/* We rely on the build system to compile .vert -> .vert.spv */
+	if (load_shader(dev, "assets/shaders/line.vert.spv", BHS_SHADER_VERTEX, &p->line_vs) != 0) {
+		BHS_LOG_WARN("Failed to load line.vert.spv - Lines will fail");
+	}
+	if (load_shader(dev, "assets/shaders/line.frag.spv", BHS_SHADER_FRAGMENT, &p->line_fs) != 0) {
+		BHS_LOG_WARN("Failed to load line.frag.spv - Lines will fail");
 	}
 	
 	/* 2. Create Sphere Mesh */
@@ -149,8 +144,7 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 	struct bhs_gpu_buffer_config vbo_conf = {
 		.size = mesh.vertex_count * sizeof(bhs_vertex_3d_t),
 		.usage = BHS_BUFFER_VERTEX,
-		.memory = BHS_MEMORY_CPU_TO_GPU, /* Dynamic upload for simplicity or Staged? Use CPU_TO_GPU for immutable if possible? */
-		/* Use CPU_TO_GPU for simplicity on UMA, or separate staging. The API hides details usually. */
+		.memory = BHS_MEMORY_CPU_TO_GPU,
 	};
 	bhs_gpu_buffer_create(dev, &vbo_conf, &p->vbo);
 	bhs_gpu_buffer_upload(p->vbo, 0, mesh.vertices, vbo_conf.size);
@@ -165,17 +159,28 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 	bhs_gpu_buffer_upload(p->ibo, 0, mesh.indices, ibo_conf.size);
 	
 	bhs_mesh_free(mesh);
+
+	/* 2b. Create Line Buffer */
+	p->line_cpu_buffer = malloc(MAX_LINES * 2 * sizeof(struct line_vertex));
+	struct bhs_gpu_buffer_config line_vbo_conf = {
+		.size = MAX_LINES * 2 * sizeof(struct line_vertex),
+		.usage = BHS_BUFFER_VERTEX,
+		.memory = BHS_MEMORY_CPU_TO_GPU,
+	};
+	bhs_gpu_buffer_create(dev, &line_vbo_conf, &p->line_vbo);
 	
 	/* 3. Sampler */
 	struct bhs_gpu_sampler_config samp_conf = {
 		.min_filter = BHS_FILTER_LINEAR,
 		.mag_filter = BHS_FILTER_LINEAR,
 		.address_u = BHS_ADDRESS_REPEAT,
-		.address_v = BHS_ADDRESS_CLAMP_TO_EDGE, /* Texture Lat/Long map */
+		.address_v = BHS_ADDRESS_CLAMP_TO_EDGE,
 	};
 	bhs_gpu_sampler_create(dev, &samp_conf, &p->sampler);
 	
-	/* 4. Pipeline Config */
+	enum bhs_gpu_texture_format color_fmt = BHS_FORMAT_BGRA8_SRGB; 
+	
+	/* 4. Planet Pipeline Config */
 	struct bhs_gpu_vertex_attr attrs[] = {
 		{ .location = 0, .binding = 0, .format = BHS_FORMAT_RGB32_FLOAT, .offset = offsetof(bhs_vertex_3d_t, pos) },
 		{ .location = 1, .binding = 0, .format = BHS_FORMAT_RGB32_FLOAT, .offset = offsetof(bhs_vertex_3d_t, normal) },
@@ -187,8 +192,6 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 		.per_instance = false
 	};
 	
-	enum bhs_gpu_texture_format color_fmt = BHS_FORMAT_BGRA8_SRGB; /* Match Swapchain/UI Pass */
-	
 	struct bhs_gpu_pipeline_config pipe_conf = {
 		.vertex_shader = p->vs,
 		.fragment_shader = p->fs,
@@ -197,21 +200,57 @@ int bhs_planet_pass_create(bhs_ui_ctx_t ctx, bhs_planet_pass_t *out_pass)
 		.vertex_bindings = &binding,
 		.vertex_binding_count = 1,
 		.primitive = BHS_PRIMITIVE_TRIANGLES,
-		.cull_mode = BHS_CULL_NONE, /* [DEBUG] Disable culling to ensure visibility */
-		.front_ccw = true, /* Sphere gen uses CCW */
-		.depth_test = true, /* ENABLE 3D! */
+		.cull_mode = BHS_CULL_BACK,
+		.front_ccw = true,
+		.depth_test = true,
 		.depth_write = true,
 		.depth_compare = BHS_COMPARE_LESS_EQUAL,
 		.color_formats = &color_fmt,
 		.color_format_count = 1,
-		.depth_format = BHS_FORMAT_DEPTH32_FLOAT, /* Typical Depth */
+		.depth_format = BHS_FORMAT_DEPTH32_FLOAT,
 		.label = "Planet Pipeline"
 	};
 	
 	if (bhs_gpu_pipeline_create(dev, &pipe_conf, &p->pipeline) != 0) {
 		BHS_LOG_ERROR("Failed to create Planet Pipeline");
-		/* cleanup */
-		return -1;
+		free(p->line_cpu_buffer); /* Cleanup */
+		free(p); return -1;
+	}
+
+	/* 4b. Line Pipeline Config */
+	if (p->line_vs && p->line_fs) {
+		struct bhs_gpu_vertex_attr line_attrs[] = {
+			{ .location = 0, .binding = 0, .format = BHS_FORMAT_RGB32_FLOAT, .offset = offsetof(struct line_vertex, pos) },
+			{ .location = 1, .binding = 0, .format = BHS_FORMAT_RGBA32_FLOAT, .offset = offsetof(struct line_vertex, color) }
+		};
+		struct bhs_gpu_vertex_binding line_binding = {
+			.binding = 0,
+			.stride = sizeof(struct line_vertex),
+			.per_instance = false
+		};
+
+		struct bhs_gpu_pipeline_config line_pipe_conf = {
+			.vertex_shader = p->line_vs,
+			.fragment_shader = p->line_fs,
+			.vertex_attrs = line_attrs,
+			.vertex_attr_count = 2,
+			.vertex_bindings = &line_binding,
+			.vertex_binding_count = 1,
+			.primitive = BHS_PRIMITIVE_LINES,
+			.cull_mode = BHS_CULL_NONE,
+			.front_ccw = true,
+			.depth_test = true,
+			.depth_write = false, /* Lines usually transparent-ish or just debug */
+			.depth_compare = BHS_COMPARE_LESS_EQUAL,
+			.color_formats = &color_fmt,
+			.color_format_count = 1,
+			.depth_format = BHS_FORMAT_DEPTH32_FLOAT,
+			.label = "Line Pipeline"
+		};
+		
+		if (bhs_gpu_pipeline_create(dev, &line_pipe_conf, &p->line_pipeline) != 0) {
+			BHS_LOG_ERROR("Failed to create Line Pipeline");
+		}
 	}
 	
 	*out_pass = p;
@@ -227,14 +266,69 @@ void bhs_planet_pass_destroy(bhs_planet_pass_t pass)
 	bhs_gpu_buffer_destroy(pass->vbo);
 	bhs_gpu_buffer_destroy(pass->ibo);
 	bhs_gpu_sampler_destroy(pass->sampler);
+
+	bhs_gpu_pipeline_destroy(pass->line_pipeline);
+	bhs_gpu_shader_destroy(pass->line_vs);
+	bhs_gpu_shader_destroy(pass->line_fs);
+	bhs_gpu_buffer_destroy(pass->line_vbo);
+	if (pass->line_cpu_buffer) free(pass->line_cpu_buffer);
+
 	free(pass);
 }
 
+/* Helper for sorting */
+struct render_item {
+	int index;
+	float dist_sq;
+	float vis_x, vis_y, vis_z;
+    float vis_radius;
+};
+
+static int compare_items(const void *a, const void *b)
+{
+	const struct render_item *ia = (const struct render_item *)a;
+	const struct render_item *ib = (const struct render_item *)b;
+	/* Sort FAR to NEAR (Descending distance) */
+	if (ia->dist_sq > ib->dist_sq) return -1;
+	if (ia->dist_sq < ib->dist_sq) return 1;
+	return 0;
+}
+
+void bhs_planet_pass_submit_line(bhs_planet_pass_t pass,
+				 float x1, float y1, float z1,
+				 float x2, float y2, float z2,
+				 float r, float g, float b, float a)
+{
+	if (!pass || !pass->line_cpu_buffer) return;
+	if (pass->line_count >= MAX_LINES) return;
+
+	int idx = pass->line_count * 2;
+	
+	pass->line_cpu_buffer[idx].pos[0] = x1;
+	pass->line_cpu_buffer[idx].pos[1] = y1;
+	pass->line_cpu_buffer[idx].pos[2] = z1;
+	pass->line_cpu_buffer[idx].color[0] = r;
+	pass->line_cpu_buffer[idx].color[1] = g;
+	pass->line_cpu_buffer[idx].color[2] = b;
+	pass->line_cpu_buffer[idx].color[3] = a;
+
+	pass->line_cpu_buffer[idx+1].pos[0] = x2;
+	pass->line_cpu_buffer[idx+1].pos[1] = y2;
+	pass->line_cpu_buffer[idx+1].pos[2] = z2;
+	pass->line_cpu_buffer[idx+1].color[0] = r;
+	pass->line_cpu_buffer[idx+1].color[1] = g;
+	pass->line_cpu_buffer[idx+1].color[2] = b;
+	pass->line_cpu_buffer[idx+1].color[3] = a;
+
+	pass->line_count++;
+}
+	
 void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 			  bhs_gpu_cmd_buffer_t cmd,
 			  bhs_scene_t scene,
 			  const bhs_camera_t *cam,
 			  const bhs_view_assets_t *assets,
+			  bhs_visual_mode_t mode,
 			  float output_width, float output_height)
 {
 	if (!pass || !cmd || !scene) return;
@@ -243,48 +337,92 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 	bhs_gpu_cmd_set_viewport(cmd, 0, 0, output_width, output_height, 0.0f, 1.0f);
 	bhs_gpu_cmd_set_scissor(cmd, 0, 0, (uint32_t)output_width, (uint32_t)output_height);
 
-	bhs_gpu_cmd_set_pipeline(cmd, pass->pipeline);
-	bhs_gpu_cmd_set_vertex_buffer(cmd, 0, pass->vbo, 0);
-	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
+	/* --- COMMON MATRIX CALC --- */
+	float cy = cosf(cam->yaw);
+	float sy = sinf(cam->yaw);
+	float cp = cosf(cam->pitch);
+	float sp = sinf(cam->pitch);
 	
-	/* View/Proj Matrices */
-	/* LookAt(0,0,0 -> Dir, Up) */
-	struct bhs_v3 eye = { 0, 0, 0 };
-	float cx = cosf(cam->pitch) * sinf(cam->yaw);
-	float cy = sinf(cam->pitch);
-	float cz = cosf(cam->pitch) * cosf(cam->yaw);
-	struct bhs_v3 center = { cx, cy, cz };
-	struct bhs_v3 up = { 0, 1, 0 };
+	/* Rotation Yaw (Y-Axis) */
+	bhs_mat4_t m_yaw = bhs_mat4_identity();
+	m_yaw.m[0] = cy;   /* Row 0, Col 0: x->x */
+	m_yaw.m[2] = sy;   /* Row 2, Col 0: x->z (z' = x*sy...) */
+	m_yaw.m[8] = -sy;  /* Row 0, Col 2: z->x (x' = ... - z*sy) */
+	m_yaw.m[10] = cy;  /* Row 2, Col 2: z->z */
 	
-	bhs_mat4_t mat_view = bhs_mat4_lookat(eye, center, up);
+	/* Rotation Pitch (X-Axis) */
+	bhs_mat4_t m_pitch = bhs_mat4_identity();
+	m_pitch.m[5] = cp;   /* Row 1, Col 1: y->y */
+	m_pitch.m[6] = sp;   /* Row 2, Col 1: y->z (z' = y*sp...) */
+	m_pitch.m[9] = -sp;  /* Row 1, Col 2: z->y (y' = ... - z*sp) */
+	m_pitch.m[10] = cp;  /* Row 2, Col 2: z->z */
 	
-	/* Flip Z */
-	bhs_mat4_t mat_flip = bhs_mat4_scale(1.0f, 1.0f, -1.0f);
-	mat_view = bhs_mat4_mul(mat_flip, mat_view);
+	bhs_mat4_t mat_view = bhs_mat4_mul(m_pitch, m_yaw);
 	
-	/* Proj Matrix */
+	/* Proj Matrix & Scale Settings */
 	float focal_length = cam->fov;
 	if (focal_length < 1.0f) focal_length = 1.0f;
 	
 	float fov_y = 2.0f * atanf((output_height * 0.5f) / focal_length);
 	float aspect = output_width / output_height;
 	
-	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 0.1f, 2000.0f);
-	
-	/* Pre-multiply ViewProj for Packed PC */
+	bhs_mat4_t mat_proj = bhs_mat4_perspective(fov_y, aspect, 1.0e7f, 1.0e14f);
 	bhs_mat4_t mat_vp = bhs_mat4_mul(mat_proj, mat_view);
+
+
+	/* --- PLANET DRAWING (OPAQUE) --- */
+	bhs_gpu_cmd_set_pipeline(cmd, pass->pipeline);
+	bhs_gpu_cmd_set_vertex_buffer(cmd, 0, pass->vbo, 0);
+	bhs_gpu_cmd_set_index_buffer(cmd, pass->ibo, 0, false); /* 16 bit */
 	
-	/* Light Pos (Sun at 0,0,0) */
-	float light_pos[3] = { 0.0f, 0.0f, 0.0f };
-	
-	/* Iterate Bodies */
+	/* Collect Bodies */
 	int count = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
 	
+	/* Allocate Sort Array */
+	struct render_item sort_list[128]; 
+	int render_count = 0;
+
+	/* Use Helper for Transform */
 	for (int i = 0; i < count; i++) {
 		const struct bhs_body *b = &bodies[i];
 		if (b->type != BHS_BODY_PLANET && b->type != BHS_BODY_STAR && b->type != BHS_BODY_MOON) continue;
+		if (render_count >= 128) break;
+		if (assets && assets->isolated_body_index >= 0) {
+            if (i != assets->isolated_body_index && i != assets->attractor_index) {
+                continue;
+            }
+        }
+
+        float vx, vy, vz, vrad;
+        /* SHARED LOGIC CALL */
+        bhs_visual_calculate_transform(b, bodies, count, mode, &vx, &vy, &vz, &vrad);
+
+		double rel_x = vx - cam->x;
+		double rel_y = vy - cam->y;
+		double rel_z = vz - cam->z;
 		
+		float dist_sq = (float)(rel_x*rel_x + rel_y*rel_y + rel_z*rel_z);
+		
+		sort_list[render_count].index = i;
+		sort_list[render_count].dist_sq = dist_sq;
+		sort_list[render_count].vis_x = vx;
+		sort_list[render_count].vis_y = vy;
+		sort_list[render_count].vis_z = vz;
+        sort_list[render_count].vis_radius = vrad;
+		render_count++;
+	}
+
+	/* Sort (Painter's Algorithm: Far -> Near) */
+	qsort(sort_list, render_count, sizeof(struct render_item), compare_items);
+	
+	/* Draw Sorted */
+	float light_pos[3] = { 0.0f, 0.0f, 0.0f };
+
+	for (int k = 0; k < render_count; k++) {
+		int i = sort_list[k].index;
+		const struct bhs_body *b = &bodies[i];
+
 		/* Textura ... */
 		bhs_gpu_texture_t tex = assets->sphere_texture;
 		if (assets->tex_cache) {
@@ -297,30 +435,32 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		}
 		bhs_gpu_cmd_bind_texture(cmd, 0, 0, tex, pass->sampler);
 		
-		/* RTC Position */
-		float visual_y = calculate_gravity_depth((float)b->state.pos.x, (float)b->state.pos.z, bodies, count);
+		float b_px = sort_list[k].vis_x;
+		float b_py = sort_list[k].vis_y;
+		float b_pz = sort_list[k].vis_z;
 		
-		double rel_x = b->state.pos.x - cam->x;
-		double rel_y = visual_y - cam->y;
-		double rel_z = b->state.pos.z - cam->z;
+		double rel_x = b_px - cam->x;
+		double rel_y = b_py - cam->y;
+		double rel_z = b_pz - cam->z;
 		
 		float tx = (float)rel_x;
 		float ty = (float)rel_y;
 		float tz = (float)rel_z;
-		float radius = (float)b->state.radius * 30.0f;
-		
-		/* Rotation Params */
+
+        float radius = sort_list[k].vis_radius;
 		float angle = (float)b->state.current_rotation_angle;
+		if (assets) {
+		    angle += (float)(b->state.rot_speed * assets->sim_alpha);
+		}
+
 		float ax = (float)b->state.rot_axis.x;
 		float ay = (float)b->state.rot_axis.y;
 		float az = (float)b->state.rot_axis.z;
 		
-		/* Ensure valid axis for shader normalize() */
 		if (fabsf(ax) + fabsf(ay) + fabsf(az) < 0.01f) {
 			ax = 0.0f; ay = 1.0f; az = 0.0f;
 		}
 
-		/* Fill Packed Push Constants */
 		struct planet_pc pc;
 		pc.viewProj = mat_vp;
 		
@@ -346,5 +486,85 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass,
 		
 		bhs_gpu_cmd_push_constants(cmd, 0, &pc, sizeof(pc));
 		bhs_gpu_cmd_draw_indexed(cmd, pass->index_count, 1, 0, 0, 0);
+	}
+
+	/* --- LINE DRAWING (TRANSPARENT/DEBUG) --- */
+	if (pass->line_count > 0 && pass->line_pipeline) {
+		bhs_gpu_cmd_set_pipeline(cmd, pass->line_pipeline);
+		
+		/* Upload Lines */
+		bhs_gpu_buffer_upload(pass->line_vbo, 0, pass->line_cpu_buffer, 
+				     pass->line_count * 2 * sizeof(struct line_vertex));
+		
+		bhs_gpu_cmd_set_vertex_buffer(cmd, 0, pass->line_vbo, 0);
+		
+		/* Push Constant for Lines (Just VP) */
+		/* Push Constant for Lines (Just VP) */
+		/* struct line_pc lpc; -- Unused */
+
+		/* Lines are in world space (relative to cam? No, we submit world coords usually or relative?)
+		   Wait, `spacetime_renderer` calculates `visual_transform`. That output is WORLD space.
+		   But `mat_vp` expects coordinates relative to camera?
+		   No, `mat_view` translates by `cam`. 
+		   Wait, `mat_view` rotation DOES NOT include translation.
+		   In planet draw, we manually calc `rel_x`. `pc.modelParams` is relative to cam.
+		   So `mat_vp` handles rotation + proj. Translation is done manually in shader via `modelParams`.
+		   
+		   For Lines, we should probably pass a VP matrix that handles translation too?
+		   Or we pre-translate lines to be relative to camera before submission?
+		   
+		   Let's pre-translate inside the loop below or assume submission is in CAM relative coords?
+		   If I submit lines, I should submit them in World coords and have the shader handle it?
+		   But floats lose precision far from 0.
+		   Better: Submit lines relative to Camera. 
+		   The `submit_line` caller should act like `planet_params`: coords relative to camera.
+		   
+		   My `planet_renderer` uses `rel_x = vx - cam->x`.
+		   So `vx` is Absolute. `rel_x` is Relative.
+		   
+		   Start simple: Logic in `submit_line` takes ABSOLUTE? 
+		   Then we subtract cam pos here?
+		   Or `submit_line` takes RELATIVE?
+		   
+		   Let's check `spacetime_renderer` usage. It calculates `px, py...`.
+		   These are Absolute World Coords.
+		   So `submit_line` receives Absolute.
+		   Inside `draw_lines` (here), we should adjust `viewProj` or adjust vertices.
+		   
+		   Adjusting vertices on CPU (during upload? no, during submission!)
+		   Let's change implementation of `submit_line` to subtract cam? 
+		   But `pass` doesn't know cam in `submit_line`.
+		   Only in `draw`.
+		   
+		   So we must store Absolute in `cpu_buffer`, then at `draw` time, we create a View Matrix that includes Translation?
+		   Standard `lookAt` includes translation.
+		   Here `mat_view` is ONLY rotation.
+		   
+		   Let's construct full View Matrix including translation `(-cam.x, -cam.y, -cam.z)`.
+		   `bhs_mat4_translate` ...
+		   
+		   BUT `cam->x` is double. Matrix is float. Precision loss!!!!
+		   That's why `planet.vert` takes `modelParams` (high prec offset maybe? No, `vec4`).
+		   
+		   Solution: Shift vertices relative to Camera in CPU before upload. 
+		   Iterate `line_buffer`, subtract `cam`, upload.
+		*/
+		
+		for(uint32_t i=0; i<pass->line_count * 2; ++i) {
+			pass->line_cpu_buffer[i].pos[0] -= (float)cam->x;
+			pass->line_cpu_buffer[i].pos[1] -= (float)cam->y;
+			pass->line_cpu_buffer[i].pos[2] -= (float)cam->z;
+		}
+		
+		/* Re-upload shifted */
+		bhs_gpu_buffer_upload(pass->line_vbo, 0, pass->line_cpu_buffer, 
+				     pass->line_count * 2 * sizeof(struct line_vertex));
+
+		bhs_gpu_cmd_push_constants(cmd, 0, &mat_vp, sizeof(mat_vp));
+		
+		bhs_gpu_cmd_draw(cmd, pass->line_count * 2, 1, 0, 0);
+		
+		/* Reset count for next frame */
+		pass->line_count = 0; 
 	}
 }

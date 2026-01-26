@@ -59,12 +59,26 @@ struct bhs_body bhs_preset_moon(struct bhs_vec3 earth_pos,
 void bhs_preset_solar_system(bhs_scene_t scene);
 
 /**
- * bhs_preset_earth_sun_only - Cria apenas Sol e Terra
+ * bhs_preset_earth_moon_sun - Cria apenas Sol, Terra e Lua
  * @scene: Cena onde adicionar os corpos
  *
- * Para debug: visualização da escala real Terra-Sol.
+ * Para debug: visualização da escala real Terra-Sol-Lua.
  */
-void bhs_preset_earth_sun_only(bhs_scene_t scene);
+void bhs_preset_earth_moon_sun(bhs_scene_t scene);
+
+/**
+ * bhs_preset_earth_moon_only - Cria apenas Terra e Lua (Sem Sol)
+ * @scene: Cena onde adicionar os corpos
+ */
+void bhs_preset_earth_moon_only(bhs_scene_t scene);
+
+/**
+ * bhs_preset_jupiter_pluto_pull - Cria Júpiter e Plutão próximos
+ * @scene: Cena onde adicionar os corpos
+ *
+ * Posiciona Plutão próximo a Júpiter para demonstrar a atração gravitacional.
+ */
+void bhs_preset_jupiter_pluto_pull(bhs_scene_t scene);
 
 /**
  * bhs_preset_orbital_velocity - Calcula velocidade orbital

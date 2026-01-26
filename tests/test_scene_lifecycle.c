@@ -26,6 +26,13 @@ int main(void) {
 
     bhs_scene_init_default(scene);
 
+    /* 
+     * Como a engine entrega uma cena vazia, precisamos adicionar algo 
+     * para o teste não reclamar de "Cena vazia". 
+     */
+    struct bhs_vec3 zero = {0, 0, 0};
+    bhs_scene_add_body(scene, BHS_BODY_PLANET, zero, zero, 1.0, 1.0, zero);
+
     /* Simula alguns frames */
     for (int j = 0; j < 10; j++) {
       bhs_scene_update(scene, 0.016);

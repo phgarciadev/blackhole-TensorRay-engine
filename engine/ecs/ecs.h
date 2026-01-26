@@ -169,4 +169,19 @@ bool bhs_ecs_save_world(bhs_world_handle world, const char *filename);
  */
 bool bhs_ecs_load_world(bhs_world_handle world, const char *filename);
 
+/**
+ * @brief Lê apenas um componente específico do arquivo sem carregar o mundo todo.
+ * Útil para ler metadados (título, data) de múltiplos arquivos rapidamente.
+ */
+bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t metadata_size, uint32_t metadata_type_id);
+
+
+/**
+ * bhs_ecs_update_metadata - Atualiza metadados sem carregar o mundo todo
+ * 
+ * Abre o arquivo modo rb+, acha o chunk de metadados e sobrescreve.
+ * Requer que o tamanho da struct seja compatível.
+ */
+bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata, size_t metadata_size, uint32_t metadata_type_id);
+
 #endif /* BHS_LIB_ECS_H */

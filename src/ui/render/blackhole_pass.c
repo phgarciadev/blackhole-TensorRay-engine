@@ -4,7 +4,7 @@
  */
 
 #include "blackhole_pass.h"
-#include "gui-framework/log.h"
+#include "gui/log.h"
 #include "engine/assets/image_loader.h" /* Para utils de IO de arquivo se precisar */
 #include <malloc.h>
 #include <string.h>

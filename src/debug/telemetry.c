@@ -16,14 +16,14 @@ static void clear_term(void)
 	printf("\033[2J\033[H");
 }
 
-void bhs_telemetry_print_scene(bhs_scene_t scene, double time, bool show_grid, double phys_ms, double render_ms)
+void bhs_telemetry_print_scene(bhs_scene_t scene, double time, double phys_ms, double render_ms)
 {
 	int count = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &count);
 
 	clear_term();
-	printf("=== BLACK HOLE SIMULATOR - TELEMETRY (T=%.2fs) [Grid: %s] ===\n",
-	       time, show_grid ? "ON" : "OFF");
+	printf("=== BLACK HOLE SIMULATOR - TELEMETRY (T=%.2fs) ===\n",
+	       time);
     printf("[PERF] INTEGRATOR: %6.3f ms | RENDER: %6.3f ms | FPS: %4.0f\n", 
            phys_ms, render_ms, (render_ms > 0) ? (1000.0/render_ms) : 0);
 	printf("Bodies: %d\n", count);

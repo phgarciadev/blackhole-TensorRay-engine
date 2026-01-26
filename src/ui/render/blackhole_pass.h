@@ -12,7 +12,7 @@
 #define BHS_UI_RENDER_BLACKHOLE_PASS_H
 
 #include "engine/scene/scene.h"
-#include "gui-framework/rhi/renderer.h"
+#include "gui/rhi/rhi.h"
 #include "src/ui/camera/camera.h"
 
 /* Configuração do Pass */

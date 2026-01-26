@@ -32,6 +32,8 @@ enum scenario_type {
 	SCENARIO_EARTH_SUN,		/* Apenas Sol e Terra (Debug de Escala) */
 	SCENARIO_KERR_BLACKHOLE,/* Black hole Kerr rotativo + partículas */
 	SCENARIO_BINARY_STAR,	/* Sistema estelar binário */
+	SCENARIO_EARTH_MOON_ONLY, /* Apenas Terra e Lua (Sem Sol) */
+	SCENARIO_JUPITER_PLUTO_PULL, /* Júpiter e Plutão (Interação Gravitacional) */
 	SCENARIO_DEBUG		/* Cenário simples de debug */
 };
 
@@ -67,5 +69,10 @@ void scenario_unload(struct app_state *app);
  * Retorna ponteiro para string estática (não libere).
  */
 const char *scenario_get_name(enum scenario_type type);
+
+/* [NEW] Persistence API */
+bool scenario_save_snapshot(struct app_state *app);
+bool scenario_load_from_file(struct app_state *app, const char *filename);
+bool scenario_reload_current(struct app_state *app);
 
 #endif /* BHS_SRC_SIMULATION_SCENARIO_MGR_H */

@@ -15,4 +15,5 @@ void bhs_camera_init(bhs_camera_t *cam) {
   cam->pitch = 0.3f; /* Levemente inclinado pra baixo */
   cam->yaw = 0.0f;
   cam->fov = 500.0f;
+  cam->is_top_down_mode = false;
 }

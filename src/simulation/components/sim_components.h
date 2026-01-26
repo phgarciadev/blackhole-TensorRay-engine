@@ -7,8 +7,26 @@
 enum {
     BHS_COMP_CELESTIAL = BHS_COMP_COUNT,
     BHS_COMP_ORBIT_DESC,
+    BHS_COMP_ORBITAL,
     SIM_COMP_COUNT
 };
+
+/**
+ * Values for orbital flags
+ */
+#define BHS_ORBITAL_FLAG_TIDAL_LOCK (1 << 0)
+
+/**
+ * struct bhs_orbital_component
+ * Defines parent-child relationships and orbital parameters.
+ */
+typedef struct {
+    bhs_entity_id parent;       /* Entity ID of the body this one orbits */
+    double semi_major_axis;     /* a (meters) - Cached for easy access */
+    double eccentricity;        /* e - Cached */
+    double period;              /* T (seconds) - Cached */
+    uint32_t flags;             /* Bitfield (e.g. TIDAL_LOCK) */
+} bhs_orbital_component;
 
 /* Celestial Types (Star, Planet, BlackHole) */
 typedef enum {
@@ -23,6 +41,7 @@ typedef enum {
 typedef struct {
     double density;
     double radius;
+    double j2; /* [NEW] Oblateness */
     bool has_atmosphere;
     char composition[64];
     struct bhs_vec3 color; // Visual color
@@ -54,5 +73,19 @@ typedef struct {
         bhs_star_component star;
     } data;
 } bhs_celestial_component;
+
+/**
+ * struct bhs_metadata_component
+ * Stores global simulation state that needs to be persisted but isn't a "physics body".
+ * Should be attached to a single dummy entity during save/load.
+ */
+typedef struct {
+    double accumulated_time;
+    int scenario_type;
+    double time_scale_snapshot; /* Optional: restore speed */
+    /* [NEW] Extended Metadata for UI */
+    char display_name[64];      /* "Meu Save Legal" */
+    char date_string[64];       /* "2026-01-26 10:00:00" */
+} bhs_metadata_component;
 
 #endif

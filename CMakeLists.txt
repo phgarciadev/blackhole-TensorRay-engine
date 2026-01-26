@@ -1,5 +1,41 @@
 cmake_minimum_required(VERSION 3.16)
 
+# ==============================================================================
+# Forçar Clang como compilador padrão
+# ==============================================================================
+
+# C (Padrão Kernel Style)
+if(NOT DEFINED CMAKE_C_COMPILER)
+    find_program(CLANG_C_BIN clang)
+    if(CLANG_C_BIN)
+        set(CMAKE_C_COMPILER "${CLANG_C_BIN}" CACHE STRING "C compiler" FORCE)
+        message(STATUS "Forçando Clang para C: ${CMAKE_C_COMPILER}")
+    else()
+        message(WARNING "Clang não encontrado! Usando padrão do sistema.")
+    endif()
+endif()
+
+# C++ (Bosta, mas as vezes necessário)
+if(NOT DEFINED CMAKE_CXX_COMPILER)
+    find_program(CLANG_CXX_BIN clang++)
+    if(CLANG_CXX_BIN)
+        set(CMAKE_CXX_COMPILER "${CLANG_CXX_BIN}" CACHE STRING "C++ compiler" FORCE)
+        message(STATUS "Forçando Clang para C++: ${CMAKE_CXX_COMPILER}")
+    else()
+        message(WARNING "Clang++ não encontrado! Usando padrão do sistema.")
+    endif()
+endif()
+
+# Objective-C/C++ (Apple Clang no macOS)
+if(APPLE)
+    if(NOT DEFINED CMAKE_OBJC_COMPILER)
+        set(CMAKE_OBJC_COMPILER "${CMAKE_C_COMPILER}" CACHE STRING "ObjC compiler" FORCE)
+    endif()
+    if(NOT DEFINED CMAKE_OBJCXX_COMPILER)
+        set(CMAKE_OBJCXX_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "ObjC++ compiler" FORCE)
+    endif()
+endif()
+
 # Projeto: Black Hole Simulator
 # Lema: "Se não roda em hardware de 2010, você está fazendo errado."
 project(BlackHoleSimulator
@@ -53,6 +89,18 @@ include(PlatformValidation)    # Validação e Warnings (Ex: Mac+OpenGL)
 include(CompilerWarnings)
 include(Sanitizers)
 include(ShaderCompiler)
+include(Bindgen)
+
+# --- Rust Bindings ---
+# Gera include/bindings.rs a partir de rust/wrapper.h
+# Invocavel via 'make rust-binds' (se usar Makefile wrapper que chama cmake build)
+# ou ninja rust-binds / make rust-binds (direto no build dir)
+bhs_add_bindings(
+    TARGET rust-binds
+    WRAPPER "${CMAKE_SOURCE_DIR}/rust/wrapper.h"
+    OUTPUT "${CMAKE_SOURCE_DIR}/include/bindings.rs"
+    INCLUDES "${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/math" "${CMAKE_SOURCE_DIR}/engine" "${CMAKE_SOURCE_DIR}/gui"
+)
 
 # Opções de Build
 option(BHS_ENABLE_TESTING "Habilitar testes unitários" ON)
@@ -73,10 +121,10 @@ endif()
 # 1. Math (Base, zero dependencies)
 add_subdirectory(math)
 
-# 2. gui-framework (Depende de Math)
-add_subdirectory(gui-framework)
+# 2. gui (Depende de Math)
+add_subdirectory(gui)
 
-# 3. Engine (Depende de Math, gui-framework)
+# 3. Engine (Depende de Math, gui)
 add_subdirectory(engine)
 
 # 4. Source/App (Glue code, Executable)

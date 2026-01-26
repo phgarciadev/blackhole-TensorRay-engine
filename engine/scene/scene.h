@@ -45,7 +45,9 @@ enum bhs_star_stage {
 
 struct bhs_planet_data {
 	double density;
-	double axis_tilt; 
+	double axis_tilt; // [NEW] Obliquity in radians
+	double rotation_period; // [NEW] Sidereal rotation period in seconds
+	double j2; /* [NEW] J2 harmonic */ // Added field
 	double albedo;
 	bool has_atmosphere;
 	double surface_pressure;
@@ -92,6 +94,9 @@ struct bhs_body_state {
 	int shape;
 };
 
+/* Orbit Trail - buffer circular de posições históricas */
+#define BHS_MAX_TRAIL_POINTS 65536 /* 64K points * 4h sampling ~ 30 years history */
+
 struct bhs_body {
 	struct bhs_body_state state;
 	enum bhs_body_type type;
@@ -104,6 +109,11 @@ struct bhs_body {
 	bool is_fixed;
 	bool is_alive;
 	char name[32];
+	
+	/* [NEW] Orbit Trail Data */
+	float trail_positions[BHS_MAX_TRAIL_POINTS][3]; /* x, y, z */
+	int trail_head;   /* Próximo índice a escrever */
+	int trail_count;  /* Quantos pontos válidos (max = BHS_MAX_TRAIL_POINTS) */
 };
 
 /* API */
@@ -114,11 +124,11 @@ void bhs_scene_update(bhs_scene_t scene, double dt);
 /* Accessors */
 bhs_world_handle bhs_scene_get_world(bhs_scene_t scene);
 const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count);
-bool bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
-bool bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b);
+bhs_entity_id bhs_scene_add_body(bhs_scene_t scene, enum bhs_body_type type,
 			struct bhs_vec3 pos, struct bhs_vec3 vel, double mass,
 			double radius, struct bhs_vec3 color);
-bool bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
+bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene, enum bhs_body_type type,
 			      struct bhs_vec3 pos, struct bhs_vec3 vel,
 			      double mass, double radius, struct bhs_vec3 color,
 			      const char *name);
@@ -139,5 +149,14 @@ struct bhs_body bhs_body_create_blackhole_simple(struct bhs_vec3 pos,
 
 struct bhs_body bhs_body_create_from_desc(const struct bhs_planet_desc *desc, 
 					  struct bhs_vec3 pos);
+
+/* New Specialized Factories */
+#include "src/simulation/data/sun.h"
+#include "src/simulation/data/blackhole.h"
+
+struct bhs_body bhs_body_create_from_sun_desc(const struct bhs_sun_desc *desc, 
+                                              struct bhs_vec3 pos);
+struct bhs_body bhs_body_create_from_bh_desc(const struct bhs_blackhole_desc *desc, 
+                                             struct bhs_vec3 pos);
 
 #endif
