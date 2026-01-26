@@ -70,4 +70,9 @@ void scenario_unload(struct app_state *app);
  */
 const char *scenario_get_name(enum scenario_type type);
 
+/* [NEW] Persistence API */
+bool scenario_save_snapshot(struct app_state *app);
+bool scenario_load_from_file(struct app_state *app, const char *filename);
+bool scenario_reload_current(struct app_state *app);
+
 #endif /* BHS_SRC_SIMULATION_SCENARIO_MGR_H */

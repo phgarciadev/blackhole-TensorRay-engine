@@ -23,6 +23,7 @@
 
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
+#include "simulation/scenario_mgr.h" /* [NEW] Persistence API */
 #include "math/units.h"
 #include "gui/ui/lib.h"
 #include "gui/log.h"
@@ -114,19 +115,14 @@ static void handle_simulation_input(struct app_state *app, double dt)
  */
 static void handle_global_input(struct app_state *app)
 {
-	/* QuickSave */
-	if (bhs_ui_key_pressed(app->ui, BHS_KEY_S) &&
-	    !bhs_ui_key_down(app->ui, BHS_KEY_W)) { /* Só S, não WS juntos */
-		BHS_LOG_INFO("Salvando mundo...");
-		bhs_ecs_save_world(bhs_scene_get_world(app->scene),
-				   "saves/quicksave.bhs");
-	}
+	/* QuickSave REMOVED as per user request */
+	/* if (bhs_ui_key_pressed(app->ui, BHS_KEY_S) ... */
 
 	/* QuickLoad */
 	if (bhs_ui_key_pressed(app->ui, BHS_KEY_L)) {
 		BHS_LOG_INFO("Carregando mundo...");
-		bhs_ecs_load_world(bhs_scene_get_world(app->scene),
-				   "saves/quicksave.bhs");
+		/* [FIX] For now keep L but point to debug file if any, or just ignore. 
+		   Reload Workspace button is the canonical way now. */
 	}
 
 	/* Quit com ESC */
@@ -352,6 +348,26 @@ static void handle_object_interaction(struct app_state *app)
 	/* if (app->hud.selected_body_index != -1) ... */
 }
 
+/**
+ * Processa comandos vindos da HUD (Botões)
+ */
+static void handle_hud_commands(struct app_state *app)
+{
+    if (app->hud.req_save_snapshot) {
+        if (scenario_save_snapshot(app)) {
+            BHS_LOG_INFO("Snapshot salvo via HUD.");
+        }
+        app->hud.req_save_snapshot = false;
+    }
+
+    if (app->hud.req_reload_workspace) {
+        if (scenario_reload_current(app)) {
+            BHS_LOG_INFO("Workspace recarregado via HUD.");
+        }
+        app->hud.req_reload_workspace = false;
+    }
+}
+
 /* ============================================================================
  * API PÚBLICA
  * ============================================================================
@@ -363,6 +379,7 @@ void input_process_frame(struct app_state *app, double dt)
 		return;
 
 	handle_global_input(app);
+    handle_hud_commands(app); /* [NEW] Process UI requests */
 	handle_simulation_input(app, dt);
 	handle_camera_input(app, dt);
 	handle_object_interaction(app);

@@ -74,4 +74,18 @@ typedef struct {
     } data;
 } bhs_celestial_component;
 
+/**
+ * struct bhs_metadata_component
+ * Stores global simulation state that needs to be persisted but isn't a "physics body".
+ * Should be attached to a single dummy entity during save/load.
+ */
+typedef struct {
+    double accumulated_time;
+    int scenario_type;
+    double time_scale_snapshot; /* Optional: restore speed */
+    /* [NEW] Extended Metadata for UI */
+    char display_name[64];      /* "Meu Save Legal" */
+    char date_string[64];       /* "2026-01-26 10:00:00" */
+} bhs_metadata_component;
+
 #endif

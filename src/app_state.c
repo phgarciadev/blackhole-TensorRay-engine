@@ -674,6 +674,7 @@ void app_run(struct app_state *app)
 			app->hud.sim_time_seconds = app->accumulated_time; /* Sync J2000 time */
             app->hud.current_fps = avg_fps;
 			app->hud.orbit_markers_ptr = &app->orbit_markers;   /* [NEW] Passa marcadores */
+            app->hud.current_scenario = (int)app->scenario;     /* [NEW] Sync Scenario Type */
 			bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
 
 			/* Status bar */

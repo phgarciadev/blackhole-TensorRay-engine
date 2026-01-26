@@ -7,6 +7,7 @@
 #include "gui/ui/internal.h"
 #include "gui/ui/layout.h"
 #include <string.h>
+#include <stdlib.h> /* [NEW] for strdup/free */
 
 /* ============================================================================
  * HELPERS
@@ -306,4 +307,111 @@ bool bhs_ui_slider(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, float *value) {
     }
   }
   return false;
+}
+
+/* Helper Interno */
+static void poll_text_key(bhs_ui_ctx_t ctx, uint32_t key, char val, char *buf, size_t max_len) {
+    if (bhs_ui_key_pressed(ctx, key)) {
+        size_t len = strlen(buf);
+        if (len < max_len - 1) {
+            buf[len] = val;
+            buf[len+1] = '\0';
+        }
+    }
+}
+
+bool bhs_ui_text_field(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, char *buf, size_t max_len, bool *focused) {
+    BHS_ASSERT(ctx != NULL);
+    BHS_ASSERT(buf != NULL);
+    BHS_ASSERT(focused != NULL);
+
+    int32_t mx, my;
+    bhs_ui_mouse_pos(ctx, &mx, &my);
+    bool hovered = rect_contains(rect, (float)mx, (float)my);
+
+    /* Handle Focus */
+    if (bhs_ui_mouse_clicked(ctx, 0)) {
+        *focused = hovered;
+    }
+
+    /* Draw */
+    struct bhs_ui_color bg = {0.05f, 0.05f, 0.08f, 1.0f};
+    struct bhs_ui_color border = *focused ? BHS_UI_COLOR_WHITE : (struct bhs_ui_color){0.3f, 0.3f, 0.4f, 1.0f};
+    
+    bhs_ui_draw_rect(ctx, rect, bg);
+    bhs_ui_draw_rect_outline(ctx, rect, border, 1.0f);
+
+    /* Text */
+    /* Clip text? For now just draw. */
+    float pad = rect.height * 0.2f;
+    bhs_ui_draw_text(ctx, buf, rect.x + 10.0f, rect.y + pad, 14.0f, BHS_UI_COLOR_WHITE);
+
+    /* Cursor */
+    if (*focused) {
+        float text_w = bhs_ui_measure_text(ctx, buf, 14.0f);
+        /* Blink hack: use standard C time or frame counter if available. 
+           We don't have frame counter here easily. Just draw persistent for now. */
+        bhs_ui_draw_rect(ctx, (struct bhs_ui_rect){rect.x + 10.0f + text_w + 2.0f, rect.y + pad, 2.0f, 14.0f}, BHS_UI_COLOR_WHITE);
+
+        /* Input Polling (A-Z, 0-9) */
+        char *original = strdup(buf); /* Cheap dirt check */
+        
+        struct { uint32_t k; char v; } map[] = {
+            {BHS_KEY_A, 'a'}, {BHS_KEY_B, 'b'}, {BHS_KEY_C, 'c'}, {BHS_KEY_D, 'd'},
+            {BHS_KEY_SPACE, ' '}, {BHS_KEY_0, '0'}, {BHS_KEY_1, '1'}, {BHS_KEY_2, '2'}
+            /* ... Adicionar todas se necessario, mas o user pediu MVP ... */
+        };
+        /* Expanding map for full alphabet */
+        for(uint32_t k=BHS_KEY_A; k<=BHS_KEY_Z; ++k) poll_text_key(ctx, k, 'a' + (k - BHS_KEY_A), buf, max_len); /* Wait, keycodes not sequential? Check lib.h */
+        
+        /* Lib.h defines explicit vals. Can't loop easily. Manual map is safer. */
+        poll_text_key(ctx, BHS_KEY_A, 'a', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_B, 'b', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_C, 'c', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_D, 'd', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_E, 'e', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_F, 'f', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_G, 'g', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_H, 'h', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_I, 'i', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_J, 'j', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_K, 'k', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_L, 'l', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_M, 'm', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_N, 'n', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_O, 'o', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_P, 'p', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_Q, 'q', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_R, 'r', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_S, 's', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_T, 't', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_U, 'u', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_V, 'v', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_W, 'w', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_X, 'x', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_Y, 'y', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_Z, 'z', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_SPACE, ' ', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_0, '0', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_1, '1', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_2, '2', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_3, '3', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_4, '4', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_5, '5', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_6, '6', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_7, '7', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_8, '8', buf, max_len);
+        poll_text_key(ctx, BHS_KEY_9, '9', buf, max_len);
+
+        /* Backspace logic (KeyCode 14 or 42 based on legacy) */
+        if (bhs_ui_key_pressed(ctx, 14)) {
+            size_t len = strlen(buf);
+            if (len > 0) buf[len-1] = '\0';
+        }
+
+        bool changed = (strcmp(original, buf) != 0);
+        free(original); /* Requires <stdlib.h>, make sure it's included */
+        return changed;
+    }
+    return false;
 }

@@ -3,6 +3,8 @@
 #include "src/simulation/data/planet.h"
 #include "math/units.h" /* [NEW] Para bhs_sim_time_to_date */
 #include <stdio.h>
+#include <time.h> /* [NEW] For dynamic date */
+#include "src/simulation/scenario_mgr.h" /* [NEW] For scenario_get_name */
 #include "src/simulation/data/orbit_marker.h" /* [NEW] */
 #include "system/config.h" /* [NEW] */
 
@@ -110,7 +112,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->refs_collapsed = false; /* Start open */
 		state->is_paused = false;
 		state->req_toggle_pause = false;
-	}
+	} /* End Info Panel */
 }
 
 void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
@@ -585,15 +587,17 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
             /* Save Snapshot */
             struct bhs_ui_rect save_rect = { panel_rect.x + item_pad, y, item_w, item_h };
             if (bhs_ui_button(ctx, "Save Snapshot", save_rect)) {
-                printf("[HUD] Save requested (Not implemented yet)\n");
-                state->active_menu_index = -1;
+                state->show_save_modal = true;
+                state->req_toggle_pause = true; /* Auto-pause */
+                state->save_input_buf[0] = '\0'; /* Reset input */
+                state->active_menu_index = -1; /* Close menu */
             }
             y += row_spacing;
 
             /* Reload Scenario */
             struct bhs_ui_rect reset_rect = { panel_rect.x + item_pad, y, item_w, item_h };
             if (bhs_ui_button(ctx, "Reload Workspace", reset_rect)) {
-                printf("[HUD] Reload requested\n");
+                state->req_reload_workspace = true;
                 state->active_menu_index = -1;
             }
             y += row_spacing + 5.0f * ui_scale;
@@ -1074,6 +1078,82 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 	/* 4. FPS Counter (Overlay - independent of menu) */
 	/* FPS Counter moved to Top Bar */
+
+	/* ============================================================================
+	 * 5. SAVE MODAL (OVERLAY)
+	 * ============================================================================
+	 */
+	if (state->show_save_modal) {
+		/* Dim Background */
+		bhs_ui_draw_rect(ctx, (struct bhs_ui_rect){0, 0, (float)window_w, (float)window_h}, 
+				 (struct bhs_ui_color){0.0f, 0.0f, 0.0f, 0.6f});
+
+		/* Modal Window */
+		float modal_w = 400.0f * layout.ui_scale;
+		float modal_h = 220.0f * layout.ui_scale;
+		float mx = ((float)window_w - modal_w) * 0.5f;
+		float my = ((float)window_h - modal_h) * 0.5f;
+
+		bhs_ui_panel(ctx, (struct bhs_ui_rect){mx, my, modal_w, modal_h},
+			     (struct bhs_ui_color){0.1f, 0.12f, 0.15f, 1.0f},
+			     (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 0.5f});
+
+		float pad = 20.0f * layout.ui_scale;
+		float y = my + pad;
+		
+		/* Title */
+		bhs_ui_draw_text(ctx, "SAVE SNAPSHOT", mx + pad, y, 16.0f * layout.ui_scale, (struct bhs_ui_color){0.0f, 0.8f, 1.0f, 1.0f});
+		y += 40.0f * layout.ui_scale;
+
+		/* Input Label */
+		struct bhs_ui_rect input_rect = { mx + pad, y, modal_w - (pad*2), 35.0f * layout.ui_scale };
+
+        /* Placeholder Logic (Visual Only) */
+        if (state->save_input_buf[0] == '\0' && !state->input_focused) {
+             static char placeholder[128];
+             time_t t = time(NULL);
+             struct tm tm = *localtime(&t);
+             const char *scen_name = scenario_get_name((enum scenario_type)state->current_scenario);
+             snprintf(placeholder, 128, "Meu %04d-%02d-%02d %s", 
+                      tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, scen_name);
+             
+             /* Draw Placeholder manually */
+             bhs_ui_draw_rect(ctx, input_rect, (struct bhs_ui_color){0.05f, 0.05f, 0.08f, 1.0f});
+             bhs_ui_draw_rect_outline(ctx, input_rect, (struct bhs_ui_color){0.3f, 0.3f, 0.4f, 1.0f}, 1.0f);
+             bhs_ui_draw_text(ctx, placeholder, input_rect.x + 10.0f, input_rect.y + 8.0f, 14.0f * layout.ui_scale, (struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f});
+             
+             /* Handle click on placeholder to activate */
+             int32_t mx_in, my_in;
+             bhs_ui_mouse_pos(ctx, &mx_in, &my_in);
+             if (bhs_ui_mouse_clicked(ctx, 0) && is_inside(mx_in, my_in, input_rect.x, input_rect.y, input_rect.width, input_rect.height)) {
+                 state->input_focused = true;
+             }
+        } else {
+             /* Use actual Widget */
+             bhs_ui_text_field(ctx, input_rect, state->save_input_buf, 63, &state->input_focused);
+        }
+		
+		y += 50.0f * layout.ui_scale;
+
+		/* Buttons */
+		float btn_w = 100.0f * layout.ui_scale;
+		float btn_h = 30.0f * layout.ui_scale;
+		
+		/* Save Button */
+		if (bhs_ui_button(ctx, "SAVE", (struct bhs_ui_rect){ mx + pad, y, btn_w, btn_h })) {
+			state->req_save_snapshot = true; /* Trigger save logic in input_layer */
+			state->show_save_modal = false;
+            state->input_focused = false;
+		}
+
+		/* Cancel Button */
+		if (bhs_ui_button(ctx, "CANCEL", (struct bhs_ui_rect){ mx + modal_w - pad - btn_w, y, btn_w, btn_h })) {
+			state->show_save_modal = false;
+			state->req_toggle_pause = true; /* Unpause */
+			state->save_input_buf[0] = '\0'; /* Clear */
+            state->input_focused = false;
+		}
+	}
 }
 
 /* Helper: AABB Check */
@@ -1110,8 +1190,13 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int m
                       200.0f * layout.ui_scale, 600.0f * layout.ui_scale))
 			return true;
 	}
+    
+    /* 2.5 Modal Check (Top Priority) */
+    if (state->show_save_modal) {
+        return true; /* Block all input if modal is open */
+    }
 
-	/* 3. Info Panel - [FIX] usando mesmos valores do draw */
+	/* 3. Info Panel */
 	if (state->selected_body_index != -1) {
 		float panel_x = (float)win_w - layout.info_panel_w - layout.info_panel_margin;
 		float panel_y = layout.top_bar_height + 10.0f * layout.ui_scale;
@@ -1139,12 +1224,12 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int m
 			float px = (float)win_w - p_width - margin;
 			float py = (float)win_h - p_height - margin;
 			
-            /* Button is top-right of panel */
-            bx = px + p_width - btn_sz - 5.0f;
-            by = py + 5.0f;
+			/* Button is top-right of panel */
+			bx = px + p_width - btn_sz - 5.0f;
+			by = py + 5.0f;
 
-            /* If on button */
-            if (is_inside(mx, my, bx, by, btn_sz, btn_sz)) return true;
+			/* If on button */
+			if (is_inside(mx, my, bx, by, btn_sz, btn_sz)) return true;
 
 			if (is_inside(mx, my, px, py, p_width, p_height)) return true;
 		}
@@ -1152,4 +1237,3 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int m
 
 	return false;
 }
-

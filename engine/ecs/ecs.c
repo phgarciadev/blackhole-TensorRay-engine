@@ -443,3 +443,61 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 	BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "World loaded successfully.");
 	return true;
 }
+
+bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t metadata_size, uint32_t metadata_type_id)
+{
+	if (!filename || !out_metadata) return false;
+
+	FILE *f = fopen(filename, "rb");
+	if (!f) return false;
+
+	/* 1. Read Header */
+	struct bhs_save_header hdr;
+	if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
+		fclose(f);
+		return false;
+	}
+
+	if (hdr.magic != BHS_SAVE_MAGIC) {
+		fclose(f);
+		return false;
+	}
+
+	/* 2. Scan Chunks */
+	struct bhs_save_chunk_header chunk;
+	while (fread(&chunk, sizeof(chunk), 1, f) == 1) {
+		if (chunk.type_id == metadata_type_id) {
+			/* Found Metadata Chunk! */
+			/* Assuming ONE metadata entity per file (singleton) */
+			/* Read first entity's data */
+			
+			/* Format: {EntityID, Data} */
+			/* Read EntityID */
+			uint32_t id;
+			if (fread(&id, sizeof(uint32_t), 1, f) != 1) {
+				fclose(f);
+				return false;
+			}
+			
+			/* Verify size match */
+			size_t read_size = (chunk.element_size < metadata_size) ? chunk.element_size : metadata_size;
+			
+			/* Read Data */
+			if (fread(out_metadata, read_size, 1, f) != 1) {
+				fclose(f);
+				return false;
+			}
+			
+			fclose(f);
+			return true;
+		} else {
+			/* Skip this chunk */
+			/* Size: Count * (sizeof(u32) + ElementSize) */
+			long skip = chunk.count * (sizeof(uint32_t) + chunk.element_size);
+			fseek(f, skip, SEEK_CUR);
+		}
+	}
+
+	fclose(f);
+	return false; /* Not found */
+}

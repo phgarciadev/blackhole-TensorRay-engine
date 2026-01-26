@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 /* ============================================================================
  * HELPERS
@@ -254,9 +255,16 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 
 	/* Limpa cenário anterior */
 	scenario_unload(app);
+    
+    /* [FIX] Force clear workspace path so we don't think we are in a file */
+    if (type != SCENARIO_EMPTY) {
+        app->current_workspace[0] = '\0';
+    }
 
 	/* Carrega o novo */
 	bool ok = false;
+    
+    BHS_LOG_INFO("scenario_load: Loading Checkpoint A (Type=%d)", type);
 
 	switch (type) {
 	case SCENARIO_EMPTY:
@@ -287,6 +295,8 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 		BHS_LOG_WARN("Cenário desconhecido: %d", type);
 		return false;
 	}
+
+    BHS_LOG_INFO("scenario_load: Checkpoint B (OK=%d)", ok);
 
 	if (ok) {
 		/* Mapear para enum do app_state */
@@ -319,9 +329,13 @@ bool scenario_load(struct app_state *app, enum scenario_type type)
 		}
 		set_camera_for_scenario(app, type);
 		app->accumulated_time = 0.0;
+        BHS_LOG_INFO("scenario_load: Time reset to 0.0");
+        
 		BHS_LOG_INFO("Cenário '%s' carregado com sucesso",
 			     scenario_get_name(type));
-	}
+	} else {
+        BHS_LOG_ERROR("scenario_load: Failed to load scenario type %d", type);
+    }
 
 	return ok;
 }
@@ -335,10 +349,19 @@ void scenario_unload(struct app_state *app)
 	 * TODO: Implementar bhs_scene_clear() na engine
 	 * Por enquanto, removemos corpo por corpo (ineficiente mas funciona)
 	 */
-	int count;
-	while ((void)bhs_scene_get_bodies(app->scene, &count), count > 0) {
-		bhs_scene_remove_body(app->scene, 0);
+	int count = 0;
+    bhs_scene_get_bodies(app->scene, &count);
+    BHS_LOG_INFO("scenario_unload: Cleaning up %d bodies...", count);
+    
+    int safety = 0;
+	while (count > 0 && safety++ < 1000) {
+		bhs_scene_remove_body(app->scene, 0); // Always remove head
+        bhs_scene_get_bodies(app->scene, &count); // Update count
 	}
+    
+    if (count > 0) {
+        BHS_LOG_ERROR("scenario_unload: Failed to remove all bodies. Remaining: %d", count);
+    }
 
 	/* Reseta contadores de nomes para próximo cenário começar do 1 */
 	bhs_scene_reset_counters();
@@ -368,4 +391,144 @@ const char *scenario_get_name(enum scenario_type type)
 	default:
 		return "Desconhecido";
 	}
+}
+
+/* ============================================================================
+ * PERSISTENCE IMPLEMENTATION
+ * ============================================================================
+ */
+
+#include <time.h>
+#include "src/simulation/components/sim_components.h"
+
+/* Helper to generate filename: data/snapshot_YYYY-MM-DD_HHMMSS.bin */
+static void generate_snapshot_filename(char *buf, size_t size)
+{
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	snprintf(buf, size, "data/snapshot_%04d-%02d-%02d_%02d%02d%02d.bin",
+		 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		 tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+bool scenario_save_snapshot(struct app_state *app)
+{
+	if (!app || !app->scene) return false;
+	
+	bhs_world_handle world = bhs_scene_get_world(app->scene);
+	if (!world) return false;
+
+	/* 1. Prepare Metadata */
+    time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+    
+    char date_str[64];
+    snprintf(date_str, 64, "%04d-%02d-%02d %02d:%02d", 
+             tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
+
+    char display_name[64];
+    if (app->hud.save_input_buf[0] != '\0') {
+        strncpy(display_name, app->hud.save_input_buf, 63);
+    } else {
+        /* Default: "Meu [DATA] [SCENARIO]" */
+        /* Simplified: "Meu Save [DATA]" or use Scenario Name */
+        const char *scen_name = scenario_get_name((enum scenario_type)app->scenario);
+        snprintf(display_name, 64, "Meu %04d-%02d-%02d %s", 
+                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, scen_name);
+    }
+
+	bhs_entity_id meta_id = bhs_ecs_create_entity(world);
+	
+	bhs_metadata_component meta = {
+		.accumulated_time = app->accumulated_time,
+		.scenario_type = app->scenario,
+		.time_scale_snapshot = app->time_scale
+	};
+    strncpy(meta.display_name, display_name, 63);
+    strncpy(meta.date_string, date_str, 63);
+
+	bhs_ecs_add_component(world, meta_id, BHS_COMP_METADATA, sizeof(meta), &meta);
+	
+	/* 2. Generate Filename (Unique Timestamp) */
+	char filename[256];
+	generate_snapshot_filename(filename, sizeof(filename));
+	
+	/* 3. Save */
+	BHS_LOG_INFO("Salvando Snapshot: %s ('%s')", filename, display_name);
+	bool ok = bhs_ecs_save_world(world, filename);
+	
+	/* 4. Cleanup Metadata (don't want it persisting in runtime memory) */
+	bhs_ecs_destroy_entity(world, meta_id);
+	
+	if (ok) {
+		/* Update current workspace to this new save */
+		snprintf(app->current_workspace, sizeof(app->current_workspace), "%s", filename);
+	}
+	
+	return ok;
+}
+
+bool scenario_load_from_file(struct app_state *app, const char *filename)
+{
+	if (!app || !app->scene || !filename) return false;
+
+	BHS_LOG_INFO("Carregando Workspace: %s", filename);
+	
+	/* Unload current content first */
+	scenario_unload(app);
+	
+	bhs_world_handle world = bhs_scene_get_world(app->scene);
+	
+	/* Load Binary */
+	if (!bhs_ecs_load_world(world, filename)) {
+		BHS_LOG_ERROR("Falha ao carregar arquivo binário.");
+		return false;
+	}
+	
+	/* Search for Metadata & Restore State */
+	bhs_ecs_query q;
+	bhs_ecs_query_init(&q, world, (1 << BHS_COMP_METADATA));
+	
+	bhs_entity_id meta_id;
+	if (bhs_ecs_query_next(&q, &meta_id)) {
+		bhs_metadata_component *meta = bhs_ecs_get_component(world, meta_id, BHS_COMP_METADATA);
+		if (meta) {
+			app->accumulated_time = meta->accumulated_time;
+			app->scenario = meta->scenario_type;
+			/* We NOT restore time_scale instantly, we start PAUSED as requested */
+			BHS_LOG_INFO("Metadados restaurados: Time=%.2f, Scen=%d", app->accumulated_time, app->scenario);
+		}
+		
+		/* Destroy metadata entity after consuming */
+		bhs_ecs_destroy_entity(world, meta_id);
+	} else {
+		BHS_LOG_WARN("Metadados não encontrados no save (Legacy?). Resetando tempo.");
+		app->accumulated_time = 0;
+		app->scenario = APP_SCENARIO_NONE;
+	}
+	
+	/* Enforce Rules: Paused & Physics Ready */
+	app->sim_status = APP_SIM_PAUSED;
+	
+	/* Track file */
+	snprintf(app->current_workspace, sizeof(app->current_workspace), "%s", filename);
+	
+	/* Setup Camera based on Scenario Type? 
+	   If we saved camera state, we'd restore it.
+	   Since we don't save camera yet, let's use the scenario type heuristic */
+	/* Don't reset camera if reload? Or yes? 
+	   If user moved, maybe they want to keep position. 
+	   But if loading new file... 
+	   Let's leave camera as is for now, user can move. */
+	   
+	return true;
+}
+
+bool scenario_reload_current(struct app_state *app)
+{
+	if (!app || app->current_workspace[0] == '\0') {
+		BHS_LOG_WARN("Nenhum workspace ativo para recarregar.");
+		return false;
+	}
+	return scenario_load_from_file(app, app->current_workspace);
 }

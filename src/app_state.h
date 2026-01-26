@@ -115,6 +115,9 @@ struct app_state {
 
 	/* ---- Flags de Controle ---- */
 	bool should_quit;		/* Hora de ir embora */
+    
+    /* ---- [NEW] Persistence State ---- */
+    char current_workspace[256]; /* Path of currently loaded file (for Reload) */
 };
 
 /* ============================================================================

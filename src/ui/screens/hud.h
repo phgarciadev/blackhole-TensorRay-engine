@@ -55,13 +55,25 @@ typedef struct {
 	bool is_paused;       /* Display only */
 	bool req_toggle_pause; /* Command to App */
     
+    /* Persistence Requests */
+    bool req_save_snapshot;
+    bool req_reload_workspace;
+
+	/* Debug / Profiling */
+	int draw_calls;   
     /* [NEW] System Requests */
     bool req_update_vsync;
-    bool req_reset_sim; /* Reload workspace */
     
     /* [NEW] Navigation Request */
     bool req_exit_to_menu;
     bool show_exit_confirmation; /* [NEW] Ask before quit */
+
+    /* [NEW] Save Modal State */
+    bool show_save_modal;
+    char save_input_buf[64];
+    char save_default_title[64]; /* "Meu 2026-..." */
+    int current_scenario; /* [NEW] For placeholder generation */
+    bool input_focused; /* [NEW] Is the text box active? */
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

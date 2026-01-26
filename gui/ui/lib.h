@@ -25,6 +25,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h> /* [FIX] For size_t */
 
 #ifdef __cplusplus
 extern "C" {
@@ -430,6 +431,14 @@ bool bhs_ui_slider(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, float *value);
  */
 bool bhs_ui_checkbox(bhs_ui_ctx_t ctx, const char *label,
                      struct bhs_ui_rect rect, bool *checked);
+
+/**
+ * bhs_ui_text_field - Campo de Texto
+ *
+ * @focused: Estado de foco gerido externamente (ou internamente se NULL)
+ * Returns true se o texto mudou.
+ */
+bool bhs_ui_text_field(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, char *buf, size_t max_len, bool *focused);
 
 /* ============================================================================
  * KEYCODES
