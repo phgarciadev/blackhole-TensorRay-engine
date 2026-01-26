@@ -34,13 +34,14 @@ static void set_camera_for_scenario(struct app_state *app, enum scenario_type ty
 
 	switch (type) {
 	case SCENARIO_SOLAR_SYSTEM:
-		/* Câmera acima do plano orbital, olhando pro centro */
+		/* Câmera acima do plano orbital, olhando pro centro (Top Down) */
 		app->camera.x = 0.0f;
-		app->camera.y = 8.0e10f; /* ~0.5 AU Up */
-		app->camera.z = -2.0e11f; /* ~1.3 AU Back */
-		app->camera.pitch = -0.4f;
+		app->camera.y = 2.0e11f; /* Alta altitude */
+		app->camera.z = 0.0f;
+		app->camera.pitch = -1.570796f; /* -90 graus (Olhando pra baixo) */
 		app->camera.yaw = 0.0f;
-		app->camera.fov = 1000.0f; /* Standard far plane needs check? 1000 FOV is focal length? */
+		app->camera.fov = 1000.0f;
+		app->camera.is_top_down_mode = true; /* [NEW] Start Top Down */
 		break;
 
 	case SCENARIO_EARTH_SUN:
@@ -99,6 +100,7 @@ static void set_camera_for_scenario(struct app_state *app, enum scenario_type ty
 		app->camera.pitch = -0.3f;
 		app->camera.yaw = 0.0f;
 		app->camera.fov = 500.0f;
+        app->camera.is_top_down_mode = false;
 		break;
 	}
 }

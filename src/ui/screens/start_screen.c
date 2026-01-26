@@ -100,7 +100,13 @@ struct WorkspaceItem {
 
 static struct WorkspaceItem g_workspaces[MAX_WORKSPACES];
 static int g_workspace_count = 0;
+
 static int g_scan_timer = 0;
+
+/* [NEW] Renaming State */
+static int g_renaming_index = -1;
+static char g_rename_buf[64] = {0};
+static bool g_focus_rename = false;
 
 /* Escaneia pasta 'data' por arquivos .bin e lê metadados */
 static void scan_active_workspaces(void)
@@ -181,7 +187,9 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 	float cy = (float)win_h / 2.0f;
 
 	/* Update scan a cada... sei lá, 60 frames? 1 seg? */
-	if (g_scan_timer++ > 60 || g_scan_timer == 1) {
+	/* Update scan a cada... sei lá, 60 frames? 1 seg? */
+	/* PAUSE SCANNING WHILE EDITING to prevent list from changing under cursor */
+	if (g_renaming_index == -1 && (g_scan_timer++ > 60 || g_scan_timer == 1)) {
 		scan_active_workspaces();
 		g_scan_timer = 1;
 	}
@@ -233,8 +241,10 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 	/* 3. Workspaces List */
 	float list_y = sub_y + btn_h + 40.0f;
 	
-	/* Label "Workspaces" */
-	bhs_ui_draw_text(ctx, "Workspaces (Binários em data/)", cx - (container_w / 2.0f), list_y, 12.0f, COLOR_TEXT_DIM);
+    if (g_workspace_count > 0) {
+	    /* Label "Workspaces" */
+	    bhs_ui_draw_text(ctx, "Workspaces", cx - (container_w / 2.0f), list_y, 12.0f, COLOR_TEXT_DIM);
+    }
 	
 	float list_item_h = 52.0f;
 	float list_gap = 8.0f;
@@ -242,7 +252,13 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 	
 	/* Render dynamic workspaces */
 	if (g_workspace_count == 0) {
-		bhs_ui_draw_text(ctx, "Nenhum workspace encontrado...", cx - 60.0f, curr_y + 10.0f, 12.0f, COLOR_TEXT_DIM);
+
+		const char *empty_msg = "Nenhum workspace encontrado...";
+		float empty_w = bhs_ui_measure_text(ctx, empty_msg, 12.0f);
+		bhs_ui_draw_text(ctx, empty_msg, cx - (empty_w / 2.0f), curr_y + 10.0f, 12.0f, COLOR_TEXT_DIM);
+		
+		/* Push down for footer */
+		curr_y += 40.0f;
 	} else {
 		for (int i = 0; i < g_workspace_count; i++) {
             struct WorkspaceItem *item = &g_workspaces[i];
@@ -258,22 +274,98 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, i
 			bhs_ui_draw_rect_outline(ctx, rect, COLOR_BORDER, 1.0f);
 			
 			float pad_x = 15.0f;
-			/* Nome Bonito (Metadata Display Name) */
-			bhs_ui_draw_text(ctx, item->display_name, rect.x + pad_x, rect.y + 10, 14.0f, (struct bhs_ui_color){0.6f, 0.6f, 0.65f, 1.0f});
-			
-            /* Info Row: Full Path | Date */
-            char info_buf[256];
-            snprintf(info_buf, 256, "%s  •  %s", item->filename, item->date_str);
-            
-			bhs_ui_draw_text(ctx, info_buf, rect.x + pad_x, rect.y + 30, 11.0f, COLOR_TEXT_DIM);
-	
-			if (hovered && bhs_ui_mouse_clicked(ctx, 0)) {
-				/* CLICK: Carrega o workspace usando helper robusto */
-				if (scenario_load_from_file(app, item->full_path)) {
-					/* Sucesso... */
+
+			/* RENDER: Normal Row or Editing Row */
+			if (g_renaming_index == i) {
+				/* EDITING MODE */
+				struct bhs_ui_rect rect_edit = { rect.x + pad_x, rect.y + 8, rect.width - 100.0f, 30.0f };
+				
+				/* Handle keys manually before text field to capture Enter/Esc specifically */
+				if (bhs_ui_key_pressed(ctx, BHS_KEY_ENTER)) {
+					/* SAVE */
+					bhs_metadata_component meta = {0};
+					/* Read existing matches first to preserve other fields? Yes. */
+					if (bhs_ecs_peek_metadata(item->full_path, &meta, sizeof(meta), BHS_COMP_METADATA)) {
+						strncpy(meta.display_name, g_rename_buf, 63);
+						if (bhs_ecs_update_metadata(item->full_path, &meta, sizeof(meta), BHS_COMP_METADATA)) {
+							/* Success */
+							scan_active_workspaces(); /* Refresh list */
+						}
+					}
+					g_renaming_index = -1;
+				} else if (bhs_ui_key_pressed(ctx, BHS_KEY_ESCAPE)) {
+					/* CANCEL */
+					g_renaming_index = -1;
+				} else {
+					bhs_ui_text_field(ctx, rect_edit, g_rename_buf, 63, &g_focus_rename);
+				}
+
+			} else {
+				/* NORMAL DISPLAY MODE */
+				
+				/* Nome Bonito (Metadata Display Name) */
+				bhs_ui_draw_text(ctx, item->display_name, rect.x + pad_x, rect.y + 10, 14.0f, (struct bhs_ui_color){0.6f, 0.6f, 0.65f, 1.0f});
+				
+				/* Info Row: Full Path | Date */
+				char info_buf[256];
+				snprintf(info_buf, 256, "%s  •  %s", item->filename, item->date_str);
+				bhs_ui_draw_text(ctx, info_buf, rect.x + pad_x, rect.y + 30, 11.0f, COLOR_TEXT_DIM);
+
+				/* MAIN ACTION: Load on click (if not clicking buttons) */
+				/* We need to know if buttons were clicked to avoid double action */
+				bool action_clicked = false;
+
+				/* Render Action Buttons on Hover (or always visible? Let's make them always visible but dim) */
+				float sm_btn_w = 24.0f;
+				float sm_btn_h = 24.0f;
+				float btn_y = rect.y + (rect.height - sm_btn_h) / 2.0f;
+				float btn_right_margin = 10.0f;
+
+				/* DELETE Button (Rightmost) */
+				struct bhs_ui_rect rect_del = { rect.x + rect.width - sm_btn_w - btn_right_margin, btn_y, sm_btn_w, sm_btn_h };
+				
+				/* EDIT Button (Left of Delete) */
+				struct bhs_ui_rect rect_edit = { rect_del.x - sm_btn_w - 5.0f, btn_y, sm_btn_w, sm_btn_h };
+
+				/* Draw Edit Button */
+				bool h_edit = (mx >= rect_edit.x && mx < rect_edit.x + rect_edit.width && my >= rect_edit.y && my < rect_edit.y + rect_edit.height);
+				bhs_ui_draw_rect(ctx, rect_edit, h_edit ? COLOR_SECONDARY_HOVER : COLOR_BG);
+				bhs_ui_draw_rect_outline(ctx, rect_edit, COLOR_BORDER, 1.0f);
+				bhs_ui_draw_text(ctx, "E", rect_edit.x + 8, rect_edit.y + 5, 12.0f, COLOR_TEXT); /* 'E' icon */
+				
+				if (h_edit && bhs_ui_mouse_clicked(ctx, 0)) {
+					g_renaming_index = i;
+					strncpy(g_rename_buf, item->display_name, 63);
+					g_focus_rename = true;
+					action_clicked = true;
+				}
+
+				/* Draw Delete Button */
+				bool h_del = (mx >= rect_del.x && mx < rect_del.x + rect_del.width && my >= rect_del.y && my < rect_del.y + rect_del.height);
+				bhs_ui_draw_rect(ctx, rect_del, h_del ? (struct bhs_ui_color){0.3f, 0.1f, 0.1f, 1.0f} : COLOR_BG); /* Red-ish on hover */
+				bhs_ui_draw_rect_outline(ctx, rect_del, COLOR_BORDER, 1.0f);
+				bhs_ui_draw_text(ctx, "X", rect_del.x + 8, rect_del.y + 5, 12.0f, COLOR_TEXT); /* 'X' icon */
+
+				if (h_del && bhs_ui_mouse_clicked(ctx, 0)) {
+					/* DELETE ACTION */
+					/* TODO: Confirmation dialog? Naah, Linux style: do it. */
+					remove(item->full_path);
+					g_scan_timer = 100; /* Force rescan immediately */
+					action_clicked = true;
+				}
+
+				/* Load Scenario if clicked row body */
+				if (hovered && bhs_ui_mouse_clicked(ctx, 0) && !action_clicked) {
+					/* Check if mouse NOT over buttons */
+					bool on_buttons = (mx >= rect_edit.x && mx <= rect_del.x + rect_del.width);
+					if (!on_buttons) {
+						if (scenario_load_from_file(app, item->full_path)) {
+							/* Success */
+						}
+					}
 				}
 			}
-	
+			
 			curr_y += list_item_h + list_gap;
 		}
 	}

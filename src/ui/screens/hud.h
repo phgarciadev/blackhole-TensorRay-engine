@@ -74,6 +74,10 @@ typedef struct {
     char save_default_title[64]; /* "Meu 2026-..." */
     int current_scenario; /* [NEW] For placeholder generation */
     bool input_focused; /* [NEW] Is the text box active? */
+
+    /* [NEW] Camera State Restoration for Fixed Cam */
+    bhs_camera_t saved_camera_state;
+    bool has_saved_camera;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

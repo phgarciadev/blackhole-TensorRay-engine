@@ -501,3 +501,66 @@ bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t meta
 	fclose(f);
 	return false; /* Not found */
 }
+
+bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata, size_t metadata_size, uint32_t metadata_type_id)
+{
+	if (!filename || !new_metadata) return false;
+
+	FILE *f = fopen(filename, "rb+");
+	if (!f) return false;
+
+	/* 1. Read Header and Verify Magic */
+	struct bhs_save_header hdr;
+	if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
+		fclose(f);
+		return false;
+	}
+
+	if (hdr.magic != BHS_SAVE_MAGIC) {
+		fclose(f);
+		return false;
+	}
+
+	/* 2. Scan Chunks */
+	struct bhs_save_chunk_header chunk;
+	while (fread(&chunk, sizeof(chunk), 1, f) == 1) {
+		if (chunk.type_id == metadata_type_id) {
+			/* Found Metadata Chunk! */
+			
+			/* Read EntityID (skip) */
+			uint32_t id;
+			if (fread(&id, sizeof(uint32_t), 1, f) != 1) {
+				fclose(f);
+				return false;
+			}
+			
+			/* Verify strict size match for safety */
+			if (chunk.element_size != metadata_size) {
+				BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Metadata resize not supported (Disk=%d, Memory=%zu)", chunk.element_size, metadata_size);
+				fclose(f);
+				return false;
+			}
+			
+			/* Overwrite Data */
+			/* ftell is at start of data now? No. fread advanced pos. */
+			/* We read data previously? No, we are at data start position */
+			// long data_pos = ftell(f);
+			
+			if (fwrite(new_metadata, metadata_size, 1, f) != 1) {
+				BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to write metadata");
+				fclose(f);
+				return false;
+			}
+			
+			fclose(f);
+			return true;
+		} else {
+			/* Skip */
+			long skip = chunk.count * (sizeof(uint32_t) + chunk.element_size);
+			fseek(f, skip, SEEK_CUR);
+		}
+	}
+
+	fclose(f);
+	return false; /* Not found */
+}

@@ -442,6 +442,23 @@ void app_run(struct app_state *app)
             }
         }
 
+        /* [NEW] Camera State Management (Save/Restore on Toggle) */
+        static bool last_fixed_cam = false;
+        if (app->hud.fixed_planet_cam && !last_fixed_cam) {
+             /* Entering Fixed Mode: Save State */
+             app->hud.saved_camera_state = app->camera;
+             app->hud.has_saved_camera = true;
+             // BHS_LOG_INFO("Camera saved.");
+        }
+        else if (!app->hud.fixed_planet_cam && last_fixed_cam) {
+             /* Exiting Fixed Mode: Restore State */
+             if (app->hud.has_saved_camera) {
+                 app->camera = app->hud.saved_camera_state;
+                 // BHS_LOG_INFO("Camera restored.");
+             }
+        }
+        last_fixed_cam = app->hud.fixed_planet_cam;
+
 		/* [MOVED] Fixed Planet Camera Logic (Post-Physics) */
 		if (app->hud.fixed_planet_cam && app->hud.selected_body_index != -1) {
 			int count = 0;
