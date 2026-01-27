@@ -25,16 +25,16 @@
  */
 
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "wayland-util.h"
 
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0 /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
-#define WL_PRIVATE __attribute__ ((visibility("hidden")))
+#define WL_PRIVATE __attribute__((visibility("hidden")))
 #else
 #define WL_PRIVATE
 #endif
@@ -65,18 +65,19 @@ static const struct wl_interface *pointer_constraints_unstable_v1_types[] = {
 static const struct wl_message zwp_pointer_constraints_v1_requests[] = {
 	{ "destroy", "", pointer_constraints_unstable_v1_types + 0 },
 	{ "lock_pointer", "noo?ou", pointer_constraints_unstable_v1_types + 2 },
-	{ "confine_pointer", "noo?ou", pointer_constraints_unstable_v1_types + 7 },
+	{ "confine_pointer", "noo?ou",
+	  pointer_constraints_unstable_v1_types + 7 },
 };
 
 WL_PRIVATE const struct wl_interface zwp_pointer_constraints_v1_interface = {
-	"zwp_pointer_constraints_v1", 1,
-	3, zwp_pointer_constraints_v1_requests,
-	0, NULL,
+	"zwp_pointer_constraints_v1",	     1, 3,
+	zwp_pointer_constraints_v1_requests, 0, NULL,
 };
 
 static const struct wl_message zwp_locked_pointer_v1_requests[] = {
 	{ "destroy", "", pointer_constraints_unstable_v1_types + 0 },
-	{ "set_cursor_position_hint", "ff", pointer_constraints_unstable_v1_types + 0 },
+	{ "set_cursor_position_hint", "ff",
+	  pointer_constraints_unstable_v1_types + 0 },
 	{ "set_region", "?o", pointer_constraints_unstable_v1_types + 12 },
 };
 
@@ -86,9 +87,8 @@ static const struct wl_message zwp_locked_pointer_v1_events[] = {
 };
 
 WL_PRIVATE const struct wl_interface zwp_locked_pointer_v1_interface = {
-	"zwp_locked_pointer_v1", 1,
-	3, zwp_locked_pointer_v1_requests,
-	2, zwp_locked_pointer_v1_events,
+	"zwp_locked_pointer_v1",	1, 3,
+	zwp_locked_pointer_v1_requests, 2, zwp_locked_pointer_v1_events,
 };
 
 static const struct wl_message zwp_confined_pointer_v1_requests[] = {
@@ -102,8 +102,6 @@ static const struct wl_message zwp_confined_pointer_v1_events[] = {
 };
 
 WL_PRIVATE const struct wl_interface zwp_confined_pointer_v1_interface = {
-	"zwp_confined_pointer_v1", 1,
-	2, zwp_confined_pointer_v1_requests,
-	2, zwp_confined_pointer_v1_events,
+	"zwp_confined_pointer_v1",	  1, 2,
+	zwp_confined_pointer_v1_requests, 2, zwp_confined_pointer_v1_events,
 };
-

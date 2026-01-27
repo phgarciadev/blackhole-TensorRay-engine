@@ -8,8 +8,8 @@
 #ifndef BHS_TYPES_H
 #define BHS_TYPES_H
 
-#include "math/vec4.h"       /* Define struct bhs_vec3 */
 #include "engine/scene/scene.h" /* Define struct bhs_body */
+#include "math/vec4.h"		/* Define struct bhs_vec3 */
 
 /* 
  * bhs_types.h agora atua como um agregador de tipos 

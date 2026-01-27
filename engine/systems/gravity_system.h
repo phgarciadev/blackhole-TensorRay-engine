@@ -29,8 +29,7 @@
  *
  * Acumula forças no force_accumulator. NÃO integra posição.
  */
-void bhs_gravity_system_central(bhs_world_handle world,
-				struct bhs_vec3 center,
+void bhs_gravity_system_central(bhs_world_handle world, struct bhs_vec3 center,
 				double central_mass);
 
 /**

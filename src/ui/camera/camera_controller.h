@@ -11,6 +11,6 @@
  * @param dt Delta time em segundos
  */
 void bhs_camera_controller_update(bhs_camera_t *cam, bhs_ui_ctx_t ctx,
-                                  double dt);
+				  double dt);
 
 #endif /* BHS_CMD_UI_CAMERA_CONTROLLER_H */

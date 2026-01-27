@@ -30,7 +30,8 @@ struct bhs_render_batch {
 	uint32_t count;
 };
 
-#define BHS_MAX_VERTICES 4000000 /* ~128MB for vertices, supports 500x500 dense grid */
+#define BHS_MAX_VERTICES                                                       \
+	4000000 /* ~128MB for vertices, supports 500x500 dense grid */
 #define BHS_MAX_INDICES (BHS_MAX_VERTICES * 6)
 
 /* ============================================================================
@@ -41,16 +42,11 @@ struct bhs_render_batch {
 static void *read_file(const char *filename, size_t *size)
 {
 	/* Try multiple prefixes */
-	const char *prefixes[] = {
-		"",
-		"build/bin/",
-		"../",
-		"bin/"
-	};
-	
+	const char *prefixes[] = { "", "build/bin/", "../", "bin/" };
+
 	FILE *f = NULL;
 	char path[256];
-	
+
 	for (int i = 0; i < 4; i++) {
 		snprintf(path, sizeof(path), "%s%s", prefixes[i], filename);
 		f = fopen(path, "rb");
@@ -63,7 +59,8 @@ static void *read_file(const char *filename, size_t *size)
 
 	if (!f) {
 		fprintf(stderr,
-			"Erro: Arquivo '%s' não encontrado em nenhum lugar. Quem comeu?\n",
+			"Erro: Arquivo '%s' não encontrado em nenhum lugar. "
+			"Quem comeu?\n",
 			filename);
 		return NULL;
 	}
@@ -280,13 +277,15 @@ int bhs_ui_render_init_internal(bhs_ui_ctx_t ctx)
 		.array_layers = 1,
 		.label = "UI Depth Buffer",
 	};
-	if (bhs_gpu_texture_create(ctx->device, &depth_cfg, &ctx->depth_texture) != BHS_GPU_OK) {
+	if (bhs_gpu_texture_create(ctx->device, &depth_cfg,
+				   &ctx->depth_texture) != BHS_GPU_OK) {
 		return BHS_UI_ERR_GPU;
 	}
 
 	/* 7. [NEW] Font System Initialization */
 	if (bhs_font_system_init(ctx) != BHS_UI_OK) {
-		fprintf(stderr, "[ui] aviso: falha ao inicializar sistema de fontes\n");
+		fprintf(stderr,
+			"[ui] aviso: falha ao inicializar sistema de fontes\n");
 	}
 
 	return BHS_UI_OK;
@@ -337,7 +336,7 @@ void bhs_ui_render_begin(bhs_ui_ctx_t ctx)
 		.store_action = BHS_STORE_STORE,
 		.clear_color = { 0.1f, 0.1f, 0.1f, 1.0f },
 	};
-	
+
 	struct bhs_gpu_depth_attachment depth_att = {
 		.texture = ctx->depth_texture,
 		.load_action = BHS_LOAD_CLEAR,
@@ -546,7 +545,8 @@ void bhs_ui_draw_texture(bhs_ui_ctx_t ctx, void *texture, float x, float y,
 			       color);
 }
 
-void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, const void *data)
+void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height,
+				      const void *data)
 {
 	BHS_ASSERT(ctx != NULL);
 	BHS_ASSERT(data != NULL);
@@ -564,7 +564,8 @@ void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, c
 
 	bhs_gpu_texture_t tex;
 	if (bhs_gpu_texture_create(ctx->device, &tex_cfg, &tex) != BHS_GPU_OK) {
-		fprintf(stderr, "[ui] Falha ao criar textura de icone %dx%d\n", width, height);
+		fprintf(stderr, "[ui] Falha ao criar textura de icone %dx%d\n",
+			width, height);
 		return NULL;
 	}
 
@@ -576,11 +577,11 @@ void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, c
 	   bhs_gpu_texture_upload geralmente submete e espera ou grava no cmd?
 	   A implementacao padrao do RHI costuma bloquear ou usar transfer queue.
 	   Assumindo safe para chamar no init ou pre-render. */
-	
-    /* FIXME: Tamanho do buffer: w * h * 4 bytes */
+
+	/* FIXME: Tamanho do buffer: w * h * 4 bytes */
 	bhs_gpu_texture_upload(tex, 0, 0, data, width * height * 4);
 
-	return (void*)tex;
+	return (void *)tex;
 }
 
 /* Compatibility helpers */
@@ -720,7 +721,8 @@ static uint32_t utf8_decode(const char **ptr)
 		cp = ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
 		len = 2;
 	} else if ((p[0] & 0xF0) == 0xE0) {
-		cp = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+		cp = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) |
+		     (p[2] & 0x3F);
 		len = 3;
 	} else if ((p[0] & 0xF8) == 0xF0) {
 		cp = ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) |
@@ -754,22 +756,26 @@ void bhs_ui_draw_text(bhs_ui_ctx_t ctx, const char *text, float x, float y,
 		}
 
 		if (cp >= 32 && cp < 256) {
-			const struct bhs_glyph_info *glyph = bhs_font_system_get_glyph(ctx, (char)cp);
+			const struct bhs_glyph_info *glyph =
+				bhs_font_system_get_glyph(ctx, (char)cp);
 			if (glyph) {
 				float gw = (float)glyph->width * scale;
 				float gh = (float)glyph->height * scale;
 				float gx = x + (float)glyph->bearing_x * scale;
-				float gy = y + (64.0f - (float)glyph->bearing_y) * scale;
+				float gy =
+					y + (64.0f - (float)glyph->bearing_y) *
+						    scale;
 
-				bhs_ui_draw_texture_uv(ctx, ctx->font.atlas_tex, gx, gy, gw, gh,
-						       glyph->u0, glyph->v0, glyph->u1, glyph->v1,
-						       color);
-				
+				bhs_ui_draw_texture_uv(
+					ctx, ctx->font.atlas_tex, gx, gy, gw,
+					gh, glyph->u0, glyph->v0, glyph->u1,
+					glyph->v1, color);
+
 				x += (float)glyph->advance * scale;
 			}
 		} else {
 			/* Espaço para caracteres desconhecidos ou fora do atlas */
-			x += size * 0.4f; 
+			x += size * 0.4f;
 		}
 	}
 }
@@ -787,10 +793,12 @@ float bhs_ui_measure_text(bhs_ui_ctx_t ctx, const char *text, float size)
 	while (*text) {
 		uint32_t cp = utf8_decode(&text);
 		if (cp == '\n') {
-			if (current_x > width) width = current_x;
+			if (current_x > width)
+				width = current_x;
 			current_x = 0.0f;
 		} else if (cp >= 32 && cp < 256) {
-			const struct bhs_glyph_info *glyph = bhs_font_system_get_glyph(ctx, (char)cp);
+			const struct bhs_glyph_info *glyph =
+				bhs_font_system_get_glyph(ctx, (char)cp);
 			if (glyph) {
 				current_x += (float)glyph->advance * scale;
 			}
@@ -799,7 +807,8 @@ float bhs_ui_measure_text(bhs_ui_ctx_t ctx, const char *text, float size)
 		}
 	}
 
-	if (current_x > width) width = current_x;
+	if (current_x > width)
+		width = current_x;
 	return width;
 }
 
@@ -894,7 +903,7 @@ void bhs_ui_reset_render_state(bhs_ui_ctx_t ctx)
 	bhs_gpu_cmd_set_viewport(ctx->cmd, 0, 0, (float)ctx->width,
 				 (float)ctx->height, 0.0f, 1.0f);
 	bhs_gpu_cmd_set_scissor(ctx->cmd, 0, 0, ctx->width, ctx->height);
-	
+
 	/* Restore Pipeline */
 	bhs_gpu_cmd_set_pipeline(ctx->cmd, ctx->pipeline_2d);
 

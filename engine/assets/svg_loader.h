@@ -43,7 +43,7 @@ struct bhs_shape {
 	float opacity;
 	int has_fill;
 	int has_stroke;
-	
+
 	bhs_path_t *paths;
 	struct bhs_shape *next;
 };

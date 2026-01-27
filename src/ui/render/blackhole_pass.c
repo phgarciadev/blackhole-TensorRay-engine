@@ -4,11 +4,11 @@
  */
 
 #include "blackhole_pass.h"
-#include "gui/log.h"
-#include "engine/assets/image_loader.h" /* Para utils de IO de arquivo se precisar */
 #include <malloc.h>
-#include <string.h>
 #include <math.h>
+#include <string.h>
+#include "engine/assets/image_loader.h" /* Para utils de IO de arquivo se precisar */
+#include "gui/log.h"
 
 /* ============================================================================
  * ESTRUTURAS PRIVADAS
@@ -55,24 +55,23 @@ struct bhs_blackhole_pass {
 static bhs_gpu_shader_t load_shader(bhs_gpu_device_t device, const char *path)
 {
 	/* Robust File Loading Logic */
-	const char *prefixes[] = {
-		"",
-		"build/bin/",
-		"../",
-		"bin/"
-	};
-	
+	const char *prefixes[] = { "", "build/bin/", "../", "bin/" };
+
 	FILE *f = NULL;
 	char full_path[256];
-	
+
 	for (int i = 0; i < 4; i++) {
-		snprintf(full_path, sizeof(full_path), "%s%s", prefixes[i], path);
+		snprintf(full_path, sizeof(full_path), "%s%s", prefixes[i],
+			 path);
 		f = fopen(full_path, "rb");
-		if (f) break;
+		if (f)
+			break;
 	}
 
 	if (!f) {
-		BHS_LOG_ERROR("Falha ao abrir shader: %s (tentado em vários paths)", path);
+		BHS_LOG_ERROR(
+			"Falha ao abrir shader: %s (tentado em vários paths)",
+			path);
 		return NULL;
 	}
 
@@ -85,13 +84,11 @@ static bhs_gpu_shader_t load_shader(bhs_gpu_device_t device, const char *path)
 	fclose(f);
 
 	/* Cria shader module */
-	struct bhs_gpu_shader_config conf = {
-		.stage = BHS_SHADER_COMPUTE,
-		.code = code,
-		.code_size = size,
-		.entry_point = "main",
-		.label = "BlackHole Compute"
-	};
+	struct bhs_gpu_shader_config conf = { .stage = BHS_SHADER_COMPUTE,
+					      .code = code,
+					      .code_size = size,
+					      .entry_point = "main",
+					      .label = "BlackHole Compute" };
 
 	bhs_gpu_shader_t shader = NULL;
 	if (bhs_gpu_shader_create(device, &conf, &shader) != BHS_GPU_OK) {
@@ -109,7 +106,8 @@ static bhs_gpu_shader_t load_shader(bhs_gpu_device_t device, const char *path)
  * ============================================================================
  */
 
-static bhs_gpu_texture_t create_storage_image(bhs_gpu_device_t device, int w, int h)
+static bhs_gpu_texture_t create_storage_image(bhs_gpu_device_t device, int w,
+					      int h)
 {
 	struct bhs_gpu_texture_config conf = {
 		.width = w,
@@ -122,7 +120,8 @@ static bhs_gpu_texture_t create_storage_image(bhs_gpu_device_t device, int w, in
 		 * Futuramente mudaremos para RGBA16F (HDR).
 		 */
 		.format = BHS_FORMAT_RGBA32_FLOAT,
-		.usage = BHS_TEXTURE_STORAGE | BHS_TEXTURE_SAMPLED | BHS_TEXTURE_TRANSFER_SRC,
+		.usage = BHS_TEXTURE_STORAGE | BHS_TEXTURE_SAMPLED |
+			 BHS_TEXTURE_TRANSFER_SRC,
 		.label = "BlackHole Output"
 	};
 
@@ -139,10 +138,12 @@ static bhs_gpu_texture_t create_storage_image(bhs_gpu_device_t device, int w, in
  * ============================================================================
  */
 
-bhs_blackhole_pass_t bhs_blackhole_pass_create(bhs_gpu_device_t device,
-						 const bhs_blackhole_pass_config_t *config)
+bhs_blackhole_pass_t
+bhs_blackhole_pass_create(bhs_gpu_device_t device,
+			  const bhs_blackhole_pass_config_t *config)
 {
-	bhs_blackhole_pass_t pass = calloc(1, sizeof(struct bhs_blackhole_pass));
+	bhs_blackhole_pass_t pass =
+		calloc(1, sizeof(struct bhs_blackhole_pass));
 	pass->device = device;
 	pass->width = config->width;
 	pass->height = config->height;
@@ -151,17 +152,18 @@ bhs_blackhole_pass_t bhs_blackhole_pass_create(bhs_gpu_device_t device,
 	/* Assume que o CMake coloca blackhole.spv (resultante de .comp) aqui */
 	pass->shader = load_shader(device, "assets/shaders/blackhole.spv");
 	if (!pass->shader) {
-		BHS_LOG_FATAL("Impossível inicializar BlackHole Pass sem shader.");
+		BHS_LOG_FATAL(
+			"Impossível inicializar BlackHole Pass sem shader.");
 		free(pass);
 		return NULL;
 	}
 
 	/* 2. Cria Pipeline */
 	struct bhs_gpu_compute_pipeline_config pipe_conf = {
-		.compute_shader = pass->shader,
-		.label = "BlackHole Pipeline"
+		.compute_shader = pass->shader, .label = "BlackHole Pipeline"
 	};
-	if (bhs_gpu_pipeline_compute_create(device, &pipe_conf, &pass->pipeline) != BHS_GPU_OK) {
+	if (bhs_gpu_pipeline_compute_create(device, &pipe_conf,
+					    &pass->pipeline) != BHS_GPU_OK) {
 		BHS_LOG_FATAL("Falha ao criar Compute Pipeline.");
 		bhs_blackhole_pass_destroy(pass);
 		return NULL;
@@ -174,46 +176,59 @@ bhs_blackhole_pass_t bhs_blackhole_pass_create(bhs_gpu_device_t device,
 			.compute_shader = pass->pp_shader,
 			.label = "PostProcess Pipeline"
 		};
-		bhs_gpu_pipeline_compute_create(device, &pp_conf, &pass->pp_pipeline);
+		bhs_gpu_pipeline_compute_create(device, &pp_conf,
+						&pass->pp_pipeline);
 	} else {
-		BHS_LOG_WARN("PostProcess shader não encontrado. HDR raw será exibido.");
+		BHS_LOG_WARN("PostProcess shader não encontrado. HDR raw será "
+			     "exibido.");
 	}
 
 	/* 3. Cria Output Texture */
-	pass->output_tex = create_storage_image(device, pass->width, pass->height);
+	pass->output_tex =
+		create_storage_image(device, pass->width, pass->height);
 	if (!pass->output_tex) {
 		bhs_blackhole_pass_destroy(pass);
 		return NULL;
 	}
 
-	BHS_LOG_INFO("BlackHole Compute Pass inicializado (%dx%d)", pass->width, pass->height);
+	BHS_LOG_INFO("BlackHole Compute Pass inicializado (%dx%d)", pass->width,
+		     pass->height);
 	return pass;
 }
 
 void bhs_blackhole_pass_destroy(bhs_blackhole_pass_t pass)
 {
-	if (!pass) return;
+	if (!pass)
+		return;
 
-	if (pass->output_tex) bhs_gpu_texture_destroy(pass->output_tex);
-	if (pass->pipeline) bhs_gpu_pipeline_destroy(pass->pipeline);
-	if (pass->shader) bhs_gpu_shader_destroy(pass->shader);
-	
-	if (pass->pp_pipeline) bhs_gpu_pipeline_destroy(pass->pp_pipeline);
-	if (pass->pp_shader) bhs_gpu_shader_destroy(pass->pp_shader);
+	if (pass->output_tex)
+		bhs_gpu_texture_destroy(pass->output_tex);
+	if (pass->pipeline)
+		bhs_gpu_pipeline_destroy(pass->pipeline);
+	if (pass->shader)
+		bhs_gpu_shader_destroy(pass->shader);
+
+	if (pass->pp_pipeline)
+		bhs_gpu_pipeline_destroy(pass->pp_pipeline);
+	if (pass->pp_shader)
+		bhs_gpu_shader_destroy(pass->pp_shader);
 
 	free(pass);
 }
 
 void bhs_blackhole_pass_resize(bhs_blackhole_pass_t pass, int width, int height)
 {
-	if (!pass) return;
-	if (pass->width == width && pass->height == height) return;
+	if (!pass)
+		return;
+	if (pass->width == width && pass->height == height)
+		return;
 
 	pass->width = width;
 	pass->height = height;
 
 	/* Recria textura */
-	if (pass->output_tex) bhs_gpu_texture_destroy(pass->output_tex);
+	if (pass->output_tex)
+		bhs_gpu_texture_destroy(pass->output_tex);
 	pass->output_tex = create_storage_image(pass->device, width, height);
 
 	BHS_LOG_INFO("BlackHole Pass redimensionado para %dx%d", width, height);
@@ -225,27 +240,29 @@ bhs_gpu_texture_t bhs_blackhole_pass_get_output(bhs_blackhole_pass_t pass)
 }
 
 void bhs_blackhole_pass_dispatch(bhs_blackhole_pass_t pass,
-				 bhs_gpu_cmd_buffer_t cmd,
-				 bhs_scene_t scene,
+				 bhs_gpu_cmd_buffer_t cmd, bhs_scene_t scene,
 				 const bhs_camera_t *cam)
 {
-	if (!pass || !pass->pipeline || !pass->output_tex) return;
+	if (!pass || !pass->pipeline || !pass->output_tex)
+		return;
 
 	/* 1. Transição de layout para STORAGE (se necessário) */
 	/* (Assumimos que o renderer lida com transições generalizadas ou o driver cuida) */
-	
+
 	/* 2. Bind Pipeline */
 	bhs_gpu_cmd_set_pipeline(cmd, pass->pipeline);
 
 	/* 3. Bind Resources (Set 0, Binding 0) */
-	bhs_gpu_cmd_bind_compute_storage_texture(cmd, pass->pipeline, 0, 0, pass->output_tex);
+	bhs_gpu_cmd_bind_compute_storage_texture(cmd, pass->pipeline, 0, 0,
+						 pass->output_tex);
 
 	/* 4. Push Constants */
-	struct blackhole_params params = {0};
-	
+	struct blackhole_params params = { 0 };
+
 	/* Dados da câmera */
-	params.camera_dist = sqrtf(cam->x*cam->x + cam->y*cam->y + cam->z*cam->z);
-	 params.time = 0.0f; /* TODO: Passar tempo real */
+	params.camera_dist =
+		sqrtf(cam->x * cam->x + cam->y * cam->y + cam->z * cam->z);
+	params.time = 0.0f; /* TODO: Passar tempo real */
 	params.res_x = (float)pass->width;
 	params.res_y = (float)pass->height;
 	params.render_mode = 0; /* Physics */
@@ -276,18 +293,19 @@ void bhs_blackhole_pass_dispatch(bhs_blackhole_pass_t pass,
 		int n = 0;
 		const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n);
 		/* Procura primeiro Buraco Negro */
-		for (int i=0; i<n; i++) {
+		for (int i = 0; i < n; i++) {
 			if (bodies[i].type == BHS_BODY_BLACKHOLE) {
 				params.mass = bodies[i].state.mass;
 				/* O campo 'radius' as vezes é usado como spin ou raio visual */
 				/* Vamos assumir spin alto fixo por enquanto se não tiver no struct */
 				/* Mas o user disse para usar spin alto. */
-				params.spin = 0.998f; 
+				params.spin = 0.998f;
 				break;
 			}
 		}
 	}
-	if (params.mass == 0.0f) params.mass = 1.0f; /* Fallback */
+	if (params.mass == 0.0f)
+		params.mass = 1.0f; /* Fallback */
 
 	bhs_gpu_cmd_push_constants(cmd, 0, &params, sizeof(params));
 
@@ -295,7 +313,7 @@ void bhs_blackhole_pass_dispatch(bhs_blackhole_pass_t pass,
 	/* Group size 16x16 */
 	unsigned int groups_x = (pass->width + 15) / 16;
 	unsigned int groups_y = (pass->height + 15) / 16;
-	
+
 	bhs_gpu_cmd_dispatch(cmd, groups_x, groups_y, 1);
 
 	/* 6. Barrier de memória entre passes (WAR/RAW) */
@@ -304,9 +322,10 @@ void bhs_blackhole_pass_dispatch(bhs_blackhole_pass_t pass,
 	/* 7. Post Process Dispatch (In-Place) */
 	if (pass->pp_pipeline) {
 		bhs_gpu_cmd_set_pipeline(cmd, pass->pp_pipeline);
-		bhs_gpu_cmd_bind_compute_storage_texture(cmd, pass->pp_pipeline, 0, 0, pass->output_tex);
+		bhs_gpu_cmd_bind_compute_storage_texture(
+			cmd, pass->pp_pipeline, 0, 0, pass->output_tex);
 		bhs_gpu_cmd_dispatch(cmd, groups_x, groups_y, 1);
-		
+
 		/* Final barrier for Fragment Shader read */
 		bhs_gpu_cmd_transition_texture(cmd, pass->output_tex);
 	}

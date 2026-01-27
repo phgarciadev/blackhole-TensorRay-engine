@@ -24,8 +24,8 @@
 #define BHS_UX_UI_LIB_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h> /* [FIX] For size_t */
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,15 +55,15 @@ typedef struct bhs_font_atlas_impl *bhs_font_atlas_t;
  */
 
 enum bhs_ui_error {
-  BHS_UI_OK = 0,
-  BHS_UI_SKIP = 1,         /* [FIX] Frame deve ser pulado (ex: resize) */
-  BHS_UI_ERR_NOMEM = -1,   /* Sem memória (CPU ou GPU) */
-  BHS_UI_ERR_INIT = -2,    /* Falha na inicialização */
-  BHS_UI_ERR_WINDOW = -3,  /* Falha ao criar janela */
-  BHS_UI_ERR_GPU = -4,     /* Falha no device gráfico */
-  BHS_UI_ERR_INVALID = -5, /* Parâmetro inválido */
+	BHS_UI_OK = 0,
+	BHS_UI_SKIP = 1,	 /* [FIX] Frame deve ser pulado (ex: resize) */
+	BHS_UI_ERR_NOMEM = -1,	 /* Sem memória (CPU ou GPU) */
+	BHS_UI_ERR_INIT = -2,	 /* Falha na inicialização */
+	BHS_UI_ERR_WINDOW = -3,	 /* Falha ao criar janela */
+	BHS_UI_ERR_GPU = -4,	 /* Falha no device gráfico */
+	BHS_UI_ERR_INVALID = -5, /* Parâmetro inválido */
 }; // isso significa que alguem (vulgo eu) vai chorar no banho, quem mandou
-   // mexer com C?
+// mexer com C?
 
 /* ============================================================================
  * CONFIGURAÇÃO
@@ -76,12 +76,12 @@ enum bhs_ui_error {
  * Basicamente: "que janela você quer?"
  */
 struct bhs_ui_config {
-  const char *title; /* Título da janela */
-  int32_t width;     /* Largura inicial */
-  int32_t height;    /* Altura inicial */
-  bool resizable;    /* Permite redimensionar? */
-  bool vsync;        /* VSync habilitado? */
-  bool debug;        /* Validation layers e logs verbosos */
+	const char *title; /* Título da janela */
+	int32_t width;	   /* Largura inicial */
+	int32_t height;	   /* Altura inicial */
+	bool resizable;	   /* Permite redimensionar? */
+	bool vsync;	   /* VSync habilitado? */
+	bool debug;	   /* Validation layers e logs verbosos */
 };
 
 /* ============================================================================
@@ -95,17 +95,18 @@ struct bhs_ui_config {
  * Por que float? Porque é o século 21 e 8 bits por canal é coisa de 1995.
  */
 struct bhs_ui_color {
-  float r, g, b, a;
+	float r, g, b, a;
 };
 
 /* Cores pré-definidas pra preguiçoso (tipo eu) */
-#define BHS_UI_COLOR_WHITE ((struct bhs_ui_color){1.0f, 1.0f, 1.0f, 1.0f})
-#define BHS_UI_COLOR_BLACK ((struct bhs_ui_color){0.0f, 0.0f, 0.0f, 1.0f})
-#define BHS_UI_COLOR_RED ((struct bhs_ui_color){1.0f, 0.0f, 0.0f, 1.0f})
-#define BHS_UI_COLOR_GREEN ((struct bhs_ui_color){0.0f, 1.0f, 0.0f, 1.0f})
-#define BHS_UI_COLOR_BLUE ((struct bhs_ui_color){0.0f, 0.0f, 1.0f, 1.0f})
-#define BHS_UI_COLOR_GRAY ((struct bhs_ui_color){0.5f, 0.5f, 0.5f, 1.0f})
-#define BHS_UI_COLOR_TRANSPARENT ((struct bhs_ui_color){0.0f, 0.0f, 0.0f, 0.0f})
+#define BHS_UI_COLOR_WHITE ((struct bhs_ui_color){ 1.0f, 1.0f, 1.0f, 1.0f })
+#define BHS_UI_COLOR_BLACK ((struct bhs_ui_color){ 0.0f, 0.0f, 0.0f, 1.0f })
+#define BHS_UI_COLOR_RED ((struct bhs_ui_color){ 1.0f, 0.0f, 0.0f, 1.0f })
+#define BHS_UI_COLOR_GREEN ((struct bhs_ui_color){ 0.0f, 1.0f, 0.0f, 1.0f })
+#define BHS_UI_COLOR_BLUE ((struct bhs_ui_color){ 0.0f, 0.0f, 1.0f, 1.0f })
+#define BHS_UI_COLOR_GRAY ((struct bhs_ui_color){ 0.5f, 0.5f, 0.5f, 1.0f })
+#define BHS_UI_COLOR_TRANSPARENT                                               \
+	((struct bhs_ui_color){ 0.0f, 0.0f, 0.0f, 0.0f })
 
 /* ============================================================================
  * RETÂNGULO
@@ -119,8 +120,8 @@ struct bhs_ui_color {
  * Sim, igual HTML. Não, não foi minha escolha.
  */
 struct bhs_ui_rect {
-  float x, y;
-  float width, height;
+	float x, y;
+	float width, height;
 };
 
 /* ============================================================================
@@ -292,13 +293,13 @@ void bhs_ui_clear(bhs_ui_ctx_t ctx, struct bhs_ui_color color);
  * bhs_ui_draw_rect - Desenha retângulo preenchido
  */
 void bhs_ui_draw_rect(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
-                      struct bhs_ui_color color);
+		      struct bhs_ui_color color);
 
 /**
  * bhs_ui_draw_rect_outline - Desenha borda de retângulo
  */
 void bhs_ui_draw_rect_outline(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
-                              struct bhs_ui_color color, float thickness);
+			      struct bhs_ui_color color, float thickness);
 
 /**
  * bhs_ui_draw_line - Desenha uma linha entre dois pontos
@@ -306,7 +307,7 @@ void bhs_ui_draw_rect_outline(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
  * Implementada como um quad rotacionado para permitir espessura controlada.
  */
 void bhs_ui_draw_line(bhs_ui_ctx_t ctx, float x1, float y1, float x2, float y2,
-                      struct bhs_ui_color color, float thickness);
+		      struct bhs_ui_color color, float thickness);
 
 /**
  * bhs_ui_draw_circle_fill - Desenha um círculo preenchido
@@ -314,7 +315,7 @@ void bhs_ui_draw_line(bhs_ui_ctx_t ctx, float x1, float y1, float x2, float y2,
  * Aproximação por polígono (Triangle Fan).
  */
 void bhs_ui_draw_circle_fill(bhs_ui_ctx_t ctx, float cx, float cy, float radius,
-                             struct bhs_ui_color color);
+			     struct bhs_ui_color color);
 
 /**
  * bhs_ui_draw_text - Desenha texto
@@ -322,7 +323,7 @@ void bhs_ui_draw_circle_fill(bhs_ui_ctx_t ctx, float cx, float cy, float radius,
  * Fonte: monospace builtin. Não pergunta, só aceita.
  */
 void bhs_ui_draw_text(bhs_ui_ctx_t ctx, const char *text, float x, float y,
-                      float size, struct bhs_ui_color color);
+		      float size, struct bhs_ui_color color);
 
 /**
  * @brief Mede as dimensões de um texto com o sistema de fontes atual
@@ -336,16 +337,16 @@ float bhs_ui_measure_text(bhs_ui_ctx_t ctx, const char *text, float size);
  * @texture: Se NULL, desenha retângulo branco (equivalente a draw_rect)
  */
 void bhs_ui_draw_texture(bhs_ui_ctx_t ctx,
-                         /* bhs_gpu_texture_t */ void *texture, float x,
-                         float y, float w, float h, struct bhs_ui_color color);
+			 /* bhs_gpu_texture_t */ void *texture, float x,
+			 float y, float w, float h, struct bhs_ui_color color);
 
 /**
  * @brief Desenha textura com coordenadas UV controladas
  * Permite scrolling, tiling e atlas.
  */
 void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture, float x, float y,
-                            float w, float h, float u0, float v0, float u1,
-                            float v1, struct bhs_ui_color color);
+			    float w, float h, float u0, float v0, float u1,
+			    float v1, struct bhs_ui_color color);
 
 /**
  * @brief Cria uma textura a partir de dados RGBA em memória.
@@ -354,18 +355,19 @@ void bhs_ui_draw_texture_uv(bhs_ui_ctx_t ctx, void *texture, float x, float y,
  * @param data Ponteiro para dados RGBA (uint8_t), row-major.
  * @return Handle opaco da textura ou NULL em erro.
  */
-void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height, const void *data);
+void *bhs_ui_create_texture_from_rgba(bhs_ui_ctx_t ctx, int width, int height,
+				      const void *data);
 
 /**
  * @brief Desenha um quad com UVs arbitrários para cada vértice (TL, TR, BR, BL)
  * Essencial para distorções complexas (esferas, etc).
  */
 void bhs_ui_draw_quad_uv(bhs_ui_ctx_t ctx, void *texture, float x0, float y0,
-                         float u0, float v0,                     /* TL */
-                         float x1, float y1, float u1, float v1, /* TR */
-                         float x2, float y2, float u2, float v2, /* BR */
-                         float x3, float y3, float u3, float v3, /* BL */
-                         struct bhs_ui_color color);
+			 float u0, float v0,			 /* TL */
+			 float x1, float y1, float u1, float v1, /* TR */
+			 float x2, float y2, float u2, float v2, /* BR */
+			 float x3, float y3, float u3, float v3, /* BL */
+			 struct bhs_ui_color color);
 
 /* ============================================================================
  * ÍCONES E SÍMBOLOS
@@ -373,12 +375,12 @@ void bhs_ui_draw_quad_uv(bhs_ui_ctx_t ctx, void *texture, float x0, float y0,
  */
 
 enum bhs_ui_icon {
-  BHS_ICON_NONE = 0,
-  BHS_ICON_GEAR,    /* Configurações */
-  BHS_ICON_PHYSICS, /* Parâmetros físicos */
-  BHS_ICON_CAMERA,  /* Parâmetros de visão */
-  BHS_ICON_INFO,    /* Sobre / Ajuda */
-  BHS_ICON_CLOSE,   /* Fechar modal */
+	BHS_ICON_NONE = 0,
+	BHS_ICON_GEAR,	  /* Configurações */
+	BHS_ICON_PHYSICS, /* Parâmetros físicos */
+	BHS_ICON_CAMERA,  /* Parâmetros de visão */
+	BHS_ICON_INFO,	  /* Sobre / Ajuda */
+	BHS_ICON_CLOSE,	  /* Fechar modal */
 };
 
 /* ============================================================================
@@ -392,7 +394,7 @@ enum bhs_ui_icon {
  * Immediate mode: chama todo frame, retorna true quando clicado.
  */
 bool bhs_ui_button(bhs_ui_ctx_t ctx, const char *label,
-                   struct bhs_ui_rect rect);
+		   struct bhs_ui_rect rect);
 
 /**
  * bhs_ui_icon_button - Botão circular com ícone
@@ -401,7 +403,7 @@ bool bhs_ui_button(bhs_ui_ctx_t ctx, const char *label,
  * Retorna true se clicado.
  */
 bool bhs_ui_icon_button(bhs_ui_ctx_t ctx, enum bhs_ui_icon icon, float x,
-                        float y, float size);
+			float y, float size);
 
 /**
  * bhs_ui_label - Desenha label (texto estático)
@@ -414,7 +416,7 @@ void bhs_ui_label(bhs_ui_ctx_t ctx, const char *text, float x, float y);
  * Use pra agrupar widgets visualmente.
  */
 void bhs_ui_panel(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
-                  struct bhs_ui_color bg, struct bhs_ui_color border);
+		  struct bhs_ui_color bg, struct bhs_ui_color border);
 
 /**
  * bhs_ui_panel_begin - Inicia um painel modal centralizado
@@ -423,7 +425,7 @@ void bhs_ui_panel(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect,
  * Use bhs_ui_panel_end() para fechar o escopo.
  */
 void bhs_ui_panel_begin(bhs_ui_ctx_t ctx, const char *title, float width,
-                        float height);
+			float height);
 
 /**
  * bhs_ui_panel_end - Finaliza o painel modal
@@ -439,7 +441,7 @@ bool bhs_ui_slider(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, float *value);
  * bhs_ui_checkbox - Checkbox
  */
 bool bhs_ui_checkbox(bhs_ui_ctx_t ctx, const char *label,
-                     struct bhs_ui_rect rect, bool *checked);
+		     struct bhs_ui_rect rect, bool *checked);
 
 /**
  * bhs_ui_text_field - Campo de Texto
@@ -447,7 +449,8 @@ bool bhs_ui_checkbox(bhs_ui_ctx_t ctx, const char *label,
  * @focused: Estado de foco gerido externamente (ou internamente se NULL)
  * Returns true se o texto mudou.
  */
-bool bhs_ui_text_field(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, char *buf, size_t max_len, bool *focused);
+bool bhs_ui_text_field(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, char *buf,
+		       size_t max_len, bool *focused);
 
 /* ============================================================================
  * KEYCODES
@@ -456,51 +459,51 @@ bool bhs_ui_text_field(bhs_ui_ctx_t ctx, struct bhs_ui_rect rect, char *buf, siz
 
 /* Alguns keycodes comuns (baseado em USB HID, tipo o que todo mundo usa) */
 enum bhs_ui_key {
-  BHS_KEY_ESCAPE = 1,
-  BHS_KEY_1 = 2,
-  BHS_KEY_2 = 3,
-  BHS_KEY_3 = 4,
-  BHS_KEY_4 = 5,
-  BHS_KEY_5 = 6,
-  BHS_KEY_6 = 7,
-  BHS_KEY_7 = 8,
-  BHS_KEY_8 = 9,
-  BHS_KEY_9 = 10,
-  BHS_KEY_0 = 11,
-  BHS_KEY_Q = 16,
-  BHS_KEY_W = 17,
-  BHS_KEY_E = 18,
-  BHS_KEY_R = 19,
-  BHS_KEY_T = 20,
-  BHS_KEY_Y = 21,
-  BHS_KEY_U = 22,
-  BHS_KEY_I = 23,
-  BHS_KEY_O = 24,
-  BHS_KEY_P = 25,
-  BHS_KEY_A = 30,
-  BHS_KEY_S = 31,
-  BHS_KEY_D = 32,
-  BHS_KEY_F = 33,
-  BHS_KEY_G = 34,
-  BHS_KEY_H = 35,
-  BHS_KEY_J = 36,
-  BHS_KEY_K = 37,
-  BHS_KEY_L = 38,
-  BHS_KEY_Z = 44,
-  BHS_KEY_X = 45,
-  BHS_KEY_C = 46,
-  BHS_KEY_V = 47,
-  BHS_KEY_B = 48,
-  BHS_KEY_N = 49,
-  BHS_KEY_M = 50,
-  BHS_KEY_SPACE = 57,
-  BHS_KEY_ENTER = 28,
-  BHS_KEY_UP = 103,
-  BHS_KEY_DOWN = 108,
-  BHS_KEY_LEFT = 105,
-  BHS_KEY_RIGHT = 106,
-  BHS_KEY_LEFTSHIFT = 42,
-  BHS_KEY_RIGHTSHIFT = 54,
+	BHS_KEY_ESCAPE = 1,
+	BHS_KEY_1 = 2,
+	BHS_KEY_2 = 3,
+	BHS_KEY_3 = 4,
+	BHS_KEY_4 = 5,
+	BHS_KEY_5 = 6,
+	BHS_KEY_6 = 7,
+	BHS_KEY_7 = 8,
+	BHS_KEY_8 = 9,
+	BHS_KEY_9 = 10,
+	BHS_KEY_0 = 11,
+	BHS_KEY_Q = 16,
+	BHS_KEY_W = 17,
+	BHS_KEY_E = 18,
+	BHS_KEY_R = 19,
+	BHS_KEY_T = 20,
+	BHS_KEY_Y = 21,
+	BHS_KEY_U = 22,
+	BHS_KEY_I = 23,
+	BHS_KEY_O = 24,
+	BHS_KEY_P = 25,
+	BHS_KEY_A = 30,
+	BHS_KEY_S = 31,
+	BHS_KEY_D = 32,
+	BHS_KEY_F = 33,
+	BHS_KEY_G = 34,
+	BHS_KEY_H = 35,
+	BHS_KEY_J = 36,
+	BHS_KEY_K = 37,
+	BHS_KEY_L = 38,
+	BHS_KEY_Z = 44,
+	BHS_KEY_X = 45,
+	BHS_KEY_C = 46,
+	BHS_KEY_V = 47,
+	BHS_KEY_B = 48,
+	BHS_KEY_N = 49,
+	BHS_KEY_M = 50,
+	BHS_KEY_SPACE = 57,
+	BHS_KEY_ENTER = 28,
+	BHS_KEY_UP = 103,
+	BHS_KEY_DOWN = 108,
+	BHS_KEY_LEFT = 105,
+	BHS_KEY_RIGHT = 106,
+	BHS_KEY_LEFTSHIFT = 42,
+	BHS_KEY_RIGHTSHIFT = 54,
 };
 
 /* Mouse buttons: usa BHS_MOUSE_LEFT/RIGHT/MIDDLE de platform/platform.h */

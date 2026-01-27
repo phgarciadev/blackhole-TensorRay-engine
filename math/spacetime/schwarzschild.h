@@ -29,7 +29,7 @@
  * rs = 2GM/c² ≈ 2.95 km * (M/M_sol)
  */
 struct bhs_schwarzschild {
-  double M;
+	double M;
 };
 
 /* ============================================================================
@@ -44,8 +44,9 @@ struct bhs_schwarzschild {
  *
  * Nada escapa de r < rs. Nem luz, nem esperança.
  */
-static inline double bhs_schwarzschild_rs(const struct bhs_schwarzschild *bh) {
-  return 2.0 * bh->M;
+static inline double bhs_schwarzschild_rs(const struct bhs_schwarzschild *bh)
+{
+	return 2.0 * bh->M;
 }
 
 /**
@@ -56,9 +57,9 @@ static inline double bhs_schwarzschild_rs(const struct bhs_schwarzschild *bh) {
  * Órbitas circulares são instáveis para r < r_isco.
  * É o limite interno do disco de acreção.
  */
-static inline double
-bhs_schwarzschild_isco(const struct bhs_schwarzschild *bh) {
-  return 6.0 * bh->M;
+static inline double bhs_schwarzschild_isco(const struct bhs_schwarzschild *bh)
+{
+	return 6.0 * bh->M;
 }
 
 /**
@@ -69,8 +70,9 @@ bhs_schwarzschild_isco(const struct bhs_schwarzschild *bh) {
  * Fótons podem orbitar aqui (instável). Órbitas circulares de luz.
  */
 static inline double
-bhs_schwarzschild_photon_sphere(const struct bhs_schwarzschild *bh) {
-  return 3.0 * bh->M;
+bhs_schwarzschild_photon_sphere(const struct bhs_schwarzschild *bh)
+{
+	return 3.0 * bh->M;
 }
 
 /* ============================================================================
@@ -95,14 +97,14 @@ bhs_schwarzschild_photon_sphere(const struct bhs_schwarzschild *bh) {
  * g_φφ = r² sin²θ
  */
 void bhs_schwarzschild_metric(const struct bhs_schwarzschild *bh, double r,
-                              double theta, struct bhs_metric *out);
+			      double theta, struct bhs_metric *out);
 
 /**
  * bhs_schwarzschild_metric_inverse - Calcula métrica inversa g^μν
  */
 void bhs_schwarzschild_metric_inverse(const struct bhs_schwarzschild *bh,
-                                      double r, double theta,
-                                      struct bhs_metric *out);
+				      double r, double theta,
+				      struct bhs_metric *out);
 
 /**
  * bhs_schwarzschild_redshift - Fator de redshift gravitacional
@@ -126,7 +128,7 @@ double bhs_schwarzschild_redshift(const struct bhs_schwarzschild *bh, double r);
  * No horizonte: v_esc = c (1.0 em unidades naturais)
  */
 double bhs_schwarzschild_escape_velocity(const struct bhs_schwarzschild *bh,
-                                         double r);
+					 double r);
 
 /* ============================================================================
  * FUNÇÃO DE MÉTRICA (para Christoffel)
@@ -141,6 +143,6 @@ double bhs_schwarzschild_escape_velocity(const struct bhs_schwarzschild *bh,
  * Coordenadas em vec4: (t, r, θ, φ)
  */
 void bhs_schwarzschild_metric_func(struct bhs_vec4 coords, void *userdata,
-                                   struct bhs_metric *out);
+				   struct bhs_metric *out);
 
 #endif /* BHS_CORE_SPACETIME_SCHWARZSCHILD_H */

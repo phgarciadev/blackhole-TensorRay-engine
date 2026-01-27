@@ -10,8 +10,8 @@
 #define BHS_LIB_SHADER_STD_H
 
 #include "math/bhs_math.h"
-#include "math/vec4.h"
 #include "math/tensor/tensor.h"
+#include "math/vec4.h"
 
 /* ============================================================================
  * TIPOS DE MEMÓRIA (ADDRESS SPACES)

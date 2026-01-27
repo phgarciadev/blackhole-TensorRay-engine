@@ -43,7 +43,7 @@ static const char *g_test_suite = NULL;
 		g_test_suite = (suite_name);                                   \
 		g_test_passed = 0;                                             \
 		g_test_failed = 0;                                             \
-		printf("\n%s========================================%s\n",      \
+		printf("\n%s========================================%s\n",     \
 		       TEST_YELLOW, TEST_RESET);                               \
 		printf("%s[SUITE]%s %s\n", TEST_YELLOW, TEST_RESET,            \
 		       suite_name);                                            \
@@ -116,7 +116,7 @@ static const char *g_test_suite = NULL;
 		       TEST_GREEN, g_test_passed, TEST_RESET,                  \
 		       (g_test_failed > 0) ? TEST_RED : TEST_GREEN,            \
 		       g_test_failed, TEST_RESET);                             \
-		printf("%s----------------------------------------%s\n\n",    \
+		printf("%s----------------------------------------%s\n\n",     \
 		       TEST_YELLOW, TEST_RESET);                               \
 		return (g_test_failed > 0) ? 1 : 0;                            \
 	} while (0)

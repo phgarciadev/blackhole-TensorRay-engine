@@ -16,13 +16,13 @@ typedef struct {
 
 	/* Visualization Mode */
 	bhs_visual_mode_t visual_mode;
-	bool top_down_view;	/* [NEW] */
-	bool show_gravity_line; /* [NEW] Show line to strongest attractor */
-	bool show_orbit_trail;	/* [NEW] Show blue orbit path */
+	bool top_down_view;	    /* [NEW] */
+	bool show_gravity_line;	    /* [NEW] Show line to strongest attractor */
+	bool show_orbit_trail;	    /* [NEW] Show blue orbit path */
 	bool show_satellite_orbits; /* [NEW] Show Green/Purple for moons */
-    bool show_planet_markers;   /* [NEW] Purple Dots (Orbit around Sun) */
-    bool show_moon_markers;     /* [NEW] Green Dots (Orbit around Planets) */
-    bool fixed_planet_cam;  /* [NEW] Câmera fixa planeta-sol */
+	bool show_planet_markers;   /* [NEW] Purple Dots (Orbit around Sun) */
+	bool show_moon_markers; /* [NEW] Green Dots (Orbit around Planets) */
+	bool fixed_planet_cam;	/* [NEW] Câmera fixa planeta-sol */
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */
@@ -42,47 +42,47 @@ typedef struct {
 
 	/* [NEW] Tempo simulado em segundos desde J2000.0 (passado pelo app_state) */
 	double sim_time_seconds;
-    float current_fps; /* [NEW] FPS calculated by app */
+	float current_fps; /* [NEW] FPS calculated by app */
 
 	/* [NEW] Acesso ao sistema de marcadores para exibição de detalhes */
 	const struct bhs_orbit_marker_system *orbit_markers_ptr;
 	float orbit_history_scroll; /* [NEW] Estado de rolagem do histórico */
-	
+
 	/* [NEW] REFS Panel State */
 	bool refs_collapsed;
 
 	/* [NEW] Time Control State */
-	bool is_paused;       /* Display only */
+	bool is_paused;	       /* Display only */
 	bool req_toggle_pause; /* Command to App */
-    
-    /* Persistence Requests */
-    bool req_save_snapshot;
-    bool req_reload_workspace;
+
+	/* Persistence Requests */
+	bool req_save_snapshot;
+	bool req_reload_workspace;
 
 	/* Debug / Profiling */
-	int draw_calls;   
-    /* [NEW] System Requests */
-    bool req_update_vsync;
-    
-    /* [NEW] Navigation Request */
-    bool req_exit_to_menu;
-    bool show_exit_confirmation; /* [NEW] Ask before quit */
+	int draw_calls;
+	/* [NEW] System Requests */
+	bool req_update_vsync;
 
-    /* [NEW] Save Modal State */
-    bool show_save_modal;
-    char save_input_buf[64];
-    char save_default_title[64]; /* "Meu 2026-..." */
-    int current_scenario; /* [NEW] For placeholder generation */
-    bool input_focused; /* [NEW] Is the text box active? */
+	/* [NEW] Navigation Request */
+	bool req_exit_to_menu;
+	bool show_exit_confirmation; /* [NEW] Ask before quit */
 
-    /* [NEW] Camera State Restoration for Fixed Cam */
-    bhs_camera_t saved_camera_state;
-    bool has_saved_camera;
+	/* [NEW] Save Modal State */
+	bool show_save_modal;
+	char save_input_buf[64];
+	char save_default_title[64]; /* "Meu 2026-..." */
+	int current_scenario;	     /* [NEW] For placeholder generation */
+	bool input_focused;	     /* [NEW] Is the text box active? */
 
-    /* [NEW] Icon Texture Handles */
-    void *tex_icon_camera;
-    void *tex_icon_swap;
-    void *tex_icon_trash;
+	/* [NEW] Camera State Restoration for Fixed Cam */
+	bhs_camera_t saved_camera_state;
+	bool has_saved_camera;
+
+	/* [NEW] Icon Texture Handles */
+	void *tex_icon_camera;
+	void *tex_icon_swap;
+	void *tex_icon_trash;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);
@@ -90,7 +90,7 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		  int window_h);
 
 /* Retorna true se o mouse estiver sobre algum elemento da HUD */
-bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state, int mx, int my,
-			   int win_w, int win_h);
+bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state,
+			   int mx, int my, int win_w, int win_h);
 
 #endif

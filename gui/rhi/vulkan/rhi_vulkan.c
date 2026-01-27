@@ -154,7 +154,7 @@ bhs_rhi_device_handle bhs_rhi_create_device(const bhs_rhi_device_desc *desc)
 	vkEnumeratePhysicalDevices(rhi->instance, &count, NULL);
 	VkPhysicalDevice devices[8];
 	vkEnumeratePhysicalDevices(rhi->instance, &count, devices);
-	rhi->phys_dev = devices[0]; // TODO: Score logic real
+	rhi->phys_dev = devices[0]; // TODO: Fazer uma lógica de score decente, não pegar o primeiro que aparecer feito preguiçoso.
 
 	// 3. Create Logical Device (Dynamic Rendering required)
 	float priority = 1.0f;
@@ -346,7 +346,7 @@ bhs_rhi_shader_handle bhs_rhi_create_shader_from_c(bhs_rhi_device_handle dev,
 	// 3. Ler .spv
 	// 4. Create from Bytecode
 
-	// Por enquanto, retorna NULL (TODO)
+	// Por enquanto, retorna NULL (TODO: Implementar essa budega depois)
 	return NULL;
 }
 
@@ -406,7 +406,7 @@ void bhs_rhi_cmd_bind_buffer(bhs_rhi_cmd_list_handle cmd, uint32_t slot,
 {
 	// Vulkan uses descriptor sets. "Bindless" logic implies we might use push descriptors or a global descriptor set.
 	// For simplicity of this "Phase 3" step:
-	// TODO: Implement Descriptor Management (DescriptorBuffer or Sets)
+	// TODO: Implementar Gerenciamento de Descritores (DescriptorBuffer ou Sets) pq sem isso nada renderiza, gênio.
 	// Placeholder: This would bind the buffer to a descriptor set.
 }
 

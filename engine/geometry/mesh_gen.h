@@ -8,9 +8,9 @@
  * @brief Vertex format for 3D rendering
  */
 typedef struct bhs_vertex_3d {
-    float pos[3];
-    float normal[3];
-    float uv[2];
+	float pos[3];
+	float normal[3];
+	float uv[2];
 } bhs_vertex_3d_t;
 
 /**
@@ -18,11 +18,11 @@ typedef struct bhs_vertex_3d {
  * @brief CPU mesh data
  */
 typedef struct bhs_mesh {
-    bhs_vertex_3d_t *vertices;
-    uint32_t vertex_count;
-    
-    uint16_t *indices; /* Use 16-bit for simplicity/compatibility */
-    uint32_t index_count;
+	bhs_vertex_3d_t *vertices;
+	uint32_t vertex_count;
+
+	uint16_t *indices; /* Use 16-bit for simplicity/compatibility */
+	uint32_t index_count;
 } bhs_mesh_t;
 
 /**

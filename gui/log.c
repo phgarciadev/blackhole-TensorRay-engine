@@ -53,14 +53,14 @@ static const char *level_colors[] = {
 };
 
 static const char *channel_strings[] = {
-	"CORE",	   /* 0 */
+	"CORE",	    /* 0 */
 	"PLATFORM", /* 1 */
-	"RENDER",  /* 2 */
-	"UI",	   /* 3 */
-	"PHYSICS", /* 4 */
-	"ECS",	   /* 5 */
-	"SCENE",   /* 6 */
-	"ASSETS",  /* 7 */
+	"RENDER",   /* 2 */
+	"UI",	    /* 3 */
+	"PHYSICS",  /* 4 */
+	"ECS",	    /* 5 */
+	"SCENE",    /* 6 */
+	"ASSETS",   /* 7 */
 };
 
 /* ============================================================================
@@ -171,8 +171,7 @@ void bhs_log_output(bhs_log_level level, bhs_log_channel channel,
 }
 
 void bhs_log_output_v(bhs_log_level level, bhs_log_channel channel,
-		      const char *file, int line, const char *fmt,
-		      va_list args)
+		      const char *file, int line, const char *fmt, va_list args)
 {
 	/* Filtros */
 	if (level < g_log.min_level)

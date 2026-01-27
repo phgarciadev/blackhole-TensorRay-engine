@@ -14,8 +14,8 @@
 #ifndef BHS_ENGINE_H
 #define BHS_ENGINE_H
 
-#include "math/core.h"
 #include <stdbool.h>
+#include "math/core.h"
 
 /* ============================================================================
  * ENGINE LIFECYCLE
@@ -66,7 +66,8 @@ void bhs_scene_load(const char *path);
  * Expomos handles opacos.
  */
 
-// TODO: Decidir se expomos ECS diretamente aqui ou se mantemos encapsulado.
+// TODO: Decidir se expomos ECS diretamente aqui ou se mantemos encapsulado. 
+// Provavelmente vamos manter encapsulado pra ninguém fazer besteira.
 // Por enquanto, encapsulado. Use bhs_scene_load.
 
 #endif /* BHS_ENGINE_H */

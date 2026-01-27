@@ -22,8 +22,12 @@ typedef struct bhs_mat4 {
 	float m[16];
 } bhs_mat4_t;
 
-struct bhs_v4 { float x, y, z, w; };
-struct bhs_v3 { float x, y, z; };
+struct bhs_v4 {
+	float x, y, z, w;
+};
+struct bhs_v3 {
+	float x, y, z;
+};
 
 /* ============================================================================
  * CONSTRUTORES & BÁSICO
@@ -77,7 +81,8 @@ bhs_mat4_t bhs_mat4_rotate_axis(struct bhs_v3 axis, float angle_rad);
  * aspect: width / height
  * near_plane, far_plane: planos de corte
  */
-bhs_mat4_t bhs_mat4_perspective(float fov_y_rad, float aspect, float near_plane, float far_plane);
+bhs_mat4_t bhs_mat4_perspective(float fov_y_rad, float aspect, float near_plane,
+				float far_plane);
 
 /*
  * Cria matriz de View (LookAt) - Right Handed
@@ -85,6 +90,7 @@ bhs_mat4_t bhs_mat4_perspective(float fov_y_rad, float aspect, float near_plane,
  * center: Ponto para onde olha
  * up: Vetor 'cima' (normalmente 0,1,0)
  */
-bhs_mat4_t bhs_mat4_lookat(struct bhs_v3 eye, struct bhs_v3 center, struct bhs_v3 up);
+bhs_mat4_t bhs_mat4_lookat(struct bhs_v3 eye, struct bhs_v3 center,
+			   struct bhs_v3 up);
 
 #endif /* BHS_MATH_MAT4_H */

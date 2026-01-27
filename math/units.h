@@ -219,7 +219,8 @@
  */
 #include <math.h>
 
-static inline double bhs_orbital_velocity(double central_mass_sim, double radius_sim)
+static inline double bhs_orbital_velocity(double central_mass_sim,
+					  double radius_sim)
 {
 	if (radius_sim <= 0.0)
 		return 0.0;
@@ -230,11 +231,13 @@ static inline double bhs_orbital_velocity(double central_mass_sim, double radius
  * Período orbital (com G = 1):
  *   T = 2π√(r³/M)
  */
-static inline double bhs_orbital_period(double central_mass_sim, double radius_sim)
+static inline double bhs_orbital_period(double central_mass_sim,
+					double radius_sim)
 {
 	if (central_mass_sim <= 0.0 || radius_sim <= 0.0)
 		return 0.0;
-	return 2.0 * 3.14159265358979323846 * sqrt(radius_sim * radius_sim * radius_sim / central_mass_sim);
+	return 2.0 * 3.14159265358979323846 *
+	       sqrt(radius_sim * radius_sim * radius_sim / central_mass_sim);
 }
 
 /*
@@ -272,17 +275,18 @@ static inline double bhs_orbital_period(double central_mass_sim, double radius_s
  *
  * Algoritmo simplificado que ignora segundos bissextos mas é preciso o suficiente.
  */
-static inline void bhs_sim_time_to_date(double sim_seconds,
-					int *year, int *month, int *day,
-					int *hour, int *minute, int *second)
+static inline void bhs_sim_time_to_date(double sim_seconds, int *year,
+					int *month, int *day, int *hour,
+					int *minute, int *second)
 {
 	/* Dias desde J2000.0 */
 	double total_days = sim_seconds / BHS_SECONDS_PER_DAY;
-	
+
 	/* Fração do dia para hora/minuto/segundo */
 	double frac_day = total_days - (long)total_days;
-	if (frac_day < 0) frac_day += 1.0;
-	
+	if (frac_day < 0)
+		frac_day += 1.0;
+
 	double day_seconds = frac_day * BHS_SECONDS_PER_DAY;
 	/* J2000 começa ao meio-dia (12:00), então somamos 12 horas */
 	day_seconds += 12.0 * 3600.0;
@@ -290,20 +294,22 @@ static inline void bhs_sim_time_to_date(double sim_seconds,
 		day_seconds -= BHS_SECONDS_PER_DAY;
 		total_days += 1.0;
 	}
-	
+
 	*hour = (int)(day_seconds / 3600.0);
 	*minute = (int)((day_seconds - *hour * 3600.0) / 60.0);
 	*second = (int)(day_seconds - *hour * 3600.0 - *minute * 60.0);
-	
+
 	/* Ano, assumindo anos de 365.25 dias (média) */
 	long days_since_2000 = (long)total_days;
-	
+
 	/* Começamos em 2000-01-01 */
 	int y = 2000;
 	int days_in_year;
-	
+
 	while (days_since_2000 > 0) {
-		days_in_year = ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)) ? 366 : 365;
+		days_in_year = ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0))
+				       ? 366
+				       : 365;
 		if (days_since_2000 >= days_in_year) {
 			days_since_2000 -= days_in_year;
 			y++;
@@ -313,27 +319,30 @@ static inline void bhs_sim_time_to_date(double sim_seconds,
 	}
 	while (days_since_2000 < 0) {
 		y--;
-		days_in_year = ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)) ? 366 : 365;
+		days_in_year = ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0))
+				       ? 366
+				       : 365;
 		days_since_2000 += days_in_year;
 	}
-	
+
 	*year = y;
-	
+
 	/* Mês e dia */
-	int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	int days_in_month[] = {
+		31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+	};
 	if ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)) {
 		days_in_month[1] = 29; /* Fevereiro em ano bissexto */
 	}
-	
+
 	int m = 0;
 	while (m < 12 && days_since_2000 >= days_in_month[m]) {
 		days_since_2000 -= days_in_month[m];
 		m++;
 	}
-	
+
 	*month = m + 1;
 	*day = (int)days_since_2000 + 1;
 }
 
 #endif /* BHS_UNITS_H */
-

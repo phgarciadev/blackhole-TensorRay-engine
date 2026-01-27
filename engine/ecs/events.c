@@ -43,14 +43,15 @@ struct bhs_event_queue_entry {
  * Adicionada ao bhs_world_t.
  */
 struct bhs_event_system {
-	struct bhs_event_listener listeners[BHS_EVENT_MAX][BHS_MAX_LISTENERS_PER_EVENT];
+	struct bhs_event_listener listeners[BHS_EVENT_MAX]
+					   [BHS_MAX_LISTENERS_PER_EVENT];
 	int listener_count[BHS_EVENT_MAX];
 
 	/* Fila de eventos diferidos (opcional, para evitar recursão) */
 	struct bhs_event_queue_entry queue[BHS_EVENT_QUEUE_SIZE];
 	int queue_head;
 	int queue_tail;
-	bool use_deferred;	/* Se true, eventos vão pra fila */
+	bool use_deferred; /* Se true, eventos vão pra fila */
 };
 
 /* 
@@ -69,7 +70,8 @@ static struct bhs_event_system *get_or_create_event_system(void)
 	if (!g_event_system) {
 		g_event_system = calloc(1, sizeof(struct bhs_event_system));
 		if (!g_event_system) {
-			fprintf(stderr, "[EVENTS] Falha ao alocar sistema de eventos\n");
+			fprintf(stderr, "[EVENTS] Falha ao alocar sistema de "
+					"eventos\n");
 			return NULL;
 		}
 	}
@@ -100,12 +102,10 @@ static size_t get_event_data_size(enum bhs_event_type type)
  * ============================================================================
  */
 
-int bhs_ecs_subscribe(bhs_world_handle world,
-		      enum bhs_event_type type,
-		      bhs_event_listener_fn callback,
-		      void *user_data)
+int bhs_ecs_subscribe(bhs_world_handle world, enum bhs_event_type type,
+		      bhs_event_listener_fn callback, void *user_data)
 {
-	(void)world; /* TODO: usar quando mover pra dentro do world */
+	(void)world; /* TODO: Usar quando mover pra dentro do world, se é que um dia vai acontecer. */
 
 	if (type <= BHS_EVENT_NONE || type >= BHS_EVENT_MAX)
 		return -1;
@@ -117,7 +117,9 @@ int bhs_ecs_subscribe(bhs_world_handle world,
 		return -1;
 
 	if (sys->listener_count[type] >= BHS_MAX_LISTENERS_PER_EVENT) {
-		fprintf(stderr, "[EVENTS] Máximo de listeners atingido para evento %d\n",
+		fprintf(stderr,
+			"[EVENTS] Máximo de listeners atingido para evento "
+			"%d\n",
 			type);
 		return -1;
 	}
@@ -129,8 +131,7 @@ int bhs_ecs_subscribe(bhs_world_handle world,
 	return 0;
 }
 
-void bhs_ecs_unsubscribe(bhs_world_handle world,
-			 enum bhs_event_type type,
+void bhs_ecs_unsubscribe(bhs_world_handle world, enum bhs_event_type type,
 			 bhs_event_listener_fn callback)
 {
 	(void)world;
@@ -153,8 +154,7 @@ void bhs_ecs_unsubscribe(bhs_world_handle world,
 	}
 }
 
-void bhs_ecs_emit_event(bhs_world_handle world,
-			enum bhs_event_type type,
+void bhs_ecs_emit_event(bhs_world_handle world, enum bhs_event_type type,
 			const void *data)
 {
 	if (type <= BHS_EVENT_NONE || type >= BHS_EVENT_MAX)
@@ -171,14 +171,16 @@ void bhs_ecs_emit_event(bhs_world_handle world,
 	if (sys->use_deferred) {
 		int next_tail = (sys->queue_tail + 1) % BHS_EVENT_QUEUE_SIZE;
 		if (next_tail == sys->queue_head) {
-			fprintf(stderr, "[EVENTS] Fila de eventos cheia! Evento perdido.\n");
+			fprintf(stderr, "[EVENTS] Fila de eventos cheia! "
+					"Evento perdido.\n");
 			return;
 		}
 
 		sys->queue[sys->queue_tail].type = type;
 		size_t size = get_event_data_size(type);
 		if (size > sizeof(sys->queue[0].data)) {
-			fprintf(stderr, "[EVENTS] Evento grande demais pro buffer!\n");
+			fprintf(stderr,
+				"[EVENTS] Evento grande demais pro buffer!\n");
 			return;
 		}
 		if (data && size > 0)
@@ -203,11 +205,14 @@ void bhs_ecs_process_events(bhs_world_handle world)
 
 	/* Processa todos os eventos enfileirados */
 	while (sys->queue_head != sys->queue_tail) {
-		struct bhs_event_queue_entry *entry = &sys->queue[sys->queue_head];
+		struct bhs_event_queue_entry *entry =
+			&sys->queue[sys->queue_head];
 
 		for (int i = 0; i < sys->listener_count[entry->type]; i++) {
-			struct bhs_event_listener *l = &sys->listeners[entry->type][i];
-			l->callback(world, entry->type, entry->data, l->user_data);
+			struct bhs_event_listener *l =
+				&sys->listeners[entry->type][i];
+			l->callback(world, entry->type, entry->data,
+				    l->user_data);
 		}
 
 		sys->queue_head = (sys->queue_head + 1) % BHS_EVENT_QUEUE_SIZE;

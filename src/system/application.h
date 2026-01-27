@@ -7,17 +7,17 @@
 #define BHS_SYSTEM_APPLICATION_H
 
 #include "engine/scene/scene.h"
-#include "gui/ui/lib.h"
 #include "gui/rhi/rhi.h"
+#include "gui/ui/lib.h"
 #include "src/ui/screens/hud.h"
 
 typedef struct {
-    bhs_scene_t scene;
-    bhs_ui_ctx_t ui;
-    bhs_gpu_texture_t bg_tex;
-    bhs_gpu_texture_t sphere_tex;
-    bhs_hud_state_t hud_state;
-    // ... add more if needed
+	bhs_scene_t scene;
+	bhs_ui_ctx_t ui;
+	bhs_gpu_texture_t bg_tex;
+	bhs_gpu_texture_t sphere_tex;
+	bhs_hud_state_t hud_state;
+	// ... add more if needed
 } bhs_app_t;
 
 /**

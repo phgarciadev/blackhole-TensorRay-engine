@@ -3,11 +3,11 @@
 #ifndef POINTER_CONSTRAINTS_UNSTABLE_V1_CLIENT_PROTOCOL_H
 #define POINTER_CONSTRAINTS_UNSTABLE_V1_CLIENT_PROTOCOL_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "wayland-client.h"
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -276,7 +276,6 @@ enum zwp_pointer_constraints_v1_lifetime {
 #define ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER 1
 #define ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER 2
 
-
 /**
  * @ingroup iface_zwp_pointer_constraints_v1
  */
@@ -291,23 +290,27 @@ enum zwp_pointer_constraints_v1_lifetime {
 #define ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_pointer_constraints_v1 */
-static inline void
-zwp_pointer_constraints_v1_set_user_data(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1, void *user_data)
+static inline void zwp_pointer_constraints_v1_set_user_data(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1,
+	void *user_data)
 {
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_pointer_constraints_v1, user_data);
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_pointer_constraints_v1,
+			       user_data);
 }
 
 /** @ingroup iface_zwp_pointer_constraints_v1 */
-static inline void *
-zwp_pointer_constraints_v1_get_user_data(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
+static inline void *zwp_pointer_constraints_v1_get_user_data(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
 {
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_pointer_constraints_v1);
+	return wl_proxy_get_user_data(
+		(struct wl_proxy *)zwp_pointer_constraints_v1);
 }
 
-static inline uint32_t
-zwp_pointer_constraints_v1_get_version(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
+static inline uint32_t zwp_pointer_constraints_v1_get_version(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
 {
-	return wl_proxy_get_version((struct wl_proxy *) zwp_pointer_constraints_v1);
+	return wl_proxy_get_version(
+		(struct wl_proxy *)zwp_pointer_constraints_v1);
 }
 
 /**
@@ -316,11 +319,15 @@ zwp_pointer_constraints_v1_get_version(struct zwp_pointer_constraints_v1 *zwp_po
  * Used by the client to notify the server that it will no longer use this
  * pointer constraints object.
  */
-static inline void
-zwp_pointer_constraints_v1_destroy(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
+static inline void zwp_pointer_constraints_v1_destroy(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_pointer_constraints_v1,
-			 ZWP_POINTER_CONSTRAINTS_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_pointer_constraints_v1), WL_MARSHAL_FLAG_DESTROY);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_pointer_constraints_v1,
+		ZWP_POINTER_CONSTRAINTS_V1_DESTROY, NULL,
+		wl_proxy_get_version(
+			(struct wl_proxy *)zwp_pointer_constraints_v1),
+		WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -362,14 +369,22 @@ zwp_pointer_constraints_v1_destroy(struct zwp_pointer_constraints_v1 *zwp_pointe
  * are unaffected.
  */
 static inline struct zwp_locked_pointer_v1 *
-zwp_pointer_constraints_v1_lock_pointer(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1, struct wl_surface *surface, struct wl_pointer *pointer, struct wl_region *region, uint32_t lifetime)
+zwp_pointer_constraints_v1_lock_pointer(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1,
+	struct wl_surface *surface, struct wl_pointer *pointer,
+	struct wl_region *region, uint32_t lifetime)
 {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwp_pointer_constraints_v1,
-			 ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER, &zwp_locked_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwp_pointer_constraints_v1), 0, NULL, surface, pointer, region, lifetime);
+	id = wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_pointer_constraints_v1,
+		ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER,
+		&zwp_locked_pointer_v1_interface,
+		wl_proxy_get_version(
+			(struct wl_proxy *)zwp_pointer_constraints_v1),
+		0, NULL, surface, pointer, region, lifetime);
 
-	return (struct zwp_locked_pointer_v1 *) id;
+	return (struct zwp_locked_pointer_v1 *)id;
 }
 
 /**
@@ -394,14 +409,22 @@ zwp_pointer_constraints_v1_lock_pointer(struct zwp_pointer_constraints_v1 *zwp_p
  * information.
  */
 static inline struct zwp_confined_pointer_v1 *
-zwp_pointer_constraints_v1_confine_pointer(struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1, struct wl_surface *surface, struct wl_pointer *pointer, struct wl_region *region, uint32_t lifetime)
+zwp_pointer_constraints_v1_confine_pointer(
+	struct zwp_pointer_constraints_v1 *zwp_pointer_constraints_v1,
+	struct wl_surface *surface, struct wl_pointer *pointer,
+	struct wl_region *region, uint32_t lifetime)
 {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwp_pointer_constraints_v1,
-			 ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER, &zwp_confined_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwp_pointer_constraints_v1), 0, NULL, surface, pointer, region, lifetime);
+	id = wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_pointer_constraints_v1,
+		ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER,
+		&zwp_confined_pointer_v1_interface,
+		wl_proxy_get_version(
+			(struct wl_proxy *)zwp_pointer_constraints_v1),
+		0, NULL, surface, pointer, region, lifetime);
 
-	return (struct zwp_confined_pointer_v1 *) id;
+	return (struct zwp_confined_pointer_v1 *)id;
 }
 
 /**
@@ -434,12 +457,12 @@ struct zwp_locked_pointer_v1_listener {
 /**
  * @ingroup iface_zwp_locked_pointer_v1
  */
-static inline int
-zwp_locked_pointer_v1_add_listener(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1,
-				   const struct zwp_locked_pointer_v1_listener *listener, void *data)
+static inline int zwp_locked_pointer_v1_add_listener(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1,
+	const struct zwp_locked_pointer_v1_listener *listener, void *data)
 {
-	return wl_proxy_add_listener((struct wl_proxy *) zwp_locked_pointer_v1,
-				     (void (**)(void)) listener, data);
+	return wl_proxy_add_listener((struct wl_proxy *)zwp_locked_pointer_v1,
+				     (void (**)(void))listener, data);
 }
 
 #define ZWP_LOCKED_POINTER_V1_DESTROY 0
@@ -469,23 +492,24 @@ zwp_locked_pointer_v1_add_listener(struct zwp_locked_pointer_v1 *zwp_locked_poin
 #define ZWP_LOCKED_POINTER_V1_SET_REGION_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_locked_pointer_v1 */
-static inline void
-zwp_locked_pointer_v1_set_user_data(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1, void *user_data)
+static inline void zwp_locked_pointer_v1_set_user_data(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1, void *user_data)
 {
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_locked_pointer_v1, user_data);
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_locked_pointer_v1,
+			       user_data);
 }
 
 /** @ingroup iface_zwp_locked_pointer_v1 */
-static inline void *
-zwp_locked_pointer_v1_get_user_data(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
+static inline void *zwp_locked_pointer_v1_get_user_data(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
 {
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_locked_pointer_v1);
+	return wl_proxy_get_user_data((struct wl_proxy *)zwp_locked_pointer_v1);
 }
 
-static inline uint32_t
-zwp_locked_pointer_v1_get_version(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
+static inline uint32_t zwp_locked_pointer_v1_get_version(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
 {
-	return wl_proxy_get_version((struct wl_proxy *) zwp_locked_pointer_v1);
+	return wl_proxy_get_version((struct wl_proxy *)zwp_locked_pointer_v1);
 }
 
 /**
@@ -494,11 +518,14 @@ zwp_locked_pointer_v1_get_version(struct zwp_locked_pointer_v1 *zwp_locked_point
  * Destroy the locked pointer object. If applicable, the compositor will
  * unlock the pointer.
  */
-static inline void
-zwp_locked_pointer_v1_destroy(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
+static inline void zwp_locked_pointer_v1_destroy(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_locked_pointer_v1,
-			 ZWP_LOCKED_POINTER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_locked_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_locked_pointer_v1,
+		ZWP_LOCKED_POINTER_V1_DESTROY, NULL,
+		wl_proxy_get_version((struct wl_proxy *)zwp_locked_pointer_v1),
+		WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -515,11 +542,15 @@ zwp_locked_pointer_v1_destroy(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v
  * The cursor position hint is double-buffered state, see
  * wl_surface.commit.
  */
-static inline void
-zwp_locked_pointer_v1_set_cursor_position_hint(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1, wl_fixed_t surface_x, wl_fixed_t surface_y)
+static inline void zwp_locked_pointer_v1_set_cursor_position_hint(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1,
+	wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_locked_pointer_v1,
-			 ZWP_LOCKED_POINTER_V1_SET_CURSOR_POSITION_HINT, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_locked_pointer_v1), 0, surface_x, surface_y);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_locked_pointer_v1,
+		ZWP_LOCKED_POINTER_V1_SET_CURSOR_POSITION_HINT, NULL,
+		wl_proxy_get_version((struct wl_proxy *)zwp_locked_pointer_v1),
+		0, surface_x, surface_y);
 }
 
 /**
@@ -531,11 +562,15 @@ zwp_locked_pointer_v1_set_cursor_position_hint(struct zwp_locked_pointer_v1 *zwp
  *
  * For details about the lock region, see wp_locked_pointer.
  */
-static inline void
-zwp_locked_pointer_v1_set_region(struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1, struct wl_region *region)
+static inline void zwp_locked_pointer_v1_set_region(
+	struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1,
+	struct wl_region *region)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_locked_pointer_v1,
-			 ZWP_LOCKED_POINTER_V1_SET_REGION, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_locked_pointer_v1), 0, region);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_locked_pointer_v1,
+		ZWP_LOCKED_POINTER_V1_SET_REGION, NULL,
+		wl_proxy_get_version((struct wl_proxy *)zwp_locked_pointer_v1),
+		0, region);
 }
 
 /**
@@ -549,8 +584,9 @@ struct zwp_confined_pointer_v1_listener {
 	 * Notification that the pointer confinement of the seat's
 	 * pointer is activated.
 	 */
-	void (*confined)(void *data,
-			 struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1);
+	void (*confined)(
+		void *data,
+		struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1);
 	/**
 	 * pointer unconfined
 	 *
@@ -561,19 +597,20 @@ struct zwp_confined_pointer_v1_listener {
 	 * pointer confinement (see wp_pointer_constraints.lifetime) this
 	 * pointer confinement may again reactivate in the future.
 	 */
-	void (*unconfined)(void *data,
-			   struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1);
+	void (*unconfined)(
+		void *data,
+		struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1);
 };
 
 /**
  * @ingroup iface_zwp_confined_pointer_v1
  */
-static inline int
-zwp_confined_pointer_v1_add_listener(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1,
-				     const struct zwp_confined_pointer_v1_listener *listener, void *data)
+static inline int zwp_confined_pointer_v1_add_listener(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1,
+	const struct zwp_confined_pointer_v1_listener *listener, void *data)
 {
-	return wl_proxy_add_listener((struct wl_proxy *) zwp_confined_pointer_v1,
-				     (void (**)(void)) listener, data);
+	return wl_proxy_add_listener((struct wl_proxy *)zwp_confined_pointer_v1,
+				     (void (**)(void))listener, data);
 }
 
 #define ZWP_CONFINED_POINTER_V1_DESTROY 0
@@ -598,23 +635,26 @@ zwp_confined_pointer_v1_add_listener(struct zwp_confined_pointer_v1 *zwp_confine
 #define ZWP_CONFINED_POINTER_V1_SET_REGION_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_confined_pointer_v1 */
-static inline void
-zwp_confined_pointer_v1_set_user_data(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1, void *user_data)
+static inline void zwp_confined_pointer_v1_set_user_data(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1,
+	void *user_data)
 {
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_confined_pointer_v1, user_data);
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_confined_pointer_v1,
+			       user_data);
 }
 
 /** @ingroup iface_zwp_confined_pointer_v1 */
-static inline void *
-zwp_confined_pointer_v1_get_user_data(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
+static inline void *zwp_confined_pointer_v1_get_user_data(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
 {
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_confined_pointer_v1);
+	return wl_proxy_get_user_data(
+		(struct wl_proxy *)zwp_confined_pointer_v1);
 }
 
-static inline uint32_t
-zwp_confined_pointer_v1_get_version(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
+static inline uint32_t zwp_confined_pointer_v1_get_version(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
 {
-	return wl_proxy_get_version((struct wl_proxy *) zwp_confined_pointer_v1);
+	return wl_proxy_get_version((struct wl_proxy *)zwp_confined_pointer_v1);
 }
 
 /**
@@ -623,11 +663,15 @@ zwp_confined_pointer_v1_get_version(struct zwp_confined_pointer_v1 *zwp_confined
  * Destroy the confined pointer object. If applicable, the compositor will
  * unconfine the pointer.
  */
-static inline void
-zwp_confined_pointer_v1_destroy(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
+static inline void zwp_confined_pointer_v1_destroy(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_confined_pointer_v1,
-			 ZWP_CONFINED_POINTER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_confined_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_confined_pointer_v1,
+		ZWP_CONFINED_POINTER_V1_DESTROY, NULL,
+		wl_proxy_get_version(
+			(struct wl_proxy *)zwp_confined_pointer_v1),
+		WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -648,14 +692,19 @@ zwp_confined_pointer_v1_destroy(struct zwp_confined_pointer_v1 *zwp_confined_poi
  *
  * For details about the confine region, see wp_confined_pointer.
  */
-static inline void
-zwp_confined_pointer_v1_set_region(struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1, struct wl_region *region)
+static inline void zwp_confined_pointer_v1_set_region(
+	struct zwp_confined_pointer_v1 *zwp_confined_pointer_v1,
+	struct wl_region *region)
 {
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_confined_pointer_v1,
-			 ZWP_CONFINED_POINTER_V1_SET_REGION, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_confined_pointer_v1), 0, region);
+	wl_proxy_marshal_flags(
+		(struct wl_proxy *)zwp_confined_pointer_v1,
+		ZWP_CONFINED_POINTER_V1_SET_REGION, NULL,
+		wl_proxy_get_version(
+			(struct wl_proxy *)zwp_confined_pointer_v1),
+		0, region);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

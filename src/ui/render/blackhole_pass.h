@@ -27,8 +27,9 @@ typedef struct bhs_blackhole_pass *bhs_blackhole_pass_t;
 /**
  * Cria o pass de renderização do buraco negro
  */
-bhs_blackhole_pass_t bhs_blackhole_pass_create(bhs_gpu_device_t device,
-						 const bhs_blackhole_pass_config_t *config);
+bhs_blackhole_pass_t
+bhs_blackhole_pass_create(bhs_gpu_device_t device,
+			  const bhs_blackhole_pass_config_t *config);
 
 /**
  * Destrói o pass e libera recursos
@@ -38,7 +39,8 @@ void bhs_blackhole_pass_destroy(bhs_blackhole_pass_t pass);
 /**
  * Redimensiona as texturas internas (chamar no resize da janela)
  */
-void bhs_blackhole_pass_resize(bhs_blackhole_pass_t pass, int width, int height);
+void bhs_blackhole_pass_resize(bhs_blackhole_pass_t pass, int width,
+			       int height);
 
 /**
  * Executa o compute shader
@@ -49,8 +51,7 @@ void bhs_blackhole_pass_resize(bhs_blackhole_pass_t pass, int width, int height)
  * @param cam Câmera atual
  */
 void bhs_blackhole_pass_dispatch(bhs_blackhole_pass_t pass,
-				 bhs_gpu_cmd_buffer_t cmd,
-				 bhs_scene_t scene,
+				 bhs_gpu_cmd_buffer_t cmd, bhs_scene_t scene,
 				 const bhs_camera_t *cam);
 
 /**

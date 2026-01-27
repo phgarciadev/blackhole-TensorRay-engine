@@ -14,8 +14,8 @@
 #ifndef BHS_ENGINE_INTEGRATOR_H
 #define BHS_ENGINE_INTEGRATOR_H
 
-#include "math/vec4.h"
 #include <stdbool.h>
+#include "math/vec4.h"
 
 /* ============================================================================
  * CONSTANTES FÍSICAS IAU 2015
@@ -25,29 +25,29 @@
  */
 
 /* Constante Gravitacional (CODATA 2018) */
-#define IAU_G             6.67430e-11     /* m³/(kg·s²) ± 0.00015 */
+#define IAU_G 6.67430e-11 /* m³/(kg·s²) ± 0.00015 */
 
 /* Velocidade da Luz (exato por definição SI) */
-#define IAU_C             299792458.0     /* m/s */
+#define IAU_C 299792458.0 /* m/s */
 
 /* Unidade Astronômica (exato por definição IAU 2012) */
-#define IAU_AU            1.495978707e11  /* m */
+#define IAU_AU 1.495978707e11 /* m */
 
 /* Parâmetros Gravitacionais (GM) - mais precisos que G*M */
-#define IAU_GM_SUN        1.32712440042e20  /* m³/s² */
-#define IAU_GM_EARTH      3.986004418e14    /* m³/s² */
-#define IAU_GM_MOON       4.9028695e12      /* m³/s² */
-#define IAU_GM_JUPITER    1.26686534e17     /* m³/s² */
-#define IAU_GM_SATURN     3.7931187e16      /* m³/s² */
+#define IAU_GM_SUN 1.32712440042e20  /* m³/s² */
+#define IAU_GM_EARTH 3.986004418e14  /* m³/s² */
+#define IAU_GM_MOON 4.9028695e12     /* m³/s² */
+#define IAU_GM_JUPITER 1.26686534e17 /* m³/s² */
+#define IAU_GM_SATURN 3.7931187e16   /* m³/s² */
 
 /* Massas derivadas (M = GM/G) */
-#define IAU_MASS_SUN      (IAU_GM_SUN / IAU_G)
-#define IAU_MASS_EARTH    (IAU_GM_EARTH / IAU_G)
-#define IAU_MASS_MOON     (IAU_GM_MOON / IAU_G)
+#define IAU_MASS_SUN (IAU_GM_SUN / IAU_G)
+#define IAU_MASS_EARTH (IAU_GM_EARTH / IAU_G)
+#define IAU_MASS_MOON (IAU_GM_MOON / IAU_G)
 
 /* J2 (oblateness) - para correções futuras */
-#define IAU_J2_EARTH      1.08263e-3
-#define IAU_J2_SUN        2.0e-7
+#define IAU_J2_EARTH 1.08263e-3
+#define IAU_J2_SUN 2.0e-7
 
 /*
  * G_SIM: Constante gravitacional para simulações visuais.
@@ -58,7 +58,7 @@
  *
  * Para simulações científicas reais, use IAU_G com massas em kg.
  */
-#define G_SIM             1.0
+#define G_SIM 1.0
 
 /* ============================================================================
  * KAHAN SUMMATION
@@ -69,7 +69,7 @@
 
 struct bhs_kahan {
 	double sum;
-	double c;  /* compensation */
+	double c; /* compensation */
 };
 
 static inline void bhs_kahan_init(struct bhs_kahan *k)
@@ -113,11 +113,9 @@ static inline void bhs_kahan_vec3_add(struct bhs_kahan_vec3 *k,
 
 static inline struct bhs_vec3 bhs_kahan_vec3_get(const struct bhs_kahan_vec3 *k)
 {
-	return (struct bhs_vec3){
-		.x = bhs_kahan_get(&k->x),
-		.y = bhs_kahan_get(&k->y),
-		.z = bhs_kahan_get(&k->z)
-	};
+	return (struct bhs_vec3){ .x = bhs_kahan_get(&k->x),
+				  .y = bhs_kahan_get(&k->y),
+				  .z = bhs_kahan_get(&k->z) };
 }
 
 /* ============================================================================
@@ -134,14 +132,14 @@ struct bhs_body_state_rk {
 	struct bhs_vec3 pos;
 	struct bhs_vec3 vel;
 	double mass;
-	double gm;      /* GM = G * mass (pré-calculado) */
-	double radius;  /* Raio Equatorial (p/ J2) */
-	double j2;      /* Termo J2 (achatamento) */
-	
+	double gm;     /* GM = G * mass (pré-calculado) */
+	double radius; /* Raio Equatorial (p/ J2) */
+	double j2;     /* Termo J2 (achatamento) */
+
 	/* [NEW] Rotational State (6-DOF) */
 	struct bhs_vec3 rot_vel; /* Velocidade Angular (rad/s) */
-	double inertia;          /* Momento de Inércia (kg*m^2) */
-	
+	double inertia;		 /* Momento de Inércia (kg*m^2) */
+
 	bool is_fixed;
 	bool is_alive;
 };
@@ -159,8 +157,8 @@ struct bhs_system_state {
  * Derivada do estado (acelerações)
  */
 struct bhs_system_derivative {
-	struct bhs_vec3 vel[BHS_MAX_BODIES];  /* dr/dt = v */
-	struct bhs_vec3 acc[BHS_MAX_BODIES];  /* dv/dt = a */
+	struct bhs_vec3 vel[BHS_MAX_BODIES]; /* dr/dt = v */
+	struct bhs_vec3 acc[BHS_MAX_BODIES]; /* dv/dt = a */
 };
 
 /* ============================================================================
@@ -208,9 +206,8 @@ void bhs_integrator_leapfrog(struct bhs_system_state *state, double dt);
  *
  * Retorna: Erro estimado do passo atual
  */
-double bhs_integrator_rkf45(struct bhs_system_state *state, 
-			    double dt, double tolerance,
-			    double *dt_out);
+double bhs_integrator_rkf45(struct bhs_system_state *state, double dt,
+			    double tolerance, double *dt_out);
 
 /**
  * bhs_integrator_yoshida - Integrador Simplético de 4ª Ordem
@@ -248,8 +245,7 @@ void bhs_compute_accelerations(const struct bhs_system_state *state,
  */
 struct bhs_vec3 bhs_compute_1pn_correction(double gm_central,
 					   struct bhs_vec3 pos,
-					   struct bhs_vec3 vel,
-					   double c);
+					   struct bhs_vec3 vel, double c);
 
 /**
  * bhs_compute_j2_correction - Calcula perturbação J2 (Oblateness)
@@ -258,10 +254,8 @@ struct bhs_vec3 bhs_compute_1pn_correction(double gm_central,
  * @r_eq: Raio equatorial do corpo
  * @pos: Posição relativa
  */
-struct bhs_vec3 bhs_compute_j2_correction(double gm_central,
-					  double j2,
-					  double r_eq,
-					  struct bhs_vec3 pos);
+struct bhs_vec3 bhs_compute_j2_correction(double gm_central, double j2,
+					  double r_eq, struct bhs_vec3 pos);
 
 /**
  * bhs_compute_torques - Calcula Torques (Maré + Outros)
@@ -277,9 +271,9 @@ void bhs_compute_torques(const struct bhs_system_state *state,
  */
 
 struct bhs_invariants {
-	double energy;              /* Energia total (K + U) */
-	struct bhs_vec3 momentum;   /* Momento linear total */
-	struct bhs_vec3 angular_momentum;  /* Momento angular total */
+	double energy;			  /* Energia total (K + U) */
+	struct bhs_vec3 momentum;	  /* Momento linear total */
+	struct bhs_vec3 angular_momentum; /* Momento angular total */
 };
 
 /**

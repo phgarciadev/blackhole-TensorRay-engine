@@ -13,8 +13,8 @@
 #define BHS_ORBIT_MARKER_H
 
 #include <stdbool.h>
-#include "math/bhs_math.h"
 #include "engine/scene/scene.h"
+#include "math/bhs_math.h"
 
 #define BHS_MAX_ORBIT_MARKERS 64
 
@@ -28,7 +28,7 @@
 struct bhs_orbit_marker {
 	bool active;
 	int planet_index;		/* Índice do planeta que completou */
-	int parent_index;       /* [NEW] Índice do corpo orbitado */
+	int parent_index;		/* [NEW] Índice do corpo orbitado */
 	char planet_name[32];		/* Nome pro display */
 	double timestamp_seconds;	/* Tempo exato desde J2000 */
 	struct bhs_vec3 position;	/* Posição no momento da conclusão */
@@ -40,10 +40,10 @@ struct bhs_orbit_marker {
  * struct bhs_orbit_tracking - Estado de tracking por planeta
  */
 struct bhs_orbit_tracking {
-	double prev_angle;		/* Ângulo θ anterior */
-	double accumulated_angle;	/* [NEW] Soma dos deltas angulares (rad) */
-	double last_crossing_time;	/* Tempo da última volta */
-	int orbit_count;		/* Contador de órbitas */
+	double prev_angle;	   /* Ângulo θ anterior */
+	double accumulated_angle;  /* [NEW] Soma dos deltas angulares (rad) */
+	double last_crossing_time; /* Tempo da última volta */
+	int orbit_count;	   /* Contador de órbitas */
 	bool initialized;
 };
 
@@ -57,7 +57,7 @@ struct bhs_orbit_tracking {
 struct bhs_orbit_marker_system {
 	struct bhs_orbit_marker markers[BHS_MAX_ORBIT_MARKERS];
 	int marker_count;
-	int marker_head;		/* Buffer circular */
+	int marker_head; /* Buffer circular */
 
 	struct bhs_orbit_tracking tracking[128]; /* MAX_BODIES */
 };

@@ -89,11 +89,11 @@ typedef uint32_t bhs_component_mask;
  */
 typedef struct {
 	bhs_world_handle world;
-	bhs_component_mask required;	/* Bitmask de componentes necessários */
-	uint32_t current_idx;		/* Posição atual na iteração */
-	uint32_t count;			/* Total de entidades encontradas (cache) */
-	bhs_entity_id *cache;		/* Array de entidades matching (opcional) */
-	bool use_cache;			/* Se true, itera sobre cache */
+	bhs_component_mask required; /* Bitmask de componentes necessários */
+	uint32_t current_idx;	     /* Posição atual na iteração */
+	uint32_t count;	      /* Total de entidades encontradas (cache) */
+	bhs_entity_id *cache; /* Array de entidades matching (opcional) */
+	bool use_cache;	      /* Se true, itera sobre cache */
 } bhs_ecs_query;
 
 /**
@@ -173,8 +173,8 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename);
  * @brief Lê apenas um componente específico do arquivo sem carregar o mundo todo.
  * Útil para ler metadados (título, data) de múltiplos arquivos rapidamente.
  */
-bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t metadata_size, uint32_t metadata_type_id);
-
+bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata,
+			   size_t metadata_size, uint32_t metadata_type_id);
 
 /**
  * bhs_ecs_update_metadata - Atualiza metadados sem carregar o mundo todo
@@ -182,6 +182,7 @@ bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t meta
  * Abre o arquivo modo rb+, acha o chunk de metadados e sobrescreve.
  * Requer que o tamanho da struct seja compatível.
  */
-bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata, size_t metadata_size, uint32_t metadata_type_id);
+bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata,
+			     size_t metadata_size, uint32_t metadata_type_id);
 
 #endif /* BHS_LIB_ECS_H */

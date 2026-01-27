@@ -7,11 +7,11 @@
  * @brief Estrutura da Câmera
  */
 typedef struct bhs_camera {
-  double x, y, z; /* Posição World (Y UP) - Double para RTC */
-  float pitch;    /* Rotação X (radianos) */
-  float yaw;      /* Rotação Y (radianos) */
-  float fov;      /* Field of View / Scale Factor */
-  bool is_top_down_mode; /* [NEW] Modo Top Down */
+	double x, y, z;	       /* Posição World (Y UP) - Double para RTC */
+	float pitch;	       /* Rotação X (radianos) */
+	float yaw;	       /* Rotação Y (radianos) */
+	float fov;	       /* Field of View / Scale Factor */
+	bool is_top_down_mode; /* [NEW] Modo Top Down */
 } bhs_camera_t;
 
 /**

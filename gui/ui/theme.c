@@ -23,4 +23,7 @@ static const struct bhs_theme default_theme = {
     .font_size_base = 14.0f,
 };
 
-const struct bhs_theme *bhs_theme_get_default(void) { return &default_theme; }
+const struct bhs_theme *bhs_theme_get_default(void)
+{
+	return &default_theme;
+}

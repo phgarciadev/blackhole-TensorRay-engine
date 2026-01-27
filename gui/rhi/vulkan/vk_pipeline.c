@@ -82,15 +82,24 @@ static VkBlendOp vk_blend_op_from_bhs(enum bhs_gpu_blend_op o)
 static VkCompareOp vk_compare_op_from_bhs(enum bhs_gpu_compare_func f)
 {
 	switch (f) {
-	case BHS_COMPARE_NEVER: return VK_COMPARE_OP_NEVER;
-	case BHS_COMPARE_LESS: return VK_COMPARE_OP_LESS;
-	case BHS_COMPARE_EQUAL: return VK_COMPARE_OP_EQUAL;
-	case BHS_COMPARE_LESS_EQUAL: return VK_COMPARE_OP_LESS_OR_EQUAL;
-	case BHS_COMPARE_GREATER: return VK_COMPARE_OP_GREATER;
-	case BHS_COMPARE_NOT_EQUAL: return VK_COMPARE_OP_NOT_EQUAL;
-	case BHS_COMPARE_GREATER_EQUAL: return VK_COMPARE_OP_GREATER_OR_EQUAL;
-	case BHS_COMPARE_ALWAYS: return VK_COMPARE_OP_ALWAYS;
-	default: return VK_COMPARE_OP_LESS;
+	case BHS_COMPARE_NEVER:
+		return VK_COMPARE_OP_NEVER;
+	case BHS_COMPARE_LESS:
+		return VK_COMPARE_OP_LESS;
+	case BHS_COMPARE_EQUAL:
+		return VK_COMPARE_OP_EQUAL;
+	case BHS_COMPARE_LESS_EQUAL:
+		return VK_COMPARE_OP_LESS_OR_EQUAL;
+	case BHS_COMPARE_GREATER:
+		return VK_COMPARE_OP_GREATER;
+	case BHS_COMPARE_NOT_EQUAL:
+		return VK_COMPARE_OP_NOT_EQUAL;
+	case BHS_COMPARE_GREATER_EQUAL:
+		return VK_COMPARE_OP_GREATER_OR_EQUAL;
+	case BHS_COMPARE_ALWAYS:
+		return VK_COMPARE_OP_ALWAYS;
+	default:
+		return VK_COMPARE_OP_LESS;
 	}
 }
 
@@ -227,7 +236,7 @@ int bhs_gpu_pipeline_create(bhs_gpu_device_t device,
 	}
 
 	/* Depth Attachment (se necessário) */
-	VkAttachmentReference depth_ref = {0};
+	VkAttachmentReference depth_ref = { 0 };
 	VkAttachmentReference *p_depth_ref = NULL;
 
 	if (config->depth_test || config->depth_write) {
@@ -239,11 +248,13 @@ int bhs_gpu_pipeline_create(bhs_gpu_device_t device,
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			.finalLayout =
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 		};
 
 		depth_ref.attachment = att_count;
-		depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_ref.layout =
+			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		p_depth_ref = &depth_ref;
 		att_count++;
 	}
@@ -400,7 +411,8 @@ int bhs_gpu_pipeline_create(bhs_gpu_device_t device,
 
 	/* 8. Depth Stencil */
 	VkPipelineDepthStencilStateCreateInfo depth_stencil = {
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		.sType =
+			VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 		.depthTestEnable = config->depth_test ? VK_TRUE : VK_FALSE,
 		.depthWriteEnable = config->depth_write ? VK_TRUE : VK_FALSE,
 		.depthCompareOp = vk_compare_op_from_bhs(config->depth_compare),

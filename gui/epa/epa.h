@@ -50,12 +50,12 @@ typedef struct bhs_platform_impl *bhs_platform_t;
  */
 
 enum bhs_platform_error {
-  BHS_PLATFORM_OK = 0,
-  BHS_PLATFORM_ERR_NOMEM = -1,       /* Sem memória */
-  BHS_PLATFORM_ERR_INIT = -2,        /* Falha na inicialização */
-  BHS_PLATFORM_ERR_WINDOW = -3,      /* Falha ao criar janela */
-  BHS_PLATFORM_ERR_INVALID = -4,     /* Parâmetro inválido */
-  BHS_PLATFORM_ERR_UNSUPPORTED = -5, /* Operação não suportada */
+	BHS_PLATFORM_OK = 0,
+	BHS_PLATFORM_ERR_NOMEM = -1,	   /* Sem memória */
+	BHS_PLATFORM_ERR_INIT = -2,	   /* Falha na inicialização */
+	BHS_PLATFORM_ERR_WINDOW = -3,	   /* Falha ao criar janela */
+	BHS_PLATFORM_ERR_INVALID = -4,	   /* Parâmetro inválido */
+	BHS_PLATFORM_ERR_UNSUPPORTED = -5, /* Operação não suportada */
 };
 
 /* ============================================================================
@@ -64,67 +64,67 @@ enum bhs_platform_error {
  */
 
 enum bhs_event_type {
-  BHS_EVENT_NONE = 0,
+	BHS_EVENT_NONE = 0,
 
-  /* Janela */
-  BHS_EVENT_WINDOW_CLOSE,
-  BHS_EVENT_WINDOW_RESIZE,
-  BHS_EVENT_WINDOW_FOCUS,
-  BHS_EVENT_WINDOW_BLUR,
+	/* Janela */
+	BHS_EVENT_WINDOW_CLOSE,
+	BHS_EVENT_WINDOW_RESIZE,
+	BHS_EVENT_WINDOW_FOCUS,
+	BHS_EVENT_WINDOW_BLUR,
 
-  /* Mouse */
-  BHS_EVENT_MOUSE_MOVE,
-  BHS_EVENT_MOUSE_DOWN,
-  BHS_EVENT_MOUSE_UP,
-  BHS_EVENT_MOUSE_SCROLL,
+	/* Mouse */
+	BHS_EVENT_MOUSE_MOVE,
+	BHS_EVENT_MOUSE_DOWN,
+	BHS_EVENT_MOUSE_UP,
+	BHS_EVENT_MOUSE_SCROLL,
 
-  /* Teclado */
-  BHS_EVENT_KEY_DOWN,
-  BHS_EVENT_KEY_UP,
-  BHS_EVENT_KEY_REPEAT,
+	/* Teclado */
+	BHS_EVENT_KEY_DOWN,
+	BHS_EVENT_KEY_UP,
+	BHS_EVENT_KEY_REPEAT,
 
-  /* Sistema */
-  BHS_EVENT_QUIT, /* Usuário quer fechar a aplicação */
+	/* Sistema */
+	BHS_EVENT_QUIT, /* Usuário quer fechar a aplicação */
 };
 
 /**
  * Botões do mouse
  */
 enum bhs_mouse_button {
-  BHS_MOUSE_LEFT = 0,
-  BHS_MOUSE_RIGHT = 1,
-  BHS_MOUSE_MIDDLE = 2,
-  BHS_MOUSE_EXTRA1 = 3,
-  BHS_MOUSE_EXTRA2 = 4,
+	BHS_MOUSE_LEFT = 0,
+	BHS_MOUSE_RIGHT = 1,
+	BHS_MOUSE_MIDDLE = 2,
+	BHS_MOUSE_EXTRA1 = 3,
+	BHS_MOUSE_EXTRA2 = 4,
 };
 
 /**
  * Modificadores de teclado (bitmask)
  */
 enum bhs_key_mod {
-  BHS_MOD_NONE = 0,
-  BHS_MOD_SHIFT = (1 << 0),
-  BHS_MOD_CTRL = (1 << 1),
-  BHS_MOD_ALT = (1 << 2),
-  BHS_MOD_SUPER = (1 << 3), /* Cmd no Mac, Win no Windows */
-  BHS_MOD_CAPS = (1 << 4),
+	BHS_MOD_NONE = 0,
+	BHS_MOD_SHIFT = (1 << 0),
+	BHS_MOD_CTRL = (1 << 1),
+	BHS_MOD_ALT = (1 << 2),
+	BHS_MOD_SUPER = (1 << 3), /* Cmd no Mac, Win no Windows */
+	BHS_MOD_CAPS = (1 << 4),
 };
 
 /**
  * Formas de cursor do sistema
  */
 enum bhs_cursor_shape {
-  BHS_CURSOR_DEFAULT = 0,
-  BHS_CURSOR_TEXT,
-  BHS_CURSOR_POINTER,
-  BHS_CURSOR_CROSSHAIR,
-  BHS_CURSOR_RESIZE_H,
-  BHS_CURSOR_RESIZE_V,
-  BHS_CURSOR_RESIZE_NWSE,
-  BHS_CURSOR_RESIZE_NESW,
-  BHS_CURSOR_GRAB,
-  BHS_CURSOR_GRABBING,
-  BHS_CURSOR_HIDDEN, /* Escondido (útil pra jogos) */
+	BHS_CURSOR_DEFAULT = 0,
+	BHS_CURSOR_TEXT,
+	BHS_CURSOR_POINTER,
+	BHS_CURSOR_CROSSHAIR,
+	BHS_CURSOR_RESIZE_H,
+	BHS_CURSOR_RESIZE_V,
+	BHS_CURSOR_RESIZE_NWSE,
+	BHS_CURSOR_RESIZE_NESW,
+	BHS_CURSOR_GRAB,
+	BHS_CURSOR_GRABBING,
+	BHS_CURSOR_HIDDEN, /* Escondido (útil pra jogos) */
 };
 
 /**
@@ -134,50 +134,50 @@ enum bhs_cursor_shape {
  * usa apenas os campos relevantes.
  */
 struct bhs_event {
-  enum bhs_event_type type;
-  uint32_t mods;         /* bhs_key_mod bitmask */
-  uint64_t timestamp_ns; /* Timestamp em nanosegundos */
+	enum bhs_event_type type;
+	uint32_t mods;	       /* bhs_key_mod bitmask */
+	uint64_t timestamp_ns; /* Timestamp em nanosegundos */
 
-  union {
-    /* BHS_EVENT_WINDOW_RESIZE */
-    struct {
-      int32_t width;
-      int32_t height;
-    } resize;
+	union {
+		/* BHS_EVENT_WINDOW_RESIZE */
+		struct {
+			int32_t width;
+			int32_t height;
+		} resize;
 
-    /* BHS_EVENT_MOUSE_MOVE */
-    struct {
-      int32_t x;
-      int32_t y;
-      int32_t dx;
-      int32_t dy;
-    } mouse_move;
+		/* BHS_EVENT_MOUSE_MOVE */
+		struct {
+			int32_t x;
+			int32_t y;
+			int32_t dx;
+			int32_t dy;
+		} mouse_move;
 
-    /* BHS_EVENT_MOUSE_DOWN, BHS_EVENT_MOUSE_UP */
-    struct {
-      int32_t x;
-      int32_t y;
-      enum bhs_mouse_button button;
-      int click_count; /* 1 = single, 2 = double, etc */
-    } mouse_button;
+		/* BHS_EVENT_MOUSE_DOWN, BHS_EVENT_MOUSE_UP */
+		struct {
+			int32_t x;
+			int32_t y;
+			enum bhs_mouse_button button;
+			int click_count; /* 1 = single, 2 = double, etc */
+		} mouse_button;
 
-    /* BHS_EVENT_MOUSE_SCROLL */
-    struct {
-      int32_t x;
-      int32_t y;
-      float dx;        /* Scroll horizontal */
-      float dy;        /* Scroll vertical */
-      bool is_precise; /* Trackpad vs mouse wheel */
-    } scroll;
+		/* BHS_EVENT_MOUSE_SCROLL */
+		struct {
+			int32_t x;
+			int32_t y;
+			float dx;	 /* Scroll horizontal */
+			float dy;	 /* Scroll vertical */
+			bool is_precise; /* Trackpad vs mouse wheel */
+		} scroll;
 
-    /* BHS_EVENT_KEY_DOWN, BHS_EVENT_KEY_UP, BHS_EVENT_KEY_REPEAT */
-    struct {
-      uint32_t keycode;  /* Código físico da tecla */
-      uint32_t scancode; /* Scancode do sistema */
-      /* UTF-8 do caractere, se aplicável */
-      char text[8];
-    } key;
-  };
+		/* BHS_EVENT_KEY_DOWN, BHS_EVENT_KEY_UP, BHS_EVENT_KEY_REPEAT */
+		struct {
+			uint32_t keycode;  /* Código físico da tecla */
+			uint32_t scancode; /* Scancode do sistema */
+			/* UTF-8 do caractere, se aplicável */
+			char text[8];
+		} key;
+	};
 };
 
 /* ============================================================================
@@ -189,11 +189,11 @@ struct bhs_event {
  * Flags de janela (bitmask)
  */
 enum bhs_window_flags {
-  BHS_WINDOW_RESIZABLE = (1 << 0),
-  BHS_WINDOW_BORDERLESS = (1 << 1),
-  BHS_WINDOW_FULLSCREEN = (1 << 2),
-  BHS_WINDOW_HIDDEN = (1 << 3),
-  BHS_WINDOW_HIGH_DPI = (1 << 4), /* Retina/HiDPI */
+	BHS_WINDOW_RESIZABLE = (1 << 0),
+	BHS_WINDOW_BORDERLESS = (1 << 1),
+	BHS_WINDOW_FULLSCREEN = (1 << 2),
+	BHS_WINDOW_HIDDEN = (1 << 3),
+	BHS_WINDOW_HIGH_DPI = (1 << 4), /* Retina/HiDPI */
 };
 
 /**
@@ -201,12 +201,12 @@ enum bhs_window_flags {
  * Use inicialização designada: { .title = "Meu App", .width = 800, ... }
  */
 struct bhs_window_config {
-  const char *title;
-  int32_t width;
-  int32_t height;
-  int32_t x; /* BHS_WINDOW_POS_CENTERED ou posição */
-  int32_t y;
-  uint32_t flags; /* bhs_window_flags */
+	const char *title;
+	int32_t width;
+	int32_t height;
+	int32_t x; /* BHS_WINDOW_POS_CENTERED ou posição */
+	int32_t y;
+	uint32_t flags; /* bhs_window_flags */
 };
 
 #define BHS_WINDOW_POS_UNDEFINED (-1)
@@ -274,8 +274,8 @@ void bhs_platform_wait_events(bhs_platform_t platform);
  * Retorna: BHS_PLATFORM_OK ou código de erro
  */
 int bhs_window_create(bhs_platform_t platform,
-                      const struct bhs_window_config *config,
-                      bhs_window_t *window);
+		      const struct bhs_window_config *config,
+		      bhs_window_t *window);
 
 /**
  * bhs_window_destroy - Destrói uma janela
@@ -315,7 +315,7 @@ void bhs_window_get_size(bhs_window_t window, int32_t *width, int32_t *height);
  * Use para configurar viewport do renderer.
  */
 void bhs_window_get_framebuffer_size(bhs_window_t window, int32_t *width,
-                                     int32_t *height);
+				     int32_t *height);
 
 /**
  * bhs_window_should_close - Verifica se janela deve fechar
@@ -356,8 +356,8 @@ void bhs_window_set_mouse_lock(bhs_window_t window, bool locked);
  * @userdata: Ponteiro passado em bhs_window_set_event_callback
  */
 typedef void (*bhs_event_callback_fn)(bhs_window_t window,
-                                      const struct bhs_event *event,
-                                      void *userdata);
+				      const struct bhs_event *event,
+				      void *userdata);
 
 /**
  * bhs_window_set_event_callback - Define callback de eventos
@@ -365,8 +365,8 @@ typedef void (*bhs_event_callback_fn)(bhs_window_t window,
  * Apenas um callback por janela. Passar NULL remove o callback.
  */
 void bhs_window_set_event_callback(bhs_window_t window,
-                                   bhs_event_callback_fn callback,
-                                   void *userdata);
+				   bhs_event_callback_fn callback,
+				   void *userdata);
 
 /* ============================================================================
  * API DE EVENTOS (POLL STYLE)

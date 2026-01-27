@@ -21,8 +21,8 @@
 
 #include <stdbool.h>
 
-#include "math/vec4.h"
 #include "math/spacetime/kerr.h"
+#include "math/vec4.h"
 
 /* ============================================================================
  * CONSTANTES FÍSICAS (unidades CGS ou naturais conforme contexto)
@@ -57,10 +57,10 @@
  * @inclination: Ângulo de inclinação do disco (rad, 0 = face-on)
  */
 struct bhs_disk {
-  double inner_radius;
-  double outer_radius;
-  double mdot;
-  double inclination;
+	double inner_radius;
+	double outer_radius;
+	double mdot;
+	double inclination;
 };
 
 /* ============================================================================
@@ -86,7 +86,7 @@ double bhs_disk_isco(const struct bhs_kerr *bh);
  * Retorna: temperatura em unidades normalizadas (0 a 1 para colormap)
  */
 double bhs_disk_temperature(const struct bhs_kerr *bh,
-                            const struct bhs_disk *disk, double r);
+			    const struct bhs_disk *disk, double r);
 
 /**
  * bhs_disk_flux - Fluxo de energia no raio r (modelo NT)
@@ -99,7 +99,7 @@ double bhs_disk_temperature(const struct bhs_kerr *bh,
  * O fator f_NT(r) inclui correções relativísticas.
  */
 double bhs_disk_flux(const struct bhs_kerr *bh, const struct bhs_disk *disk,
-                     double r);
+		     double r);
 
 /* ============================================================================
  * REDSHIFT E DOPPLER
@@ -123,7 +123,7 @@ double bhs_disk_flux(const struct bhs_kerr *bh, const struct bhs_disk *disk,
  *          z > 0: redshift (se afastando)
  */
 double bhs_disk_redshift_total(const struct bhs_kerr *bh, double r, double phi,
-                               double observer_inclination);
+			       double observer_inclination);
 
 /**
  * bhs_disk_doppler_factor - Fator Doppler para elemento do disco
@@ -137,7 +137,7 @@ double bhs_disk_redshift_total(const struct bhs_kerr *bh, double r, double phi,
  *         g < 1: redshift
  */
 double bhs_disk_doppler_factor(const struct bhs_kerr *bh, double r, double phi,
-                               double inclination);
+			       double inclination);
 
 /* ============================================================================
  * VELOCIDADE ORBITAL
@@ -172,7 +172,7 @@ double bhs_disk_velocity_phi(const struct bhs_kerr *bh, double r);
  * struct bhs_color_rgb - Cor RGB normalizada [0, 1]
  */
 struct bhs_color_rgb {
-  float r, g, b;
+	float r, g, b;
 };
 
 /**
@@ -189,8 +189,8 @@ struct bhs_color_rgb {
  * - Beaming → brilho
  */
 struct bhs_color_rgb bhs_disk_color(const struct bhs_kerr *bh,
-                                    const struct bhs_disk *disk, double r,
-                                    double phi, double inclination);
+				    const struct bhs_disk *disk, double r,
+				    double phi, double inclination);
 
 /**
  * bhs_blackbody_color - Cor de corpo negro para temperatura
@@ -211,6 +211,6 @@ struct bhs_color_rgb bhs_blackbody_color(double temperature);
  * Simula deslocamento espectral simplificado.
  */
 struct bhs_color_rgb bhs_color_apply_redshift(struct bhs_color_rgb color,
-                                              double z);
+					      double z);
 
 #endif /* BHS_ENGINE_DISK_DISK_H */

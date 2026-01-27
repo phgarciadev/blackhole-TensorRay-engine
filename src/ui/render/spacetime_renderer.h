@@ -1,9 +1,9 @@
 #ifndef BHS_CMD_UI_RENDER_SPACETIME_RENDERER_H
 #define BHS_CMD_UI_RENDER_SPACETIME_RENDERER_H
 
-#include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
 #include "gui/ui/lib.h"
+#include "src/ui/camera/camera.h"
 #include "src/ui/screens/view_spacetime.h" /* bhs_visual_mode_t */
 
 struct bhs_planet_pass;
@@ -24,6 +24,6 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 /* [NEW] Exporting project point for hit testing in other modules */
 void bhs_project_point(const bhs_camera_t *cam, float x, float y, float z,
-			  float sw, float sh, float *ox, float *oy);
+		       float sw, float sh, float *ox, float *oy);
 
 #endif /* BHS_CMD_UI_RENDER_SPACETIME_RENDERER_H */

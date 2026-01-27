@@ -12,10 +12,10 @@
  * Se falhar no CI/CD sem GPU, pule com --skip-rhi.
  */
 
-#include "test_runner.h"
-#include "gui/log.h"
 #include "gui/epa/epa.h"
+#include "gui/log.h"
 #include "gui/rhi/rhi.h"
+#include "test_runner.h"
 
 /* ============================================================================
  * TESTES
@@ -25,7 +25,8 @@
 /**
  * test_gpu_device_creation - Testa criação do device
  */
-static void test_gpu_device_creation(bhs_platform_t platform, bhs_window_t window)
+static void test_gpu_device_creation(bhs_platform_t platform,
+				     bhs_window_t window)
 {
 	BHS_TEST_SECTION("GPU Device Creation");
 	(void)platform;
@@ -39,7 +40,8 @@ static void test_gpu_device_creation(bhs_platform_t platform, bhs_window_t windo
 
 	bhs_gpu_device_t device = NULL;
 	int res = bhs_gpu_device_create(&cfg, &device);
-	BHS_TEST_ASSERT_EQ(res, BHS_GPU_OK, "bhs_gpu_device_create() retornou OK");
+	BHS_TEST_ASSERT_EQ(res, BHS_GPU_OK,
+			   "bhs_gpu_device_create() retornou OK");
 	BHS_TEST_ASSERT_NOT_NULL(device, "Device handle válido");
 
 	if (device) {
@@ -62,7 +64,8 @@ static void test_buffer_creation(bhs_platform_t platform, bhs_window_t window)
 	};
 	bhs_gpu_device_t device = NULL;
 	if (bhs_gpu_device_create(&dev_cfg, &device) != BHS_GPU_OK) {
-		BHS_TEST_ASSERT(0, "Device não criado, pulando teste de buffer");
+		BHS_TEST_ASSERT(0,
+				"Device não criado, pulando teste de buffer");
 		return;
 	}
 
@@ -76,14 +79,16 @@ static void test_buffer_creation(bhs_platform_t platform, bhs_window_t window)
 
 	bhs_gpu_buffer_t buffer = NULL;
 	int result = bhs_gpu_buffer_create(device, &buf_cfg, &buffer);
-	
-	BHS_TEST_ASSERT_EQ(result, BHS_GPU_OK, "bhs_gpu_buffer_create() retornou OK");
+
+	BHS_TEST_ASSERT_EQ(result, BHS_GPU_OK,
+			   "bhs_gpu_buffer_create() retornou OK");
 	BHS_TEST_ASSERT_NOT_NULL(buffer, "Buffer criado não é NULL");
 
 	if (buffer) {
 		/* Testa mapeamento */
 		void *mapped = bhs_gpu_buffer_map(buffer);
-		BHS_TEST_ASSERT_NOT_NULL(mapped, "bhs_gpu_buffer_map() retornou válido");
+		BHS_TEST_ASSERT_NOT_NULL(
+			mapped, "bhs_gpu_buffer_map() retornou válido");
 
 		if (mapped) {
 			/* Escreve dados de teste */
@@ -101,7 +106,8 @@ static void test_buffer_creation(bhs_platform_t platform, bhs_window_t window)
 /**
  * test_swapchain_creation - Testa criação de swapchain
  */
-static void test_swapchain_creation(bhs_platform_t platform, bhs_window_t window)
+static void test_swapchain_creation(bhs_platform_t platform,
+				    bhs_window_t window)
 {
 	BHS_TEST_SECTION("Swapchain Creation");
 
@@ -110,7 +116,8 @@ static void test_swapchain_creation(bhs_platform_t platform, bhs_window_t window
 	};
 	bhs_gpu_device_t device = NULL;
 	if (bhs_gpu_device_create(&dev_cfg, &device) != BHS_GPU_OK) {
-		BHS_TEST_ASSERT(0, "Device não criado, pulando teste de swapchain");
+		BHS_TEST_ASSERT(
+			0, "Device não criado, pulando teste de swapchain");
 		return;
 	}
 
@@ -130,10 +137,12 @@ static void test_swapchain_creation(bhs_platform_t platform, bhs_window_t window
 
 	/* Swapchain creation might fail in headless or unsupported environments */
 	if (result == BHS_GPU_OK) {
-		BHS_TEST_ASSERT_NOT_NULL(swapchain, "Swapchain criado com sucesso");
+		BHS_TEST_ASSERT_NOT_NULL(swapchain,
+					 "Swapchain criado com sucesso");
 		bhs_gpu_swapchain_destroy(swapchain);
 	} else {
-		printf("  [WARN] Swapchain falhou (esperado em headless): %d\n", result);
+		printf("  [WARN] Swapchain falhou (esperado em headless): %d\n",
+		       result);
 	}
 
 	bhs_gpu_device_destroy(device);
@@ -150,7 +159,6 @@ int main(void)
 	bhs_log_set_level(BHS_LOG_LEVEL_WARN);
 
 	BHS_TEST_BEGIN("RHI Boot Tests (Vulkan)");
-
 
 	/* Setup comum */
 	bhs_platform_t platform = NULL;
@@ -169,7 +177,8 @@ int main(void)
 	};
 	bhs_window_t window = NULL;
 	if (bhs_window_create(platform, &win_cfg, &window) != BHS_PLATFORM_OK) {
-		printf("  [SKIP] Janela não disponível (headless enviroment?)\n");
+		printf("  [SKIP] Janela não disponível (headless "
+		       "environment?)\n");
 		bhs_platform_shutdown(platform);
 		BHS_TEST_END();
 	}

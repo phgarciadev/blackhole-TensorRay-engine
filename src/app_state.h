@@ -19,14 +19,12 @@
 
 #include <stdbool.h>
 #include "engine/scene/scene.h"
-#include "gui/ui/lib.h"
 #include "gui/rhi/rhi.h"
-#include "src/ui/screens/hud.h"
-#include "src/ui/render/planet_renderer.h"
-#include "src/ui/render/planet_renderer.h"
+#include "gui/ui/lib.h"
+#include "src/simulation/data/orbit_marker.h" /* [NOVO] Sistema de marcadores */
 #include "src/ui/camera/camera.h"
-#include "src/simulation/data/orbit_marker.h"  /* [NEW] Sistema de marcadores */
-
+#include "src/ui/render/planet_renderer.h"
+#include "src/ui/screens/hud.h"
 
 /* ============================================================================
  * ENUMS DE ESTADO
@@ -74,13 +72,13 @@ enum app_scenario {
  */
 struct app_state {
 	/* ---- Subsistemas ---- */
-	bhs_ui_ctx_t ui;		/* gui: Janela, GPU, Input */
-	bhs_scene_t scene;		/* Engine: ECS, Physics, Bodies */
+	bhs_ui_ctx_t ui;   /* gui: Janela, GPU, Input */
+	bhs_scene_t scene; /* Engine: ECS, Physics, Bodies */
 
 	/* ---- Assets de Rendering ---- */
-	bhs_gpu_texture_t bg_tex;	/* Textura do skybox */
-	bhs_gpu_texture_t sphere_tex;	/* Impostor de esfera (fallback) */
-	
+	bhs_gpu_texture_t bg_tex;     /* Textura do skybox */
+	bhs_gpu_texture_t sphere_tex; /* Impostor de esfera (fallback) */
+
 	/* Texture Cache (Name -> GPU Texture) */
 	struct {
 		char name[32];
@@ -89,35 +87,36 @@ struct app_state {
 	int tex_cache_count;
 
 	/* ---- Compute Passes ---- */
-	struct bhs_blackhole_pass *bh_pass; /* [NEW] Opaque handle */
-	struct bhs_planet_pass *planet_pass; /* [NEW] 3D Renderer */
+	struct bhs_blackhole_pass *bh_pass;  /* [NOVO] Handle opaco */
+	struct bhs_planet_pass *planet_pass; /* [NOVO] Renderizador 3D */
 
 	/* ---- Estado da Câmera ---- */
-	bhs_camera_t camera;		/* Posição, rotação, FOV */
+	bhs_camera_t camera; /* Posição, rotação, FOV */
 
 	/* ---- Controle de Simulação ---- */
-	enum app_sim_state sim_status;	/* Running/Paused */
-	enum app_scenario scenario;	/* Cenário atual */
-	double time_scale;		/* Multiplicador de tempo (1.0 = real) */
-	double accumulated_time;	/* Tempo total simulado */
+	enum app_sim_state sim_status; /* Running/Paused */
+	enum app_scenario scenario;    /* Cenário atual */
+	double time_scale;	       /* Multiplicador de tempo (1.0 = real) */
+	double accumulated_time;       /* Tempo total simulado */
 
 	/* ---- Estado de UI ---- */
-	bhs_hud_state_t hud;		/* HUD: menus, seleção, etc */
+	bhs_hud_state_t hud; /* HUD: menus, seleção, etc */
 
-	/* ---- [NEW] Sistema de Marcadores de Órbita ---- */
+	/* ---- [NOVO] Sistema de Marcadores de Órbita ---- */
 	struct bhs_orbit_marker_system orbit_markers;
 
 	/* ---- Timing / Profiling ---- */
-	double last_frame_time;		/* Timestamp do último frame */
-	double phys_ms;			/* ms gastos em física */
-	double render_ms;		/* ms gastos em rendering */
-	int frame_count;		/* Contador de frames */
+	double last_frame_time; /* Timestamp do último frame */
+	double phys_ms;		/* ms gastos em física */
+	double render_ms;	/* ms gastos em rendering */
+	int frame_count;	/* Contador de frames */
 
 	/* ---- Flags de Controle ---- */
-	bool should_quit;		/* Hora de ir embora */
-    
-    /* ---- [NEW] Persistence State ---- */
-    char current_workspace[256]; /* Path of currently loaded file (for Reload) */
+	bool should_quit; /* Hora de ir embora */
+
+	/* ---- [NOVO] Estado de Persistência ---- */
+	char current_workspace
+		[256]; /* Caminho do arquivo carregado (para Recarregar) */
 };
 
 /* ============================================================================
@@ -184,9 +183,9 @@ static inline void app_toggle_pause(struct app_state *app)
 {
 	if (!app)
 		return;
-	app->sim_status = (app->sim_status == APP_SIM_RUNNING) 
-		? APP_SIM_PAUSED 
-		: APP_SIM_RUNNING;
+	app->sim_status = (app->sim_status == APP_SIM_RUNNING)
+				  ? APP_SIM_PAUSED
+				  : APP_SIM_RUNNING;
 }
 
 /**

@@ -10,9 +10,9 @@
  *       Aqui testamos apenas a infraestrutura de platform.
  */
 
-#include "test_runner.h"
-#include "gui/log.h"
 #include "gui/epa/epa.h"
+#include "gui/log.h"
+#include "test_runner.h"
 
 /* ============================================================================
  * TESTES
@@ -49,7 +49,7 @@ static void test_event_polling(void)
 	/* Poll loop */
 	for (int i = 0; i < 50; i++) {
 		bhs_platform_poll_events(platform);
-		
+
 		/* Verifica se há eventos na fila (provavelmente não, em ambiente headless) */
 		struct bhs_event evt;
 		while (bhs_window_next_event(window, &evt)) {

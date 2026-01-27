@@ -36,10 +36,10 @@
  * - Qualquer 4-vetor contravariante
  */
 struct bhs_vec4 {
-  real_t t;
-  real_t x;
-  real_t y;
-  real_t z;
+	real_t t;
+	real_t x;
+	real_t y;
+	real_t z;
 };
 
 /**
@@ -48,9 +48,9 @@ struct bhs_vec4 {
  * Usado quando só a parte espacial importa.
  */
 struct bhs_vec3 {
-  real_t x;
-  real_t y;
-  real_t z;
+	real_t x;
+	real_t y;
+	real_t z;
 };
 
 /* ============================================================================
@@ -62,29 +62,33 @@ struct bhs_vec3 {
  * bhs_vec4_make - Cria vetor 4D
  */
 static inline struct bhs_vec4 bhs_vec4_make(real_t t, real_t x, real_t y,
-                                            real_t z) {
-  return (struct bhs_vec4){.t = t, .x = x, .y = y, .z = z};
+					    real_t z)
+{
+	return (struct bhs_vec4){ .t = t, .x = x, .y = y, .z = z };
 }
 
 /**
  * bhs_vec4_zero - Vetor nulo
  */
-static inline struct bhs_vec4 bhs_vec4_zero(void) {
-  return (struct bhs_vec4){0};
+static inline struct bhs_vec4 bhs_vec4_zero(void)
+{
+	return (struct bhs_vec4){ 0 };
 }
 
 /**
  * bhs_vec3_make - Cria vetor 3D
  */
-static inline struct bhs_vec3 bhs_vec3_make(real_t x, real_t y, real_t z) {
-  return (struct bhs_vec3){.x = x, .y = y, .z = z};
+static inline struct bhs_vec3 bhs_vec3_make(real_t x, real_t y, real_t z)
+{
+	return (struct bhs_vec3){ .x = x, .y = y, .z = z };
 }
 
 /**
  * bhs_vec3_zero - Vetor 3D nulo
  */
-static inline struct bhs_vec3 bhs_vec3_zero(void) {
-  return (struct bhs_vec3){0};
+static inline struct bhs_vec3 bhs_vec3_zero(void)
+{
+	return (struct bhs_vec3){ 0 };
 }
 
 /* ============================================================================
@@ -216,15 +220,17 @@ struct bhs_vec3 bhs_vec3_normalize(struct bhs_vec3 v);
 /**
  * bhs_vec4_spatial - Extrai parte espacial de vec4
  */
-static inline struct bhs_vec3 bhs_vec4_spatial(struct bhs_vec4 v) {
-  return (struct bhs_vec3){.x = v.x, .y = v.y, .z = v.z};
+static inline struct bhs_vec3 bhs_vec4_spatial(struct bhs_vec4 v)
+{
+	return (struct bhs_vec3){ .x = v.x, .y = v.y, .z = v.z };
 }
 
 /**
  * bhs_vec3_to_vec4 - Promove vec3 para vec4 com t dado
  */
-static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, real_t t) {
-  return (struct bhs_vec4){.t = t, .x = v.x, .y = v.y, .z = v.z};
+static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, real_t t)
+{
+	return (struct bhs_vec4){ .t = t, .x = v.x, .y = v.y, .z = v.z };
 }
 
 /* ============================================================================
@@ -240,7 +246,7 @@ static inline struct bhs_vec4 bhs_vec3_to_vec4(struct bhs_vec3 v, real_t t) {
  * @phi: [out] ângulo azimutal (-π a π)
  */
 void bhs_vec3_to_spherical(struct bhs_vec3 v, real_t *r, real_t *theta,
-                           real_t *phi);
+			   real_t *phi);
 
 /**
  * bhs_vec3_from_spherical - Esféricas para cartesianas

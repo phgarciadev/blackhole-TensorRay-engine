@@ -12,8 +12,8 @@
  */
 
 #include "app_state.h"
-#include "simulation/scenario_mgr.h"
 #include "gui/log.h"
+#include "simulation/scenario_mgr.h"
 
 #include <stdlib.h>
 
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 	(void)argv;
 
 	/* 1. Boot Application */
-	struct app_state app = {0};
+	struct app_state app = { 0 };
 	if (!app_init(&app, "BlackHole TensorRay", 1920, 1080)) {
 		BHS_LOG_FATAL("Falha ao inicializar aplicação");
 		return EXIT_FAILURE;
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 
 	/* 2. Load Initial Scenario */
 	const char *scene_env = getenv("BHS_DEBUG_SCENE");
-	
+
 	if (scene_env) {
 		enum scenario_type scenario = SCENARIO_DEBUG;
 		switch (scene_env[0]) {

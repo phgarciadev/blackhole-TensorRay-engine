@@ -14,6 +14,7 @@ struct app_state;
  * @param win_w Largura da janela
  * @param win_h Altura da janela
  */
-void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w, int win_h);
+void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w,
+			   int win_h);
 
 #endif /* BHS_SRC_UI_SCREENS_START_SCREEN_H */

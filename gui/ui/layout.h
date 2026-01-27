@@ -22,18 +22,18 @@ extern "C" {
 typedef enum { BHS_LAYOUT_ROW, BHS_LAYOUT_COLUMN } bhs_layout_dir_t;
 
 typedef enum {
-  BHS_ALIGN_START,
-  BHS_ALIGN_CENTER,
-  BHS_ALIGN_END,
-  BHS_ALIGN_STRETCH
+	BHS_ALIGN_START,
+	BHS_ALIGN_CENTER,
+	BHS_ALIGN_END,
+	BHS_ALIGN_STRETCH
 } bhs_align_t;
 
 typedef enum {
-  BHS_JUSTIFY_START,
-  BHS_JUSTIFY_CENTER,
-  BHS_JUSTIFY_END,
-  BHS_JUSTIFY_SPACE_BETWEEN,
-  BHS_JUSTIFY_SPACE_AROUND
+	BHS_JUSTIFY_START,
+	BHS_JUSTIFY_CENTER,
+	BHS_JUSTIFY_END,
+	BHS_JUSTIFY_SPACE_BETWEEN,
+	BHS_JUSTIFY_SPACE_AROUND
 } bhs_justify_t;
 
 /* ============================================================================
@@ -45,15 +45,15 @@ typedef enum {
  * Configuração de estilo de layout.
  */
 struct bhs_layout_style {
-  float width; /* < 0 = auto/flex, > 0 = fixo */
-  float height;
-  float padding[4]; /* top, right, bottom, left */
-  float margin[4];
-  float gap; /* Espaço entre itens */
+	float width; /* < 0 = auto/flex, > 0 = fixo */
+	float height;
+	float padding[4]; /* top, right, bottom, left */
+	float margin[4];
+	float gap; /* Espaço entre itens */
 
-  bhs_align_t align_items;
-  bhs_justify_t justify_content;
-  float flex_grow; /* 0 = não cresce, 1 = cresce */
+	bhs_align_t align_items;
+	bhs_justify_t justify_content;
+	float flex_grow; /* 0 = não cresce, 1 = cresce */
 };
 
 /* ============================================================================
@@ -69,7 +69,7 @@ struct bhs_layout_style {
  * @rect: Retângulo disponível (se NULL, usa o pai ou janela inteira)
  */
 void bhs_layout_begin(bhs_ui_ctx_t ctx, bhs_layout_dir_t dir,
-                      const struct bhs_layout_style *style);
+		      const struct bhs_layout_style *style);
 
 /**
  * bhs_layout_end - Fecha o container atual

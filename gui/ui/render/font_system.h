@@ -8,8 +8,8 @@
 #ifndef BHS_UX_UI_FONT_SYSTEM_H
 #define BHS_UX_UI_FONT_SYSTEM_H
 
-#include "gui/ui/lib.h"
 #include "gui/rhi/rhi.h"
+#include "gui/ui/lib.h"
 
 /* Forward declaration */
 struct bhs_ui_ctx_impl;
@@ -18,20 +18,20 @@ struct bhs_ui_ctx_impl;
  * @brief Glyph info para o atlas
  */
 struct bhs_glyph_info {
-    float u0, v0, u1, v1; /* Coordenadas UV no atlas */
-    int width, height;    /* Tamanho em pixels */
-    int bearing_x, bearing_y;
-    int advance;
+	float u0, v0, u1, v1; /* Coordenadas UV no atlas */
+	int width, height;    /* Tamanho em pixels */
+	int bearing_x, bearing_y;
+	int advance;
 };
 
 /**
  * @brief Estado do sistema de fontes
  */
 struct bhs_font_system {
-    bhs_gpu_texture_t atlas_tex;
-    struct bhs_glyph_info glyphs[256]; /* Cache para ASCII por enquanto */
-    float atlas_width, atlas_height;
-    bool initialized;
+	bhs_gpu_texture_t atlas_tex;
+	struct bhs_glyph_info glyphs[256]; /* Cache para ASCII por enquanto */
+	float atlas_width, atlas_height;
+	bool initialized;
 };
 
 /**
@@ -47,6 +47,7 @@ void bhs_font_system_shutdown(struct bhs_ui_ctx_impl *ctx);
 /**
  * @brief Obtém informações de um glyph (ASCII)
  */
-const struct bhs_glyph_info* bhs_font_system_get_glyph(struct bhs_ui_ctx_impl *ctx, char c);
+const struct bhs_glyph_info *
+bhs_font_system_get_glyph(struct bhs_ui_ctx_impl *ctx, char c);
 
 #endif /* BHS_UX_UI_FONT_SYSTEM_H */

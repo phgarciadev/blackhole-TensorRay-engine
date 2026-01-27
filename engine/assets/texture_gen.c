@@ -5,21 +5,22 @@
  * Conecta o asset system à definição lógica do planeta (src/simulation/data).
  */
 
-#include "image_loader.h"
-#include "src/simulation/data/planet.h"
-#include "src/math/mat4.h" /* Para math basics se precisar */
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "image_loader.h"
+#include "math/mat4.h" /* Para math basics se precisar */
+#include "src/simulation/data/planet.h"
 
 #ifndef PI
 #define PI 3.14159265359f
 #endif
 
-bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int width, int height)
+bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc,
+					 int width, int height)
 {
-	bhs_image_t img = {0};
-	
+	bhs_image_t img = { 0 };
+
 	if (!desc || width <= 0 || height <= 0)
 		return img;
 
@@ -40,17 +41,17 @@ bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int
 	for (int y = 0; y < height; y++) {
 		/* Normalized V (0 top, 1 bottom) */
 		float v = (float)y / (float)(height - 1);
-		
+
 		/* Latitude: +PI/2 (North) -> -PI/2 (South) */
 		float lat = (1.0f - v) * PI - (PI * 0.5f);
-		
+
 		float cos_lat = cosf(lat);
 		float sin_lat = sinf(lat);
 
 		for (int x = 0; x < width; x++) {
 			/* Normalized U (0 left, 1 right) */
 			float u = (float)x / (float)(width - 1);
-			
+
 			/* Longitude: -PI -> +PI */
 			float lon = u * 2.0f * PI - PI;
 
@@ -60,7 +61,7 @@ bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int
 			/* Planet.h likely expects Z-up or geometric center. */
 			/* Ponto na esfera unitária "local space" */
 			struct bhs_vec3 p_local;
-			
+
 			/* Standard physics (ISO):
 			   x = r * cos(lat) * cos(lon)
 			   y = r * cos(lat) * sin(lon)
@@ -71,18 +72,18 @@ bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int
 			p_local.z = sin_lat;
 
 			/* Call the planet's generator */
-			struct bhs_vec3 color = {0};
-			
+			struct bhs_vec3 color = { 0 };
+
 			if (desc->get_surface_color) {
 				color = desc->get_surface_color(p_local);
 			} else {
 				/* Fallback to base color */
 				color = desc->base_color;
 			}
-			
+
 			/* Write to buffer (RGBA8) */
 			uint8_t *pixel = &img.data[(y * width + x) * 4];
-			
+
 			/* Clamp 0..1 -> 0..255 */
 			pixel[0] = (uint8_t)(fminf(color.x, 1.0f) * 255.0f);
 			pixel[1] = (uint8_t)(fminf(color.y, 1.0f) * 255.0f);

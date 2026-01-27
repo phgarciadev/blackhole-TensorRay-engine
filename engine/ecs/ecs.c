@@ -4,10 +4,10 @@
  */
 
 #include "engine/ecs/ecs.h"
-#include "gui/log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "gui/log.h"
 
 #define MAX_COMPONENT_TYPES 32
 
@@ -33,7 +33,7 @@ bhs_world_handle bhs_ecs_create_world(void)
 	bhs_world_handle w = calloc(1, sizeof(struct bhs_world_t));
 	if (w) {
 		w->next_entity_id = 1; // 0 is Invalid
-		BHS_LOG_ECS_DEBUG("World created at %p", (void*)w);
+		BHS_LOG_ECS_DEBUG("World created at %p", (void *)w);
 	}
 	return w;
 }
@@ -55,7 +55,9 @@ void bhs_ecs_destroy_world(bhs_world_handle world)
 bhs_entity_id bhs_ecs_create_entity(bhs_world_handle world)
 {
 	if (world->next_entity_id >= BHS_MAX_ENTITIES) {
-		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Max entities reached! (%d)", BHS_MAX_ENTITIES);
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+				 "Max entities reached! (%d)",
+				 BHS_MAX_ENTITIES);
 		return BHS_ENTITY_INVALID;
 	}
 	return world->next_entity_id++;
@@ -92,8 +94,10 @@ static void ensure_pool(bhs_world_handle world, bhs_component_type type,
 		 * Future: Page-based Generic Pool if MAX gets too big.
 		 */
 		size_t total_bytes = BHS_MAX_ENTITIES * size;
-		BHS_LOG_DEBUG_CH(BHS_LOG_CHANNEL_ECS, "Pool Allocated: Type=%d, ElementSize=%zu, Total=%zu bytes", 
-			type, size, total_bytes);
+		BHS_LOG_DEBUG_CH(BHS_LOG_CHANNEL_ECS,
+				 "Pool Allocated: Type=%d, ElementSize=%zu, "
+				 "Total=%zu bytes",
+				 type, size, total_bytes);
 
 		world->components[type].element_size = size;
 		world->components[type].data = calloc(1, total_bytes);
@@ -115,8 +119,10 @@ void *bhs_ecs_add_component(bhs_world_handle world, bhs_entity_id entity,
 
 	// Check consistency (optional DEBUG)
 	if (pool->element_size != size) {
-		BHS_LOG_FATAL_CH(BHS_LOG_CHANNEL_ECS, "Component size mismatch Type %d! Expected %zu, Got %zu",
-			type, pool->element_size, size);
+		BHS_LOG_FATAL_CH(BHS_LOG_CHANNEL_ECS,
+				 "Component size mismatch Type %d! Expected "
+				 "%zu, Got %zu",
+				 type, pool->element_size, size);
 		return NULL;
 	}
 
@@ -170,7 +176,8 @@ static bool entity_matches_mask(bhs_world_handle world, bhs_entity_id entity,
 {
 	for (uint32_t type = 0; type < MAX_COMPONENT_TYPES; type++) {
 		if (mask & (1u << type)) {
-			struct bhs_component_pool *pool = &world->components[type];
+			struct bhs_component_pool *pool =
+				&world->components[type];
 			if (!pool->active || !pool->active[entity])
 				return false;
 		}
@@ -181,7 +188,8 @@ static bool entity_matches_mask(bhs_world_handle world, bhs_entity_id entity,
 bool bhs_ecs_entity_has_components(bhs_world_handle world, bhs_entity_id entity,
 				   bhs_component_mask mask)
 {
-	if (!world || entity == BHS_ENTITY_INVALID || entity >= BHS_MAX_ENTITIES)
+	if (!world || entity == BHS_ENTITY_INVALID ||
+	    entity >= BHS_MAX_ENTITIES)
 		return false;
 	return entity_matches_mask(world, entity, mask);
 }
@@ -226,7 +234,9 @@ void bhs_ecs_query_init_cached(bhs_ecs_query *q, bhs_world_handle world,
 	/* Aloca e preenche cache */
 	q->cache = malloc(q->count * sizeof(bhs_entity_id));
 	if (!q->cache) {
-		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to allocate query cache size %d", q->count);
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+				 "Failed to allocate query cache size %d",
+				 q->count);
 		q->count = 0;
 		return;
 	}
@@ -302,37 +312,41 @@ struct bhs_save_chunk_header {
 
 bool bhs_ecs_save_world(bhs_world_handle world, const char *filename)
 {
-	if (!world || !filename) return false;
+	if (!world || !filename)
+		return false;
 
 	FILE *f = fopen(filename, "wb");
 	if (!f) {
-		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to open file for save: %s", filename);
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+				 "Failed to open file for save: %s", filename);
 		return false;
 	}
 
 	/* 1. Write Header */
-	struct bhs_save_header hdr = {
-		.magic = BHS_SAVE_MAGIC,
-		.version = 1,
-		.num_entities = world->next_entity_id,
-		.num_component_types = MAX_COMPONENT_TYPES
-	};
+	struct bhs_save_header hdr = { .magic = BHS_SAVE_MAGIC,
+				       .version = 1,
+				       .num_entities = world->next_entity_id,
+				       .num_component_types =
+					       MAX_COMPONENT_TYPES };
 	fwrite(&hdr, sizeof(hdr), 1, f);
 
 	/* 2. Write Component Chunks */
 	for (uint32_t type = 0; type < MAX_COMPONENT_TYPES; type++) {
 		struct bhs_component_pool *pool = &world->components[type];
-		
+
 		/* Skip empty pools */
-		if (!pool->data || !pool->active) continue;
+		if (!pool->data || !pool->active)
+			continue;
 
 		/* Count active entities */
 		uint32_t active_count = 0;
 		for (uint32_t id = 1; id < world->next_entity_id; id++) {
-			if (pool->active[id]) active_count++;
+			if (pool->active[id])
+				active_count++;
 		}
 
-		if (active_count == 0) continue;
+		if (active_count == 0)
+			continue;
 
 		/* Write Chunk Header */
 		struct bhs_save_chunk_header chunk = {
@@ -346,29 +360,35 @@ bool bhs_ecs_save_world(bhs_world_handle world, const char *filename)
 		for (uint32_t id = 1; id < world->next_entity_id; id++) {
 			if (pool->active[id]) {
 				fwrite(&id, sizeof(uint32_t), 1, f);
-				void *ptr = (char*)pool->data + (id * pool->element_size);
+				void *ptr = (char *)pool->data +
+					    (id * pool->element_size);
 				fwrite(ptr, pool->element_size, 1, f);
 			}
 		}
-		
-		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "Saved Component Type %d: %d entities", type, active_count);
+
+		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS,
+				"Saved Component Type %d: %d entities", type,
+				active_count);
 	}
 
 	/* Mark end of file with TypeID = -1? Or just EOF loop. */
 	/* We rely on file size, simpler. */
-	
+
 	fclose(f);
-	BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "World saved to %s (Entities: %d)", filename, hdr.num_entities);
+	BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "World saved to %s (Entities: %d)",
+			filename, hdr.num_entities);
 	return true;
 }
 
 bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 {
-	if (!world || !filename) return false;
+	if (!world || !filename)
+		return false;
 
 	FILE *f = fopen(filename, "rb");
 	if (!f) {
-		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to open file for load: %s", filename);
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+				 "Failed to open file for load: %s", filename);
 		return false;
 	}
 
@@ -380,21 +400,23 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 	}
 
 	if (hdr.magic != BHS_SAVE_MAGIC) {
-		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Invalid save file magic: %x", hdr.magic);
+		BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+				 "Invalid save file magic: %x", hdr.magic);
 		fclose(f);
 		return false;
 	}
 
 	/* 2. Reset World State (Partial - we keep the pools allocated but clear active flags) */
 	/* CAUTION: This assumes we want to OVERWRITE. */
-	
+
 	/* Reset Entities */
 	world->next_entity_id = hdr.num_entities;
-	
+
 	/* Clear all current active flags */
 	for (int i = 0; i < MAX_COMPONENT_TYPES; i++) {
 		if (world->components[i].active) {
-			memset(world->components[i].active, 0, BHS_MAX_ENTITIES * sizeof(bool));
+			memset(world->components[i].active, 0,
+			       BHS_MAX_ENTITIES * sizeof(bool));
 		}
 	}
 
@@ -402,27 +424,41 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 	struct bhs_save_chunk_header chunk;
 	while (fread(&chunk, sizeof(chunk), 1, f) == 1) {
 		if (chunk.type_id >= MAX_COMPONENT_TYPES) {
-			BHS_LOG_WARN_CH(BHS_LOG_CHANNEL_ECS, "Unknown component type in save: %d", chunk.type_id);
+			BHS_LOG_WARN_CH(BHS_LOG_CHANNEL_ECS,
+					"Unknown component type in save: %d",
+					chunk.type_id);
 			/* Skip data */
-			fseek(f, chunk.count * (sizeof(uint32_t) + chunk.element_size), SEEK_CUR);
+			fseek(f,
+			      chunk.count *
+				      (sizeof(uint32_t) + chunk.element_size),
+			      SEEK_CUR);
 			continue;
 		}
 
 		/* Ensure pool exists */
 		ensure_pool(world, chunk.type_id, chunk.element_size);
-		struct bhs_component_pool *pool = &world->components[chunk.type_id];
+		struct bhs_component_pool *pool =
+			&world->components[chunk.type_id];
 
 		/* Verify size compatibility */
 		if (pool->element_size != chunk.element_size) {
-			BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Component size mismatch! Disk=%d, Memory=%zu. Skipping.", chunk.element_size, pool->element_size);
-			fseek(f, chunk.count * (sizeof(uint32_t) + chunk.element_size), SEEK_CUR);
+			BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+					 "Component size mismatch! Disk=%d, "
+					 "Memory=%zu. Skipping.",
+					 chunk.element_size,
+					 pool->element_size);
+			fseek(f,
+			      chunk.count *
+				      (sizeof(uint32_t) + chunk.element_size),
+			      SEEK_CUR);
 			continue;
 		}
 
 		/* Read Entities */
 		for (uint32_t i = 0; i < chunk.count; i++) {
 			uint32_t entity_id;
-			if (fread(&entity_id, sizeof(uint32_t), 1, f) != 1) break;
+			if (fread(&entity_id, sizeof(uint32_t), 1, f) != 1)
+				break;
 
 			if (entity_id >= BHS_MAX_ENTITIES) {
 				/* skip data */
@@ -430,13 +466,17 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 				continue;
 			}
 
-			void *dest = (char*)pool->data + (entity_id * chunk.element_size);
-			if (fread(dest, chunk.element_size, 1, f) != 1) break;
+			void *dest = (char *)pool->data +
+				     (entity_id * chunk.element_size);
+			if (fread(dest, chunk.element_size, 1, f) != 1)
+				break;
 
 			pool->active[entity_id] = true;
 		}
-		
-		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS, "Loaded Component Type %d: %d entities", chunk.type_id, chunk.count);
+
+		BHS_LOG_INFO_CH(BHS_LOG_CHANNEL_ECS,
+				"Loaded Component Type %d: %d entities",
+				chunk.type_id, chunk.count);
 	}
 
 	fclose(f);
@@ -444,12 +484,15 @@ bool bhs_ecs_load_world(bhs_world_handle world, const char *filename)
 	return true;
 }
 
-bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t metadata_size, uint32_t metadata_type_id)
+bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata,
+			   size_t metadata_size, uint32_t metadata_type_id)
 {
-	if (!filename || !out_metadata) return false;
+	if (!filename || !out_metadata)
+		return false;
 
 	FILE *f = fopen(filename, "rb");
-	if (!f) return false;
+	if (!f)
+		return false;
 
 	/* 1. Read Header */
 	struct bhs_save_header hdr;
@@ -470,7 +513,7 @@ bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t meta
 			/* Found Metadata Chunk! */
 			/* Assuming ONE metadata entity per file (singleton) */
 			/* Read first entity's data */
-			
+
 			/* Format: {EntityID, Data} */
 			/* Read EntityID */
 			uint32_t id;
@@ -478,22 +521,25 @@ bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t meta
 				fclose(f);
 				return false;
 			}
-			
+
 			/* Verify size match */
-			size_t read_size = (chunk.element_size < metadata_size) ? chunk.element_size : metadata_size;
-			
+			size_t read_size = (chunk.element_size < metadata_size)
+						   ? chunk.element_size
+						   : metadata_size;
+
 			/* Read Data */
 			if (fread(out_metadata, read_size, 1, f) != 1) {
 				fclose(f);
 				return false;
 			}
-			
+
 			fclose(f);
 			return true;
 		} else {
 			/* Skip this chunk */
 			/* Size: Count * (sizeof(u32) + ElementSize) */
-			long skip = chunk.count * (sizeof(uint32_t) + chunk.element_size);
+			long skip = chunk.count *
+				    (sizeof(uint32_t) + chunk.element_size);
 			fseek(f, skip, SEEK_CUR);
 		}
 	}
@@ -502,12 +548,15 @@ bool bhs_ecs_peek_metadata(const char *filename, void *out_metadata, size_t meta
 	return false; /* Not found */
 }
 
-bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata, size_t metadata_size, uint32_t metadata_type_id)
+bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata,
+			     size_t metadata_size, uint32_t metadata_type_id)
 {
-	if (!filename || !new_metadata) return false;
+	if (!filename || !new_metadata)
+		return false;
 
 	FILE *f = fopen(filename, "rb+");
-	if (!f) return false;
+	if (!f)
+		return false;
 
 	/* 1. Read Header and Verify Magic */
 	struct bhs_save_header hdr;
@@ -526,37 +575,43 @@ bool bhs_ecs_update_metadata(const char *filename, const void *new_metadata, siz
 	while (fread(&chunk, sizeof(chunk), 1, f) == 1) {
 		if (chunk.type_id == metadata_type_id) {
 			/* Found Metadata Chunk! */
-			
+
 			/* Read EntityID (skip) */
 			uint32_t id;
 			if (fread(&id, sizeof(uint32_t), 1, f) != 1) {
 				fclose(f);
 				return false;
 			}
-			
+
 			/* Verify strict size match for safety */
 			if (chunk.element_size != metadata_size) {
-				BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Metadata resize not supported (Disk=%d, Memory=%zu)", chunk.element_size, metadata_size);
+				BHS_LOG_ERROR_CH(
+					BHS_LOG_CHANNEL_ECS,
+					"Metadata resize not supported "
+					"(Disk=%d, Memory=%zu)",
+					chunk.element_size, metadata_size);
 				fclose(f);
 				return false;
 			}
-			
+
 			/* Overwrite Data */
 			/* ftell is at start of data now? No. fread advanced pos. */
 			/* We read data previously? No, we are at data start position */
 			// long data_pos = ftell(f);
-			
+
 			if (fwrite(new_metadata, metadata_size, 1, f) != 1) {
-				BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS, "Failed to write metadata");
+				BHS_LOG_ERROR_CH(BHS_LOG_CHANNEL_ECS,
+						 "Failed to write metadata");
 				fclose(f);
 				return false;
 			}
-			
+
 			fclose(f);
 			return true;
 		} else {
 			/* Skip */
-			long skip = chunk.count * (sizeof(uint32_t) + chunk.element_size);
+			long skip = chunk.count *
+				    (sizeof(uint32_t) + chunk.element_size);
 			fseek(f, skip, SEEK_CUR);
 		}
 	}

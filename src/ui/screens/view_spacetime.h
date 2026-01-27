@@ -1,10 +1,10 @@
 #ifndef BHS_UX_UI_VIEW_SPACETIME_H
 #define BHS_UX_UI_VIEW_SPACETIME_H
 
-#include "src/ui/camera/camera.h"
 #include "engine/scene/scene.h"
-#include "gui/ui/lib.h"
 #include "gui/rhi/rhi.h"
+#include "gui/ui/lib.h"
+#include "src/ui/camera/camera.h"
 
 /* Render Modes */
 typedef enum {
@@ -33,38 +33,38 @@ typedef struct bhs_view_assets {
 	void *bg_texture;
 	void *sphere_texture;
 	void *bh_texture; /* Black Hole Compute Result */
-	
+
 	/* Procedural Cache */
 	const struct bhs_planet_tex_entry *tex_cache;
 	int tex_cache_count;
-	
+
 	/* 3D Renderer Status */
 	bool render_3d_active;
 
-    /* Gravity Line Visualization */
-    bool show_gravity_line;
-    int selected_body_index; /* -1 = no selection, show all lines */
-    
-    /* Orbit Trail Visualization */
-    bool show_orbit_trail;
-    
-    /* Satellite Orbits Visualization */
-    bool show_satellite_orbits;
-    
-    /* [NEW] Isolated View Mode */
-    int isolated_body_index; /* -1 = sem isolamento, >= 0 = índice do corpo isolado */
-    
-    /* [NEW] Ponteiro para sistema de marcadores de órbita */
-    const struct bhs_orbit_marker_system *orbit_markers;
-    /* [NEW] Detailed visual control */
-    bool show_planet_markers; /* Purple */
-    bool show_moon_markers;   /* Green */
+	/* Gravity Line Visualization */
+	bool show_gravity_line;
+	int selected_body_index; /* -1 = no selection, show all lines */
 
-    /* [NEW] Interpolation Alpha (accumulator) */
-    double sim_alpha;
+	/* Orbit Trail Visualization */
+	bool show_orbit_trail;
 
-    /* [NEW] Strongest Attractor Index (for isolation context) */
-    int attractor_index; /* -1 if none */
+	/* Satellite Orbits Visualization */
+	bool show_satellite_orbits;
+
+	/* [NEW] Isolated View Mode */
+	int isolated_body_index; /* -1 = sem isolamento, >= 0 = índice do corpo isolado */
+
+	/* [NEW] Ponteiro para sistema de marcadores de órbita */
+	const struct bhs_orbit_marker_system *orbit_markers;
+	/* [NEW] Detailed visual control */
+	bool show_planet_markers; /* Purple */
+	bool show_moon_markers;	  /* Green */
+
+	/* [NEW] Interpolation Alpha (accumulator) */
+	double sim_alpha;
+
+	/* [NEW] Strongest Attractor Index (for isolation context) */
+	int attractor_index; /* -1 if none */
 } bhs_view_assets_t;
 
 /* Proxy to renderer */

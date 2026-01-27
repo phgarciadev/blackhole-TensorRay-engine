@@ -13,21 +13,21 @@ extern "C" {
 #endif
 
 struct bhs_theme_colors {
-  struct bhs_ui_color background;
-  struct bhs_ui_color surface;
-  struct bhs_ui_color primary;
-  struct bhs_ui_color secondary;
-  struct bhs_ui_color text;
-  struct bhs_ui_color text_dim;
-  struct bhs_ui_color border;
-  struct bhs_ui_color error;
+	struct bhs_ui_color background;
+	struct bhs_ui_color surface;
+	struct bhs_ui_color primary;
+	struct bhs_ui_color secondary;
+	struct bhs_ui_color text;
+	struct bhs_ui_color text_dim;
+	struct bhs_ui_color border;
+	struct bhs_ui_color error;
 };
 
 struct bhs_theme {
-  struct bhs_theme_colors colors;
-  float border_radius;
-  float border_width;
-  float font_size_base;
+	struct bhs_theme_colors colors;
+	float border_radius;
+	float border_width;
+	float font_size_base;
 };
 
 /**

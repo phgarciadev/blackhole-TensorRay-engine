@@ -1,8 +1,8 @@
 #ifndef BHS_UI_RENDER_PLANET_RENDERER_H
 #define BHS_UI_RENDER_PLANET_RENDERER_H
 
-#include "gui/ui/lib.h"
 #include "engine/scene/scene.h"
+#include "gui/ui/lib.h"
 #include "src/ui/camera/camera.h"
 #include "src/ui/screens/view_spacetime.h" /* For texture cache */
 
@@ -29,20 +29,17 @@ void bhs_planet_pass_destroy(bhs_planet_pass_t pass);
  * @param output_width Render target width (for aspect ratio)
  * @param output_height Render target height
  */
-void bhs_planet_pass_draw(bhs_planet_pass_t pass,
-			  bhs_gpu_cmd_buffer_t cmd,
-			  bhs_scene_t scene,
-			  const bhs_camera_t *cam,
+void bhs_planet_pass_draw(bhs_planet_pass_t pass, bhs_gpu_cmd_buffer_t cmd,
+			  bhs_scene_t scene, const bhs_camera_t *cam,
 			  const bhs_view_assets_t *assets,
-			  bhs_visual_mode_t mode,
-			  float output_width, float output_height);
+			  bhs_visual_mode_t mode, float output_width,
+			  float output_height);
 
 /**
  * @brief Submit a 3D line to be drawn with depth testing
  */
-void bhs_planet_pass_submit_line(bhs_planet_pass_t pass,
-				 float x1, float y1, float z1,
-				 float x2, float y2, float z2,
+void bhs_planet_pass_submit_line(bhs_planet_pass_t pass, float x1, float y1,
+				 float z1, float x2, float y2, float z2,
 				 float r, float g, float b, float a);
 
 #endif

@@ -42,7 +42,8 @@ struct bhs_planet_desc; /* Forward declare */
  * @param width Texture width (e.g. 1024)
  * @param height Texture height (e.g. 512)
  */
-bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc, int width, int height);
+bhs_image_t bhs_image_gen_planet_texture(const struct bhs_planet_desc *desc,
+					 int width, int height);
 
 /**
  * @brief Downsample image by 4x using box filter (Software Anti-Aliasing).

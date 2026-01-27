@@ -16,8 +16,8 @@
 #ifndef BHS_CORE_SPACETIME_KERR_H
 #define BHS_CORE_SPACETIME_KERR_H
 
-#include "math/tensor/tensor.h"
 #include <math.h>
+#include "math/tensor/tensor.h"
 
 /* ============================================================================
  * PARÂMETROS
@@ -37,8 +37,8 @@
  * O Gargantua do Interestelar tem a/M ≈ 0.998 (quase extremo).
  */
 struct bhs_kerr {
-  double M; /* Massa */
-  double a; /* Spin */
+	double M; /* Massa */
+	double a; /* Spin */
 };
 
 /* ============================================================================
@@ -54,9 +54,10 @@ struct bhs_kerr {
  * Aparece em toda parte na métrica de Kerr.
  */
 static inline double bhs_kerr_Sigma(const struct bhs_kerr *bh, double r,
-                                    double theta) {
-  double cos_theta = cos(theta);
-  return r * r + bh->a * bh->a * cos_theta * cos_theta;
+				    double theta)
+{
+	double cos_theta = cos(theta);
+	return r * r + bh->a * bh->a * cos_theta * cos_theta;
 }
 
 /**
@@ -66,8 +67,9 @@ static inline double bhs_kerr_Sigma(const struct bhs_kerr *bh, double r,
  *
  * Zeros de Δ: horizontes de eventos (externo e interno).
  */
-static inline double bhs_kerr_Delta(const struct bhs_kerr *bh, double r) {
-  return r * r - 2.0 * bh->M * r + bh->a * bh->a;
+static inline double bhs_kerr_Delta(const struct bhs_kerr *bh, double r)
+{
+	return r * r - 2.0 * bh->M * r + bh->a * bh->a;
 }
 
 /* ============================================================================
@@ -158,13 +160,13 @@ double bhs_kerr_omega_frame(const struct bhs_kerr *bh, double r, double theta);
  * Componentes não-diagonais: g_tφ ≠ 0 (frame dragging!)
  */
 void bhs_kerr_metric(const struct bhs_kerr *bh, double r, double theta,
-                     struct bhs_metric *out);
+		     struct bhs_metric *out);
 
 /**
  * bhs_kerr_metric_inverse - Calcula métrica inversa g^μν
  */
 void bhs_kerr_metric_inverse(const struct bhs_kerr *bh, double r, double theta,
-                             struct bhs_metric *out);
+			     struct bhs_metric *out);
 
 /* ============================================================================
  * REDSHIFT E EFEITOS RELATIVÍSTICOS
@@ -181,7 +183,7 @@ void bhs_kerr_metric_inverse(const struct bhs_kerr *bh, double r, double theta,
  * (momento angular zero relativo ao infinito).
  */
 double bhs_kerr_redshift_zamo(const struct bhs_kerr *bh, double r,
-                              double theta);
+			      double theta);
 
 /* ============================================================================
  * FUNÇÃO DE MÉTRICA (para Christoffel)
@@ -196,6 +198,6 @@ double bhs_kerr_redshift_zamo(const struct bhs_kerr *bh, double r,
  * Coordenadas em vec4: (t, r, θ, φ)
  */
 void bhs_kerr_metric_func(struct bhs_vec4 coords, void *userdata,
-                          struct bhs_metric *out);
+			  struct bhs_metric *out);
 
 #endif /* BHS_CORE_SPACETIME_KERR_H */
