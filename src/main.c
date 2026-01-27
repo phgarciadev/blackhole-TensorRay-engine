@@ -22,14 +22,14 @@ int main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
-	/* 1. Boot Application */
+	/* 1. Inicializar Aplicação */
 	struct app_state app = { 0 };
 	if (!app_init(&app, "BlackHole TensorRay", 1920, 1080)) {
 		BHS_LOG_FATAL("Falha ao inicializar aplicação");
 		return EXIT_FAILURE;
 	}
 
-	/* 2. Load Initial Scenario */
+	/* 2. Carregar Cenário Inicial */
 	const char *scene_env = getenv("BHS_DEBUG_SCENE");
 
 	if (scene_env) {
@@ -60,10 +60,10 @@ int main(int argc, char **argv)
 		app.sim_status = APP_SIM_START_SCREEN;
 	}
 
-	/* 3. Run Loop */
+	/* 3. Rodar Loop Principal */
 	app_run(&app);
 
-	/* 4. Shutdown */
+	/* 4. Encerrar (Shutdown) */
 	app_shutdown(&app);
 
 	return EXIT_SUCCESS;

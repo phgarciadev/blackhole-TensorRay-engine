@@ -247,7 +247,7 @@ void bhs_start_screen_draw(struct app_state *app, bhs_ui_ctx_t ctx, int win_w,
 	/* Big Blue Button (Primary) */
 	struct bhs_ui_rect rect_main = { cx - (container_w / 2.0f), btn_start_y,
 					 container_w, btn_h };
-	if (custom_button(ctx, "Criar Simulacao", "F", rect_main, true)) {
+	if (custom_button(ctx, "Criar Simulação", "F", rect_main, true)) {
 		scenario_load(app, SCENARIO_EMPTY);
 		app->sim_status =
 			APP_SIM_PAUSED; /* Começa pausado pra não dar susto */

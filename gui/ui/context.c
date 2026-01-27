@@ -335,12 +335,16 @@ bool bhs_ui_key_down(bhs_ui_ctx_t ctx, uint32_t keycode)
 {
 	if (!ctx || keycode >= BHS_UI_MAX_KEYS)
 		return false;
+	if (ctx->input.input_blocked)
+		return false;
 	return ctx->input.keys[keycode];
 }
 
 bool bhs_ui_key_pressed(bhs_ui_ctx_t ctx, uint32_t keycode)
 {
 	if (!ctx || keycode >= BHS_UI_MAX_KEYS)
+		return false;
+	if (ctx->input.input_blocked)
 		return false;
 	return ctx->input.keys[keycode] && !ctx->input.keys_prev[keycode];
 }
@@ -349,6 +353,11 @@ void bhs_ui_mouse_pos(bhs_ui_ctx_t ctx, int32_t *x, int32_t *y)
 {
 	if (!ctx)
 		return;
+	if (ctx->input.input_blocked) {
+		if (x) *x = -9999;
+		if (y) *y = -9999;
+		return;
+	}
 	if (x)
 		*x = ctx->input.mouse_x;
 	if (y)
@@ -359,6 +368,8 @@ bool bhs_ui_mouse_down(bhs_ui_ctx_t ctx, int button)
 {
 	if (!ctx || button < 0 || button >= BHS_UI_MAX_BUTTONS)
 		return false;
+	if (ctx->input.input_blocked)
+		return false;
 	return ctx->input.buttons[button];
 }
 
@@ -366,12 +377,22 @@ bool bhs_ui_mouse_clicked(bhs_ui_ctx_t ctx, int button)
 {
 	if (!ctx || button < 0 || button >= BHS_UI_MAX_BUTTONS)
 		return false;
+	if (ctx->input.input_blocked)
+		return false;
 	return ctx->input.buttons[button] && !ctx->input.buttons_prev[button];
 }
 
 float bhs_ui_mouse_scroll(bhs_ui_ctx_t ctx)
 {
+	if (ctx && ctx->input.input_blocked)
+		return 0.0f;
 	return ctx ? ctx->input.scroll_y : 0.0f;
+}
+
+void bhs_ui_set_input_blocked(bhs_ui_ctx_t ctx, bool blocked)
+{
+	if (ctx)
+		ctx->input.input_blocked = blocked;
 }
 
 /* ============================================================================

@@ -153,6 +153,7 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 			continue;
 
 		struct bhs_body *b = &g_legacy_bodies[idx];
+		b->entity_id = id; /* [NOVO] Store ID */
 
 		// Map Transform
 		b->state.pos = t->position;
@@ -170,6 +171,9 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 		// Map Celestial
 		if (c) {
 			snprintf(b->name, sizeof(b->name), "%.31s", c->name);
+			b->visual_flags =
+				c->visual_flags; /* [NOVO] Copy flags */
+
 			if (c->type == BHS_CELESTIAL_PLANET) {
 				b->type = BHS_BODY_PLANET;
 				b->state.radius = c->data.planet.radius;
@@ -259,6 +263,21 @@ bhs_entity_id bhs_scene_add_body_struct(bhs_scene_t scene, struct bhs_body b)
 	// Celestial Logic
 	bhs_celestial_component c = { 0 };
 	snprintf(c.name, sizeof(c.name), "%s", b.name);
+	
+	/* Default Flags: Enable All by default for consistency, allow UI to toggle off via Global */
+	/* User wants global off by default, but local customizable. 
+       Let's enable all LOCAL flags so that they are "Ready" to be shown.
+       The renderer will do `global || local`? No, user said "Activate all... can cause clutter".
+       And "Default deactivated".
+       If I set local=true, and global=false, `global || local` is true. Visibile.
+       So default local must be FALSE if we want them hidden.
+       But user wants to enable specifics.
+       Wait, if I set local=false, and global=false -> Hidden.
+       User clicks "Global View" -> global=true -> All visible.
+       User clicks "Planet X" -> local=true -> Only X visible.
+       This works. Default needs to be FALSE.
+    */
+    c.visual_flags = 0; /* Starts clean */
 
 	if (b.type == BHS_BODY_PLANET) {
 		c.type = BHS_CELESTIAL_PLANET;
@@ -361,6 +380,7 @@ bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene,
 
 	// Celestial
 	bhs_celestial_component c = { 0 };
+	c.visual_flags = 0; /* Default Hidden */
 	if (type == BHS_BODY_PLANET) {
 		c.type = BHS_CELESTIAL_PLANET;
 		c.data.planet.radius = radius;
@@ -420,4 +440,10 @@ void bhs_scene_remove_body(bhs_scene_t scene, int index)
 		printf("[SCENE] Failed to delete: Index %d not found.\n",
 		       index);
 	}
+}
+
+void bhs_scene_clear_legacy_cache(void)
+{
+	/* Limpa todo o cache legado, incluindo históricos de trail */
+	memset(g_legacy_bodies, 0, sizeof(g_legacy_bodies));
 }

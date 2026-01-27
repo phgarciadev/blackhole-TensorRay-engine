@@ -8,6 +8,7 @@
 #include "src/simulation/data/orbit_marker.h" /* [NEW] */
 #include "src/simulation/data/planet.h"
 #include "src/simulation/scenario_mgr.h" /* [NEW] For scenario_get_name */
+#include "src/simulation/components/sim_components.h" /* [FIX] For visual flags */
 #include "system/config.h"		 /* [NEW] */
 
 /* ... Helper to save config ... */
@@ -87,8 +88,8 @@ static bhs_ui_layout_t get_ui_layout(bhs_ui_ctx_t ctx, int win_w, int win_h)
 
 	/* [FIX] Info Panel - valores centralizados aqui pra draw e input usarem o mesmo */
 	/* [FIX] Info Panel - valores centralizados aqui pra draw e input usarem o mesmo */
-	l.info_panel_w = 260.0f * l.ui_scale; /* Slightly wider */
-	l.info_panel_h = 720.0f * l.ui_scale; /* Enormous for all data */
+	l.info_panel_w = 280.0f * l.ui_scale;
+	l.info_panel_h = 760.0f * l.ui_scale; /* Adjusted height (was 850, too big) */
 	l.info_panel_margin = 20.0f * l.ui_scale;
 
 	return l;
@@ -112,9 +113,13 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_gravity_line = false;
 		state->show_orbit_trail = false;
 		state->show_satellite_orbits = false;
-		state->show_planet_markers = true; /* Default ON */
-		state->show_moon_markers = true;   /* Default ON */
+		state->show_planet_markers = false; /* Default OFF (User Req) */
+		state->show_moon_markers = false;   /* Default OFF (User Req) */
 		state->isolate_view = false;
+		state->isolate_view = false;
+		state->show_visual_warning = false;
+		state->visual_warning_accepted = false; /* [NEW] Start as false */
+		state->req_toggle_visual_bit = false;
 		state->selected_marker_index = -1;
 		state->selected_marker_index = -1;
 		state->orbit_history_scroll = 0.0f;
@@ -173,6 +178,10 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	/* --- LAYOUT CALCULATION --- */
 	bhs_ui_layout_t layout = get_ui_layout(ctx, window_w, window_h);
 	float ui_scale = layout.ui_scale; /* Keep for local usage if needed */
+
+	/* [FIX] Block input for background if modal is active */
+	bool modal_active = state->show_save_modal || state->show_visual_warning;
+	bhs_ui_set_input_blocked(ctx, modal_active);
 
 	struct bhs_ui_color theme_bg = { 0.05f, 0.05f, 0.05f, 0.95f };
 	struct bhs_ui_color theme_border = { 0.0f, 0.8f, 1.0f, 0.3f };
@@ -481,57 +490,9 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 				(struct bhs_ui_color){ 0.3f, 0.3f, 0.3f, 0.5f },
 				1.0f);
 
-			/* --- SECTION: SIMULATION --- */
-			bhs_ui_draw_text(ctx, "Time Flow",
-					 panel_rect.x + item_pad, y, font_label,
-					 (struct bhs_ui_color){ 0.5f, 0.5f,
-								0.6f, 1.0f });
-			y += 18.0f * ui_scale;
-
-			/* Time Scale Control */
-			/* Nova formula: dias terrestres por minuto real */
-			float days_per_min =
-				0.1f * powf(3650.0f, state->time_scale_val);
-			char time_label[64];
-			if (days_per_min < 1.0f) {
-				snprintf(time_label, 64, "Speed: %.1f days/min",
-					 days_per_min);
-			} else if (days_per_min < 30.0f) {
-				snprintf(time_label, 64, "Speed: %.0f days/min",
-					 days_per_min);
-			} else {
-				snprintf(time_label, 64, "Speed: %.0f days/min",
-					 days_per_min);
-			}
-
-			/* Label aligned */
-			bhs_ui_draw_text(ctx, time_label,
-					 panel_rect.x + item_pad, y,
-					 13.0f * ui_scale, BHS_UI_COLOR_WHITE);
-			y += 15.0f * ui_scale;
-
-			item_rect.y = y;
-			item_rect.height =
-				12.0f * ui_scale; /* Slider mais fino */
-			float old_ts_val = state->time_scale_val;
-			if (bhs_ui_slider(ctx, item_rect,
-					  &state->time_scale_val)) {
-				/* Mouse still down/dragging? Slider returns true if changed OR active? 
-                    According to lib.h "Slider horizontal". Implementation usually returns true if interacted.
-                    To avoid spamming save on drag, we could verify mouse release? 
-                    But lib doesn't expose it easily here. Saving 60 times/sec is bad.
-                    However, `bhs_config_save` is fast binary write. But let's check input provided by ctx.
-                    Actually, let's just save on release if possible, or save always. 
-                    Given "immediate mode", detecting release requires state tracking.
-                    For now, I'll just save. Modern SSDs can handle it, file is tiny (100 bytes).
-                 */
-				/* Optimization: Only save if value changed significantly? */
-				if (fabs(state->time_scale_val - old_ts_val) >
-				    0.001f) {
-					/* Delay save? No, let's just do it. It's a prototype. */
-					save_hud_config(state);
-				}
-			}
+			/* Speed Control Removed from Config (Moved to View) */
+			/* Keeping Separator for aesthetics if needed, or removing section if empty. */
+			/* User removed "Time Flow" completely from here. */
 			y += row_spacing;
 
 			/* Separator */
@@ -705,58 +666,66 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 
 			y += row_spacing;
 
-			/* Gravity Line Toggle */
-			struct bhs_ui_rect gl_rect = { panel_rect.x + item_pad,
-						       y, item_w, item_h };
-			bool gl_prev = state->show_gravity_line;
-			bhs_ui_checkbox(ctx, "Gravity Line", gl_rect,
-					&state->show_gravity_line);
-			if (state->show_gravity_line != gl_prev)
-				save_hud_config(state);
+			/* Helper for Toggle with Warning */
+#undef DO_TOGGLE
+#define DO_TOGGLE(label, field_ptr, id_val)                                    \
+	do {                                                                   \
+		struct bhs_ui_rect t_rect = { panel_rect.x + item_pad, y,      \
+					      item_w, item_h };                \
+		bool cur = *(field_ptr);                                       \
+		bool next = cur;                                               \
+		bhs_ui_checkbox(ctx, label, t_rect, &next);                    \
+		if (next != cur) {                                             \
+			if (next && !state->visual_warning_accepted) { /* [FIX] Check accepted flag */ \
+				state->show_visual_warning = true;             \
+				state->is_paused = true; /* Pause Sim */       \
+				state->req_toggle_pause = true;                \
+				state->pending_toggle_val = true;              \
+				state->pending_toggle_id = id_val;             \
+				state->active_menu_index = -1; /* Close Menu */\
+			} else { /* Disabling or Already Accepted? Apply immediately */ \
+				*(field_ptr) = next;                           \
+				save_hud_config(state);                        \
+			}                                                      \
+		}                                                              \
+		y += row_spacing;                                              \
+	} while (0)
 
+			/* Gravity Line */
+			DO_TOGGLE("Gravity Line (Att)", &state->show_gravity_line, 0);
+			/* Orbit Trail */
+			DO_TOGGLE("Orbit Trails (All)", &state->show_orbit_trail, 1);
+			/* Satellite Orbits */
+			DO_TOGGLE("Satellite Orbits", &state->show_satellite_orbits, 2);
+			/* Planet Markers */
+			DO_TOGGLE("Planet Markers (P)", &state->show_planet_markers, 3);
+			/* Moon Markers */
+			DO_TOGGLE("Moon Markers (G)", &state->show_moon_markers, 4);
+
+#undef DO_TOGGLE
+
+			y += 10.0f * ui_scale;
+			bhs_ui_draw_line(
+				ctx, panel_rect.x + item_pad,
+				y - (row_spacing * 0.5f) + 5.0f,
+				panel_rect.x + panel_rect.width - item_pad,
+				y - (row_spacing * 0.5f) + 5.0f,
+				(struct bhs_ui_color){ 0.3f, 0.3f, 0.3f, 0.5f },
+				1.0f);
+
+			/* Moved Speed Control Here */
+			float days_per_min =
+				0.1f * powf(3650.0f, state->time_scale_val);
+			char time_label[64];
+			snprintf(time_label, 64, "Speed: %.0f d/min", days_per_min);
+			bhs_ui_draw_text(ctx, time_label, panel_rect.x + item_pad, y,
+					 13.0f * ui_scale, BHS_UI_COLOR_WHITE);
+			y += 15.0f * ui_scale;
+			struct bhs_ui_rect slider_rect = { panel_rect.x + item_pad, y,
+							   item_w,
+							   12.0f * ui_scale };
+			bhs_ui_slider(ctx, slider_rect, &state->time_scale_val);
 			y += row_spacing;
-
-			/* Orbit Trail Toggle */
-			struct bhs_ui_rect ot_rect = { panel_rect.x + item_pad,
-						       y, item_w, item_h };
-			bool ot_prev = state->show_orbit_trail;
-			bhs_ui_checkbox(ctx, "Orbit Trail", ot_rect,
-					&state->show_orbit_trail);
-			if (state->show_orbit_trail != ot_prev)
-				save_hud_config(state);
-
-			y += row_spacing;
-
-			/* Satellite Orbits Toggle */
-			struct bhs_ui_rect so_rect = { panel_rect.x + item_pad,
-						       y, item_w, item_h };
-			bool so_prev = state->show_satellite_orbits;
-			bhs_ui_checkbox(ctx, "Satellite Orbits", so_rect,
-					&state->show_satellite_orbits);
-			if (state->show_satellite_orbits != so_prev)
-				save_hud_config(state);
-
-			y += row_spacing;
-
-			/* Planet Markers (Purple) */
-			struct bhs_ui_rect pm_rect = { panel_rect.x + item_pad,
-						       y, item_w, item_h };
-			bool pm_prev = state->show_planet_markers;
-			bhs_ui_checkbox(ctx, "Planet Markers (P)", pm_rect,
-					&state->show_planet_markers);
-			if (state->show_planet_markers != pm_prev)
-				save_hud_config(state);
-
-			y += row_spacing;
-
-			/* Moon Markers (Green) */
-			struct bhs_ui_rect mm_rect = { panel_rect.x + item_pad,
-						       y, item_w, item_h };
-			bool mm_prev = state->show_moon_markers;
-			bhs_ui_checkbox(ctx, "Moon Markers (G)", mm_rect,
-					&state->show_moon_markers);
-			if (state->show_moon_markers != mm_prev)
-				save_hud_config(state);
 
 			y += row_spacing;
 
@@ -1549,7 +1518,76 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		/* (Delete button removed, Fixed camera toggle moved to top) */
 		/* y += btn_h + 10.0f * ui_scale; <-- adjust spacing */
 
-		struct bhs_ui_rect iso_rect = { x, y, w, 24.0f * ui_scale };
+		/* [NEW] Local Visualization Toggles */
+		/* [NEW] Local Visualization Toggles */
+		y += 15.0f * ui_scale;
+
+		/* Separator Line */
+		bhs_ui_draw_line(
+			ctx, x, y, x + w, y,
+			(struct bhs_ui_color){ 0.0f, 0.8f, 1.0f, 0.5f },
+			1.0f);
+		y += 8.0f * ui_scale;
+
+		bhs_ui_draw_text(
+			ctx, "LOCAL VISUALS", x, y, font_section,
+			(struct bhs_ui_color){ 0.0f, 0.8f, 1.0f, 0.9f });
+		y += line_h;
+
+		/* We need to know current flags. `bhs_body` (legacy) now has `visual_flags`. */
+		/* But b is `state->selected_body_cache`, which is a COPY. */
+		/* Render Checkboxes based on existing State */
+		
+		bool show_trail = (b->visual_flags & BHS_VISUAL_FLAG_SHOW_TRAIL);
+		bool show_markers = (b->visual_flags & BHS_VISUAL_FLAG_SHOW_MARKERS);
+		bool show_vectors = (b->visual_flags & BHS_VISUAL_FLAG_SHOW_VECTORS);
+
+		/* Indentation for checkboxes */
+		float indent = 15.0f * ui_scale;
+		float chk_h = 24.0f * ui_scale;     /* Match "Isolar Visao" height */
+		float chk_step = 28.0f * ui_scale;  /* Consistent spacing */
+		
+		struct bhs_ui_rect chk_rect = { x + indent, y, w - indent, chk_h };
+		
+		/* Trail */
+		bool next_trail = show_trail;
+		bhs_ui_checkbox(ctx, "Show Trail", chk_rect, &next_trail);
+		if (next_trail != show_trail) {
+			state->req_toggle_visual_bit = true;
+			state->req_visual_entity = b->entity_id;
+			state->req_visual_mask = BHS_VISUAL_FLAG_SHOW_TRAIL;
+		}
+		y += chk_step;
+
+		/* Markers */
+		chk_rect.y = y;
+		bool next_mk = show_markers;
+		bhs_ui_checkbox(ctx, "Show Markers", chk_rect, &next_mk);
+		if (next_mk != show_markers) {
+			state->req_toggle_visual_bit = true;
+			state->req_visual_entity = b->entity_id;
+			state->req_visual_mask = BHS_VISUAL_FLAG_SHOW_MARKERS;
+		}
+		y += chk_step;
+
+		/* Vectors */
+		chk_rect.y = y;
+		bool next_vec = show_vectors;
+		bhs_ui_checkbox(ctx, "Show Gravity/Vel", chk_rect, &next_vec);
+		if (next_vec != show_vectors) {
+			state->req_toggle_visual_bit = true;
+			state->req_visual_entity = b->entity_id;
+			state->req_visual_mask = BHS_VISUAL_FLAG_SHOW_VECTORS;
+		}
+		y += chk_step;
+
+		/* [NEW] Checkbox para Isolamento Visual */
+		/* Previous spacing was manual, now using standard step */
+		/* y += 5.0f * ui_scale; */ /* Removed extra gap to keep them grouped or keep it? User said "well organized distances". 
+		                           Isolar is a bit separate logically. Let's keep a small extra gap for grouping logic or remove for uniformity.
+								   User said "seguirem o padrão", "bem organizadas". Uniformity is safest. */
+		
+		struct bhs_ui_rect iso_rect = { x + indent, y, w - indent, chk_h };
 		bhs_ui_checkbox(ctx, "Isolar Visao", iso_rect,
 				&state->isolate_view);
 	}
@@ -1562,6 +1600,9 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	 * ============================================================================
 	 */
 	if (state->show_save_modal) {
+		/* Enable input for the modal */
+		bhs_ui_set_input_blocked(ctx, false);
+
 		/* Dim Background */
 		bhs_ui_draw_rect(
 			ctx,
@@ -1594,6 +1635,8 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 		struct bhs_ui_rect input_rect = { mx + pad, y,
 						  modal_w - (pad * 2),
 						  35.0f * layout.ui_scale };
+
+
 
 		/* Placeholder Logic (Visual Only) */
 		if (state->save_input_buf[0] == '\0' && !state->input_focused) {
@@ -1662,6 +1705,75 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 			state->input_focused = false;
 		}
 	}
+
+	/* 5.5 WARNING MODAL */
+	if (state->show_visual_warning) {
+		/* Enable input for the modal */
+		bhs_ui_set_input_blocked(ctx, false);
+
+		/* Dim Background */
+		bhs_ui_draw_rect(
+			ctx,
+			(struct bhs_ui_rect){ 0, 0, (float)window_w,
+					      (float)window_h },
+			(struct bhs_ui_color){ 0.0f, 0.0f, 0.0f, 0.8f });
+
+		float mw = 500.0f * layout.ui_scale;
+		float mh = 250.0f * layout.ui_scale;
+		float warn_mx = ((float)window_w - mw) * 0.5f;
+		float warn_my = ((float)window_h - mh) * 0.5f;
+
+		bhs_ui_panel(ctx, (struct bhs_ui_rect){ warn_mx, warn_my, mw, mh },
+			     (struct bhs_ui_color){ 0.15f, 0.1f, 0.1f, 1.0f },
+			     (struct bhs_ui_color){ 1.0f, 0.5f, 0.0f, 0.8f });
+
+		float p = 30.0f * layout.ui_scale;
+		float ty = warn_my + p;
+		
+		bhs_ui_draw_text(ctx, "WARNING: VISUAL CLUTTER", warn_mx + p, ty, 20.0f * layout.ui_scale, (struct bhs_ui_color){1.0f, 0.6f, 0.0f, 1.0f});
+		ty += 40.0f * layout.ui_scale;
+		
+		const char *msg1 = "Ativar todos os rastros ou marcadores pode";
+		const char *msg2 = "causar sujeira visual severa ou perda de";
+		const char *msg3 = "performance. Deseja continuar?";
+		
+		bhs_ui_draw_text(ctx, msg1, warn_mx + p, ty, 14.0f * layout.ui_scale, BHS_UI_COLOR_WHITE);
+		ty += 20.0f * layout.ui_scale;
+		bhs_ui_draw_text(ctx, msg2, warn_mx + p, ty, 14.0f * layout.ui_scale, BHS_UI_COLOR_WHITE);
+		ty += 20.0f * layout.ui_scale;
+		bhs_ui_draw_text(ctx, msg3, warn_mx + p, ty, 14.0f * layout.ui_scale, BHS_UI_COLOR_WHITE);
+		ty += 50.0f * layout.ui_scale;
+
+		float btn_w = 120.0f * layout.ui_scale;
+		struct bhs_ui_rect r_yes = { warn_mx + p, ty, btn_w, 30.0f * layout.ui_scale };
+		struct bhs_ui_rect r_no = { warn_mx + p + btn_w + 20.0f, ty, btn_w, 30.0f * layout.ui_scale };
+
+		if (bhs_ui_button(ctx, "ATIVAR", r_yes)) {
+			/* Apply Pending */
+			state->show_visual_warning = false;
+			state->visual_warning_accepted = true; /* [FIX] Remember choice */
+			
+			/* [FIX] Unpause if paused */
+			state->req_toggle_pause = true; 
+
+			switch(state->pending_toggle_id) {
+				case 0: state->show_gravity_line = true; break;
+				case 1: state->show_orbit_trail = true; break;
+				case 2: state->show_satellite_orbits = true; break;
+				case 3: state->show_planet_markers = true; break;
+				case 4: state->show_moon_markers = true; break;
+			}
+			save_hud_config(state);
+		}
+		if (bhs_ui_button(ctx, "CANCELAR", r_no)) {
+			state->show_visual_warning = false;
+			/* [FIX] Just unpause, don't apply */
+			state->req_toggle_pause = true; 
+		}
+	}
+	
+	/* Cleanup: Restore input state */
+	bhs_ui_set_input_blocked(ctx, false);
 }
 
 /* Helper: AABB Check */
@@ -1703,7 +1815,7 @@ bool bhs_hud_is_mouse_over(bhs_ui_ctx_t ctx, const bhs_hud_state_t *state,
 	}
 
 	/* 2.5 Modal Check (Top Priority) */
-	if (state->show_save_modal) {
+	if (state->show_save_modal || state->show_visual_warning) {
 		return true; /* Block all input if modal is open */
 	}
 

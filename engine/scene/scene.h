@@ -108,6 +108,8 @@ struct bhs_body {
 	bool is_fixed;
 	bool is_alive;
 	char name[32];
+	bhs_entity_id entity_id; /* [NOVO] Back-reference para ECS */
+	uint32_t visual_flags;	 /* [NOVO] Flags visuais (Trail, Markers...) */
 
 	/* [NEW] Orbit Trail Data */
 	float trail_positions[BHS_MAX_TRAIL_POINTS][3]; /* x, y, z */
@@ -136,6 +138,7 @@ bhs_entity_id bhs_scene_add_body_named(bhs_scene_t scene,
 
 void bhs_scene_remove_body(bhs_scene_t scene, int index);
 void bhs_scene_reset_counters(void);
+void bhs_scene_clear_legacy_cache(void); /* [NOVO] Limpa trails antigos */
 
 /* Factories (Legado/Shim) */
 struct bhs_planet_desc;

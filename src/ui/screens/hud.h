@@ -83,6 +83,17 @@ typedef struct {
 	void *tex_icon_camera;
 	void *tex_icon_swap;
 	void *tex_icon_trash;
+
+	/* [NEW] Warning Visual Clutter */
+	bool show_visual_warning;
+	bool visual_warning_accepted; /* [NEW] Session-based suppression */
+	bool pending_toggle_val;      /* Value attempting to set */
+	int pending_toggle_id;	      /* ID: 0=Grav, 1=Trail, 2=Sat, 3=PMark, 4=MMark */
+
+	/* [NEW] ECS Visual Request */
+	bool req_toggle_visual_bit;
+	uint32_t req_visual_mask;
+	bhs_entity_id req_visual_entity;
 } bhs_hud_state_t;
 
 void bhs_hud_init(bhs_hud_state_t *state);

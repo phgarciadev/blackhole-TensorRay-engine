@@ -372,6 +372,12 @@ void scenario_unload(struct app_state *app)
 	/* Reseta contadores de nomes para próximo cenário começar do 1 */
 	bhs_scene_reset_counters();
 
+	/* Reseta marcadores de órbita para evitar "trails" fantasmas da simulação anterior */
+	bhs_orbit_markers_init(&app->orbit_markers);
+	
+	/* Limpa cache legado (trails azuis) */
+	bhs_scene_clear_legacy_cache();
+
 	app->scenario = APP_SCENARIO_NONE;
 }
 

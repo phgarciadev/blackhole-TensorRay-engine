@@ -11,7 +11,7 @@
 #include "app_state.h"
 #include "simulation/scenario_mgr.h"
 #include "simulation/systems/systems.h" // [NOVO] Sistemas Lógicos
-#include "system/config.h"		/* [NOVO] */
+#include "system/config.h"		/* [NOVO] Configuração do Sistema */
 
 #include <math.h> /* [NOVO] para powf/fabs */
 #include "engine/assets/image_loader.h"
@@ -32,11 +32,13 @@
 #include <time.h>
 
 /* 
- * Timestep fixo pra física - 60 segundos por passo (1 min)
- * Rotação suave requer passos menores ou interpolação.
+ * Timestep fixo pra física - 60 Hz (aprox 16.6ms) ou similar logic.
+ * No original estava PHYSICS_DT 60.0, mas geralmente isso é 1/60.
+ * Vou manter como estava, mas traduzido.
+ * "Fixed timestep for phyiscs"
  */
 #define PHYSICS_DT 60.0
-#define MAX_FRAME_TIME 0.25 /* Evita death spiral */
+#define MAX_FRAME_TIME 0.25 /* Evita espiral da morte (death spiral) */
 
 /* ============================================================================
  * HELPERS
@@ -64,13 +66,13 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 
 	/* 0. Logging (PRIMEIRO - antes de qualquer log) */
 	bhs_log_init();
-	bhs_log_set_level(BHS_LOG_LEVEL_DEBUG); /* [DEBUG] Force Debug Level */
+	bhs_log_set_level(BHS_LOG_LEVEL_DEBUG); /* [DEBUG] Forçar Nível de Debug */
 	BHS_LOG_INFO("=== BlackHole TensorRay - Inicializando ===");
 
 	/* [NOVO] Carrega config do usuário */
 	bhs_user_config_t user_cfg;
 	bhs_config_load(&user_cfg,
-			"data/user_config.bin"); /* Loads file or defaults */
+			"data/user_config.bin"); /* Carrega arquivo ou padrões */
 
 	/* 1. Scene / Engine Memory */
 	BHS_LOG_INFO("Alocando memória da Engine...");
@@ -140,7 +142,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		BHS_LOG_WARN("Skybox não encontrado - usando fundo preto");
 	}
 
-	/* 4.1. Sphere Impostor */
+	/* 4.1. Impostor de Esfera (Sphere Impostor) */
 	{
 		int size = 64;
 		bhs_image_t sphere_img = bhs_image_gen_sphere(size);
@@ -229,7 +231,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		BHS_LOG_INFO("Geradas %d texturas de planetas.", count);
 	}
 
-	/* 4.2. Black Hole Pass (Init) */
+	/* 4.2. Passo Buraco Negro (Init) */
 	{
 		bhs_gpu_device_t dev = bhs_ui_get_gpu_device(app->ui);
 		bhs_blackhole_pass_config_t bh_conf = { .width = width,
@@ -241,15 +243,15 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 		}
 	}
 
-	/* 4.3. [NOVO] Planet 3D Pass */
+	/* 4.3. [NOVO] Passo Planetário 3D (Planet 3D Pass) */
 	if (bhs_planet_pass_create(app->ui, &app->planet_pass) != 0) {
 		BHS_LOG_ERROR("Falha ao inicializar renderer de planetas.");
 	}
 
-	/* 5. Camera (valores padrão) */
+	/* 5. Câmera (valores padrão) */
 	bhs_camera_init(&app->camera);
 
-	/* 6. Simulation defaults */
+	/* 6. Padrões da Simulação */
 	app->sim_status = APP_SIM_RUNNING;
 	app->time_scale = 1.0;
 	app->accumulated_time = 0.0;
@@ -259,7 +261,7 @@ bool app_init(struct app_state *app, const char *title, int width, int height)
 	/* 6.1. [NOVO] Inicializa sistema de marcadores de órbita */
 	bhs_orbit_markers_init(&app->orbit_markers);
 
-	/* 7. Timing */
+	/* 7. Temporização (Timing) */
 	app->last_frame_time = get_time_seconds();
 	app->frame_count = 0;
 	app->phys_ms = 0.0;
@@ -292,16 +294,16 @@ void app_run(struct app_state *app)
 	double accumulator = 0.0;
 
 	while (!app->should_quit && !bhs_ui_should_close(app->ui)) {
-		/* Timing */
+		/* Temporização */
 		double current_time = get_time_seconds();
 		double frame_time = current_time - app->last_frame_time;
 		app->last_frame_time = current_time;
 
-		/* Evitar death spiral */
+		/* Evitar espiral da morte (death spiral) */
 		if (frame_time > MAX_FRAME_TIME)
 			frame_time = MAX_FRAME_TIME;
 
-		/* Sync Time Scale from HUD PRIMEIRO - antes de acumular tempo */
+		/* Sincronizar Escala de Tempo do HUD PRIMEIRO - antes de acumular tempo */
 		/* Formula: dias/min = 0.1 * 3650^val */
 		/* 1 dia = 86400 segundos, 1 minuto real = 60 segundos */
 		/* timescale = dias/min * 86400 / 60 = dias/min * 1440 */
@@ -361,7 +363,7 @@ void app_run(struct app_state *app)
 		bhs_ui_cmd_begin(app->ui);
 		bhs_ui_begin_drawing(app->ui);
 
-/* Fixed timestep para física */
+/* Timestep fixo para física */
 /* Limita número de passos por frame para evitar death spiral */
 #define MAX_PHYSICS_STEPS_PER_FRAME 1000
 		int physics_steps = 0;
@@ -372,17 +374,17 @@ void app_run(struct app_state *app)
 		while (accumulator >= PHYSICS_DT &&
 		       app->sim_status == APP_SIM_RUNNING &&
 		       physics_steps < MAX_PHYSICS_STEPS_PER_FRAME) {
-			/* [NOVO] Update dos Sistemas ECS (Leapfrog + 1PN) */
+			/* [NOVO] Atualização dos Sistemas ECS (Leapfrog + 1PN) */
 			bhs_world_handle world =
 				bhs_scene_get_world(app->scene);
 
 			/* Integração Física de Alta Fidelidade */
 			physics_system_update(world, PHYSICS_DT);
 
-			/* 3. Engine Update (Collision, Transfrom hierarchy, Spacetime sync) */
+			/* 3. Atualização da Engine (Colisão, Hierarquia de Transformadas, Sinc Espaço-Tempo) */
 			bhs_scene_update(app->scene, PHYSICS_DT);
 
-			/* 4. Gameplay/Celestial Update (Rotation, Events) */
+			/* 4. Gameplay/Atualização Celestial (Rotação, Eventos) */
 			bhs_celestial_system_update(app->scene, PHYSICS_DT);
 
 			/* [NOVO] Amostragem de Trilha de Órbita (a cada 10 frames fisicos) */
@@ -417,7 +419,7 @@ void app_run(struct app_state *app)
 				}
 			}
 
-			/* [NEW] Atualiza sistema de marcadores de órbita */
+			/* [NOVO] Atualiza sistema de marcadores de órbita */
 			{
 				int count = 0;
 				const struct bhs_body *bodies =
@@ -530,18 +532,18 @@ void app_run(struct app_state *app)
 							rz /= r_len;
 						}
 
-						/* Offsets based on VISUAL RADIUS */
-						/* [TUNING] Increased distance to 5.0x for better framing */
+						/* Offsets baseados no RAIO VISUAL */
+						/* [AJUSTE] Distância aumentada para 5.0x para melhor enquadramento */
 						double offset_dist =
 							tv_rad * 5.0;
 						if (offset_dist < 20.0)
 							offset_dist =
-								20.0; /* Sanity minimum */
+								20.0; /* Mínimo de sanidade */
 
-						/* [TUNING] Inverted Side Shift sign to place Planet on LEFT */
+						/* [AJUSTE] Sinal do deslocamento lateral invertido para colocar Planeta na ESQUERDA */
 						double side_offset =
 							-tv_rad *
-							1.5; /* Inverted sign */
+							1.5; /* Sinal invertido */
 
 						double up_offset = tv_rad * 0.3;
 
@@ -559,7 +561,7 @@ void app_run(struct app_state *app)
 							(nz * offset_dist) +
 							(rz * side_offset);
 
-						/* Look At Sun (Visual Pos) */
+						/* Olhar para o Sol (Pos Visual) */
 						double lx = svx - app->camera.x;
 						double ly = svy - app->camera.y;
 						double lz = svz - app->camera.z;
@@ -581,22 +583,22 @@ void app_run(struct app_state *app)
 			const struct bhs_body *bodies =
 				bhs_scene_get_bodies(app->scene, &count);
 
-			// Validate index
+			// Validar índice
 			if (app->hud.selected_body_index < count) {
 				const struct bhs_body *me =
 					&bodies[app->hud.selected_body_index];
 
-				/* [FIX] Use Hill Sphere Logic for "Parent" detection instead of raw Force.
-				   Raw force says Sun > Earth for Moon (approx 2x), but Earth is the Moon's parent. */
+				/* [FIX] Usa Lógica da Esfera de Hill para detecção de "Pais" em vez de Força bruta.
+				   Força bruta diz Sol > Terra para a Lua (prox 2x), mas a Terra é o pai da Lua. */
 
 				double best_hill_score =
-					1.0e52; /* [FIX] Init larger than any possible Hill R (was 1.0e50) */
+					1.0e52; /* [FIX] Init maior que qualquer Hill R possível (era 1.0e50) */
 				int parent_idx = -1;
 				double best_dist = 0.0;
 
-				/* Find System Attractor (Sun/BH) for Hill Calc */
+				/* Encontra o Atrator do Sistema (Sol/BN) para Cálculo de Hill */
 				int sys_attractor = -1;
-				double max_mass = 0.0; /* [FIX] Init to 0.0 */
+				double max_mass = 0.0; /* [FIX] Init em 0.0 */
 				for (int k = 0; k < count; ++k) {
 					if ((bodies[k].type == BHS_BODY_STAR ||
 					     bodies[k].type ==
@@ -736,7 +738,7 @@ void app_run(struct app_state *app)
 					app->bh_pass);
 			}
 
-			/* Desenha cena (Updated with Visual Mode) */
+			/* Desenha cena (Atualizado com Modo Visual) */
 			bhs_view_assets_t assets = {
 				.bg_texture = app->bg_tex,
 				.sphere_texture = app->sphere_tex,
@@ -750,9 +752,9 @@ void app_run(struct app_state *app)
 				.show_gravity_line = app->hud.show_gravity_line,
 				.selected_body_index =
 					app->hud.selected_body_index,
-				/* Orbit Trail */
+				/* Trilha de Órbita (Orbit Trail) */
 				.show_orbit_trail = app->hud.show_orbit_trail,
-				/* Satellite Orbits */
+				/* Órbitas de Satélites */
 				.show_satellite_orbits =
 					app->hud.show_satellite_orbits,
 				/* [NOVO] Controle visual detalhado */
@@ -764,11 +766,11 @@ void app_run(struct app_state *app)
 					app->hud.isolate_view
 						? app->hud.selected_body_index
 						: -1,
-				/* [NEW] Sistema de marcadores de órbita */
+				/* [NOVO] Sistema de marcadores de órbita */
 				.orbit_markers = &app->orbit_markers,
-				/* [NEW] Interpolation Alpha */
+				/* [NOVO] Alpha de Interpolação */
 				.sim_alpha = accumulator,
-				/* [NEW] Attractor Index for visual context */
+				/* [NOVO] Índice do Atrator para contexto visual */
 				.attractor_index = attractor_idx
 			};
 			bhs_view_spacetime_draw(app->ui, app->scene,
@@ -786,12 +788,12 @@ void app_run(struct app_state *app)
 			avg_fps = (avg_fps * 0.9f) + (instantaneous_fps * 0.1f);
 
 			app->hud.sim_time_seconds =
-				app->accumulated_time; /* Sync J2000 time */
+				app->accumulated_time; /* Sincronizar tempo J2000 */
 			app->hud.current_fps = avg_fps;
 			app->hud.orbit_markers_ptr =
-				&app->orbit_markers; /* [NEW] Passa marcadores */
+				&app->orbit_markers; /* [NOVO] Passa marcadores */
 			app->hud.current_scenario =
-				(int)app->scenario; /* [NEW] Sync Scenario Type */
+				(int)app->scenario; /* [NOVO] Sincronizar Tipo de Cenário */
 			bhs_hud_draw(app->ui, &app->hud, win_w, win_h);
 
 			/* Status bar */
@@ -822,7 +824,7 @@ void app_run(struct app_state *app)
 						  app->phys_ms, app->render_ms);
 		}
 
-		/* Log orbits periodically for analysis (Scrollable history) */
+		/* Registrar órbitas periodicamente para análise (Histórico rolável) */
 		if (app->frame_count % 60 == 0) {
 			bhs_telemetry_log_orbits(app->scene,
 						 app->accumulated_time);

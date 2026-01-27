@@ -7,6 +7,7 @@
 #include <math.h>
 #include <string.h>
 #include "src/simulation/data/orbit_marker.h"
+#include "src/simulation/components/sim_components.h" /* [FIX] For Visual Flags */
 #include "src/ui/render/planet_renderer.h" /* For 3D Lines */
 #include "visual_utils.h"
 
@@ -169,13 +170,13 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	int n_bodies = 0;
 	const struct bhs_body *bodies = bhs_scene_get_bodies(scene, &n_bodies);
 
-	/* 2.5. Gravity Lines (Red) - Hide in Isolation Mode if desired? User didn't specify Red lines. */
-	/* But user said "Fique SOMENTE a linha roxa" (Only the purple line stays). */
-	/* So we should hide Red and Green trails too. */
+	/* 2.5. Gravity Lines (Red) */
+	/* User request: "Fique SOMENTE a linha roxa" -> This implies disabling others by default. */
+	/* We check assets->show_gravity_line OR local flags */
 	bool fixed_mode = (assets && assets->isolated_body_index >= 0);
 
-	if (assets && assets->show_gravity_line && n_bodies > 0 &&
-	    !fixed_mode) {
+	if (assets && n_bodies > 0 && !fixed_mode) {
+		/* Loop checks visibility internally */
 		struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
 
 		int attractor_idx = -1;
@@ -211,6 +212,14 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				continue;
 
 			struct bhs_ui_color line_color = red;
+			
+			/* Check Visibility: Global OR Local */
+			bool show_vector = assets->show_gravity_line;
+			if (bodies[i].visual_flags & BHS_VISUAL_FLAG_SHOW_VECTORS) {
+				show_vector = true;
+			}
+			
+			if (!show_vector) continue;
 
 			int dynamic_parent = bhs_visual_find_parent(
 				i, bodies, n_bodies, NULL);
@@ -595,7 +604,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 	/* 2.6. Orbit Trails (Blue) */
 	/* HIDE IN FIXED MODE */
-	if (assets && assets->show_orbit_trail && n_bodies > 0 && !fixed_mode) {
+	if (assets && n_bodies > 0 && !fixed_mode) {
 		struct bhs_ui_color trail_color = { 0.2f, 0.5f, 1.0f, 0.6f };
 
 		for (int i = 0; i < n_bodies; i++) {
@@ -605,6 +614,13 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (assets->selected_body_index >= 0 &&
 			    i != assets->selected_body_index)
 				continue;
+			
+			/* CHECK VISIBILITY */
+			bool show = assets->show_orbit_trail;
+			if (planet->visual_flags & BHS_VISUAL_FLAG_SHOW_TRAIL) {
+				show = true;
+			}
+			if (!show) continue;
 
 			int dynamic_parent = bhs_visual_find_parent(
 				i, bodies, n_bodies, NULL);
@@ -726,11 +742,23 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			}
 
 			if (is_moon_orbit) {
-				if (!assets->show_moon_markers)
-					continue;
+				bool show = assets->show_moon_markers;
+				/* Check Parent's Moon Marker Flag? */
+				/* No, check if THIS ORBIT (belonging to planet_index body) has flag */
+				if (m->planet_index >= 0 && m->planet_index < n_bodies) {
+					if (bodies[m->planet_index].visual_flags & BHS_VISUAL_FLAG_SHOW_MARKERS) {
+						show = true;
+					}
+				}
+				if (!show) continue;
 			} else {
-				if (!assets->show_planet_markers)
-					continue;
+				bool show = assets->show_planet_markers;
+				if (m->planet_index >= 0 && m->planet_index < n_bodies) {
+					if (bodies[m->planet_index].visual_flags & BHS_VISUAL_FLAG_SHOW_MARKERS) {
+						show = true;
+					}
+				}
+				if (!show) continue;
 			}
 
 			float m_x = (float)m->position.x;

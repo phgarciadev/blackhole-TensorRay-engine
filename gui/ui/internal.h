@@ -97,6 +97,7 @@ struct bhs_ui_ctx_impl {
 		int32_t mouse_x;
 		int32_t mouse_y;
 		float scroll_y; /* Vertical scroll delta */
+		bool input_blocked; /* [NEW] Global input lock (modals) */
 	} input;
 
 	/* === Widget state (immediate mode) === */

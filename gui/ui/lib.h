@@ -279,6 +279,15 @@ bool bhs_ui_mouse_clicked(bhs_ui_ctx_t ctx, int button);
  */
 float bhs_ui_mouse_scroll(bhs_ui_ctx_t ctx);
 
+/**
+ * bhs_ui_set_input_blocked - Bloqueia/Desbloqueia input globalmente
+ *
+ * Útil para modais. Quando bloqueado:
+ * - mouse_pos retorna (-9999, -9999)
+ * - clicks e keys retornam false
+ */
+void bhs_ui_set_input_blocked(bhs_ui_ctx_t ctx, bool blocked);
+
 /* ============================================================================
  * API DE DESENHO 2D
  * ============================================================================
