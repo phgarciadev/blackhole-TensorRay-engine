@@ -94,7 +94,7 @@ struct bhs_body_state {
 
 /* Orbit Trail - buffer circular de posições históricas */
 #define BHS_MAX_TRAIL_POINTS                                                   \
-	65536 /* 64K points * 4h sampling ~ 30 years history */
+	2000000 /* 2M points * 1h sampling ~ 228 years history */
 
 struct bhs_body {
 	struct bhs_body_state state;
@@ -112,8 +112,8 @@ struct bhs_body {
 	uint32_t visual_flags;	 /* [NOVO] Flags visuais (Trail, Markers...) */
 
 	/* [NEW] Orbit Trail Data */
-	float trail_positions[BHS_MAX_TRAIL_POINTS][3]; /* x, y, z */
-	int trail_head; /* Próximo índice a escrever */
+	float (*trail_positions)[3]; /* x, y, z - Dynamic Allocation */
+	int trail_head;		     /* Próximo índice a escrever */
 	int trail_count; /* Quantos pontos válidos (max = BHS_MAX_TRAIL_POINTS) */
 };
 

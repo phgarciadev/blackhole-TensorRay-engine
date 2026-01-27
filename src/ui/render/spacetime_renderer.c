@@ -185,8 +185,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		for (int i = 0; i < n_bodies; i++) {
 			if (bodies[i].type == BHS_BODY_BLACKHOLE)
 				continue;
-			if (assets->selected_body_index >= 0 &&
-			    i != assets->selected_body_index)
+			if (assets->isolated_body_index >= 0 &&
+			    i != assets->isolated_body_index)
 				continue;
 
 			/* Check Visibility */
@@ -277,8 +277,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 		for (int i = 0; i < n_bodies; i++) {
 			if (i == attractor_idx)
 				continue;
-			if (assets->selected_body_index >= 0 &&
-			    i != assets->selected_body_index)
+			if (assets->isolated_body_index >= 0 &&
+			    i != assets->isolated_body_index)
 				continue;
 
 			/* Check Visibility */
@@ -610,8 +610,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			const struct bhs_body *planet = &bodies[i];
 			if (planet->type != BHS_BODY_PLANET)
 				continue;
-			if (assets->selected_body_index >= 0 &&
-			    i != assets->selected_body_index)
+			if (assets->isolated_body_index >= 0 &&
+			    i != assets->isolated_body_index)
 				continue;
 			
 			/* CHECK VISIBILITY */
@@ -721,9 +721,6 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 				    latest_orbit[m->planet_index])
 					continue;
 			}
-			if (assets->selected_body_index >= 0 &&
-			    m->planet_index != assets->selected_body_index)
-				continue;
 			if (assets->isolated_body_index >= 0 &&
 			    m->planet_index != assets->isolated_body_index)
 				continue;

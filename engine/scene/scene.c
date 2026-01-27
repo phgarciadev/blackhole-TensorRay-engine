@@ -153,6 +153,16 @@ const struct bhs_body *bhs_scene_get_bodies(bhs_scene_t scene, int *count)
 			continue;
 
 		struct bhs_body *b = &g_legacy_bodies[idx];
+
+		/* [FIX] Manage Trail Memory Ownership (Dynamic 2M points) */
+		if (b->entity_id != 0 && b->entity_id != id) {
+			if (b->trail_positions) {
+				free(b->trail_positions);
+				b->trail_positions = NULL;
+			}
+			b->trail_head = 0;
+			b->trail_count = 0;
+		}
 		b->entity_id = id; /* [NOVO] Store ID */
 
 		// Map Transform
@@ -445,5 +455,11 @@ void bhs_scene_remove_body(bhs_scene_t scene, int index)
 void bhs_scene_clear_legacy_cache(void)
 {
 	/* Limpa todo o cache legado, incluindo históricos de trail */
+	for (int i = 0; i < MAX_BODIES; i++) {
+		if (g_legacy_bodies[i].trail_positions) {
+			free(g_legacy_bodies[i].trail_positions);
+			g_legacy_bodies[i].trail_positions = NULL;
+		}
+	}
 	memset(g_legacy_bodies, 0, sizeof(g_legacy_bodies));
 }

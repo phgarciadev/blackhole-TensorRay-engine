@@ -384,11 +384,13 @@ void app_run(struct app_state *app)
 			/* 4. Gameplay/Atualização Celestial (Rotação, Eventos) */
 			bhs_celestial_system_update(app->scene, PHYSICS_DT);
 
-			/* [NOVO] Amostragem de Trilha de Órbita (a cada 10 frames fisicos) */
+			/* [NOVO] Amostragem de Trilha de Órbita (Infinite History) */
+			/* Sampling a cada 60 physic steps (1 min DT) = 1 hora simulada */
 			static int trail_sample_counter = 0;
 			trail_sample_counter++;
-			if (app->hud.show_orbit_trail &&
-			    (trail_sample_counter % 240 == 0)) {
+			/* [FIX] Always sample if counter hits, regardless of GLOBAL flag. 
+			   Visibility logic in renderer handles the rest. */
+			if (trail_sample_counter % 60 == 0) {
 				int count = 0;
 				struct bhs_body *bodies =
 					(struct bhs_body *)bhs_scene_get_bodies(
@@ -396,6 +398,14 @@ void app_run(struct app_state *app)
 				for (int i = 0; i < count; i++) {
 					if (bodies[i].type != BHS_BODY_PLANET)
 						continue;
+
+					/* [FIX] Dynamic Allocation for Infinite Trails */
+					if (!bodies[i].trail_positions) {
+						size_t sz = BHS_MAX_TRAIL_POINTS * 3 * sizeof(float);
+						bodies[i].trail_positions = malloc(sz);
+						if (!bodies[i].trail_positions) continue; // Alloc failed
+						memset(bodies[i].trail_positions, 0, sz);
+					}
 
 					/* Adiciona posição atual ao buffer circular */
 					int idx = bodies[i].trail_head;
