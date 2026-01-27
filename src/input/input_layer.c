@@ -20,6 +20,7 @@
 #include "input_layer.h"
 #include "src/app_state.h"
 #include "src/ui/camera/camera_controller.h"
+#include "src/simulation/components/sim_components.h" /* [NEW] For visual flags */
 
 #include "engine/ecs/ecs.h"
 #include "engine/scene/scene.h"
@@ -388,6 +389,31 @@ static void handle_hud_commands(struct app_state *app)
 			BHS_LOG_INFO("Workspace recarregado via HUD.");
 		}
 		app->hud.req_reload_workspace = false;
+	}
+
+	/* [FIX] Handle Visual Flag Toggle Request */
+	if (app->hud.req_toggle_visual_bit) {
+		int n_bodies = 0;
+		/* Note: We need a mutable pointer to update flags */
+		struct bhs_body *bodies = (struct bhs_body *)bhs_scene_get_bodies(app->scene, &n_bodies);
+		
+		for (int i = 0; i < n_bodies; i++) {
+			if (bodies[i].entity_id == app->hud.req_visual_entity) {
+				/* Toggle bit */
+				if (bodies[i].visual_flags & app->hud.req_visual_mask) {
+					bodies[i].visual_flags &= ~app->hud.req_visual_mask;
+				} else {
+					bodies[i].visual_flags |= app->hud.req_visual_mask;
+				}
+				
+				/* If selected, update cache immediately so UI reacts instantly */
+				if (app->hud.selected_body_index == i) {
+					app->hud.selected_body_cache = bodies[i];
+				}
+				break;
+			}
+		}
+		app->hud.req_toggle_visual_bit = false;
 	}
 }
 

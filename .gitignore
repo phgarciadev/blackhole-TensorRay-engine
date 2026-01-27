@@ -46,12 +46,12 @@ bin/
 target/
 build_verify/
 data/
-
+build_test/
 # IDEs and Tools
 .vscode/
 .idea/
 .vs/
-*.swp
+*.swpe
 *.swo
 *~
 compile_commands.json

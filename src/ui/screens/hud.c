@@ -105,6 +105,7 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->active_menu_index = -1;
 		state->add_menu_category = -1;
 		state->selected_body_index = -1;
+		state->req_refresh_selected_body = false; /* [NEW] Sync */
 		state->req_delete_body = false;
 		state->req_add_body_type = -1;
 		state->req_add_registry_entry = NULL;
@@ -116,8 +117,8 @@ void bhs_hud_init(bhs_hud_state_t *state)
 		state->show_planet_markers = false; /* Default OFF (User Req) */
 		state->show_moon_markers = false;   /* Default OFF (User Req) */
 		state->isolate_view = false;
-		state->isolate_view = false;
 		state->show_visual_warning = false;
+		state->show_save_modal = false; /* [FIX] Ensure init */
 		state->visual_warning_accepted = false; /* [NEW] Start as false */
 		state->req_toggle_visual_bit = false;
 		state->selected_marker_index = -1;
@@ -1038,6 +1039,10 @@ void bhs_hud_draw(bhs_ui_ctx_t ctx, bhs_hud_state_t *state, int window_w,
 	/* 4. Info Panel (Expanded & Polished) */
 	if (state->selected_body_index != -1 ||
 	    state->selected_marker_index != -1) {
+		/* [FIX] Refresh Body Data for Checkboxes */
+		if (state->selected_body_index != -1) {
+			state->req_refresh_selected_body = true;
+		}
 		/* [FIX] Usando valores do layout pra consistência com hit test */
 		struct bhs_ui_rect info_rect = {
 			(float)window_w - layout.info_panel_w -

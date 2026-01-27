@@ -178,78 +178,77 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	if (assets && n_bodies > 0 && !fixed_mode) {
 		/* Loop checks visibility internally */
 		struct bhs_ui_color red = { 1.0f, 0.2f, 0.2f, 0.7f };
-
-		int attractor_idx = -1;
-		double attractor_mass = -1.0;
+		
+		/* [FIX] Calculate Major Force Per Body (Local Logic) */
+		/* Instead of 1 global attractor, we find who pulls 'i' the strongest */
+		
 		for (int i = 0; i < n_bodies; i++) {
-			if (bodies[i].type == BHS_BODY_STAR ||
-			    bodies[i].type == BHS_BODY_BLACKHOLE) {
-				if (bodies[i].state.mass > attractor_mass) {
-					attractor_mass = bodies[i].state.mass;
-					attractor_idx = i;
-				}
-			}
-		}
-		if (attractor_idx == -1 && n_bodies > 0)
-			attractor_idx = 0;
-
-		const struct bhs_body *att = &bodies[attractor_idx];
-		float ax, ay, az, ar;
-		bhs_visual_calculate_transform(att, bodies, n_bodies, mode, &ax,
-					       &ay, &az, &ar);
-
-		float sax, say;
-		bhs_project_point(cam, ax, ay, az, (float)width, (float)height,
-				  &sax, &say);
-
-		for (int i = 0; i < n_bodies; i++) {
-			if (i == attractor_idx)
+			if (bodies[i].type == BHS_BODY_BLACKHOLE)
 				continue;
 			if (assets->selected_body_index >= 0 &&
 			    i != assets->selected_body_index)
 				continue;
-			if (bodies[i].type == BHS_BODY_BLACKHOLE)
-				continue;
 
-			struct bhs_ui_color line_color = red;
-			
-			/* Check Visibility: Global OR Local */
+			/* Check Visibility */
 			bool show_vector = assets->show_gravity_line;
 			if (bodies[i].visual_flags & BHS_VISUAL_FLAG_SHOW_VECTORS) {
 				show_vector = true;
 			}
-			
 			if (!show_vector) continue;
 
-			int dynamic_parent = bhs_visual_find_parent(
-				i, bodies, n_bodies, NULL);
-
-			if (dynamic_parent != -1 &&
-			    dynamic_parent != attractor_idx) {
-				continue;
+			/* Find Dominant Gravitational Source */
+			int best_attractor = -1;
+			double max_g_force_score = -1.0;
+			
+			/* We use current simulated positions */
+			/* Force ~ Mass / dist^2 */
+			
+			for (int j = 0; j < n_bodies; j++) {
+				if (i == j) continue;
+				if (bodies[j].type == BHS_BODY_ASTEROID) continue; /* Ignore debris */
+				
+				double dx = bodies[j].state.pos.x - bodies[i].state.pos.x;
+				double dy = bodies[j].state.pos.y - bodies[i].state.pos.y;
+				double dz = bodies[j].state.pos.z - bodies[i].state.pos.z;
+				double dist_sq = dx*dx + dy*dy + dz*dz;
+				
+				if (dist_sq < 1e-12) continue;
+				
+				double score = bodies[j].state.mass / dist_sq;
+				
+				if (score > max_g_force_score) {
+					max_g_force_score = score;
+					best_attractor = j;
+				}
 			}
 
-			/* Hill Sphere Check omitted for brevity in "Red" lines (assuming simple sun link) */
-			/* Using simple link for Red lines */
+			if (best_attractor != -1) {
+				/* Draw Line i -> best_attractor */
+				float px, py, pz, pr;
+				bhs_visual_calculate_transform(&bodies[i], bodies,
+							       n_bodies, mode, &px, &py,
+							       &pz, &pr);
 
-			float px, py, pz, pr;
-			bhs_visual_calculate_transform(&bodies[i], bodies,
-						       n_bodies, mode, &px, &py,
-						       &pz, &pr);
+				float ax, ay, az, ar;
+				bhs_visual_calculate_transform(&bodies[best_attractor], bodies,
+							       n_bodies, mode, &ax, &ay,
+							       &az, &ar);
 
-			float spx, spy;
-			bhs_project_point(cam, px, py, pz, (float)width,
-					  (float)height, &spx, &spy);
+				float spx, spy;
+				bhs_project_point(cam, px, py, pz, (float)width,
+						  (float)height, &spx, &spy);
+				
+				float sax, say;
+				bhs_project_point(cam, ax, ay, az, (float)width,
+						  (float)height, &sax, &say);
 
-			float stx = sax;
-			float sty = say;
-
-			if ((spx > -100 && spx < width + 100 && spy > -100 &&
-			     spy < height + 100) ||
-			    (stx > -100 && stx < width + 100 && sty > -100 &&
-			     sty < height + 100)) {
-				bhs_ui_draw_line(ctx, stx, sty, spx, spy,
-						 line_color, 2.0f);
+				if ((spx > -100 && spx < width + 100 && spy > -100 &&
+				     spy < height + 100) ||
+				    (sax > -100 && sax < width + 100 && say > -100 &&
+				     say < height + 100)) {
+					bhs_ui_draw_line(ctx, spx, spy, sax, say,
+							 red, 2.0f);
+				}
 			}
 		}
 	}

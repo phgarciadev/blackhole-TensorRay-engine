@@ -4,9 +4,16 @@
 if(EXISTS "${CMAKE_SOURCE_DIR}/math/tests/test_core.c")
     add_executable(unit_tests_math "${CMAKE_SOURCE_DIR}/math/tests/test_core.c")
     target_link_libraries(unit_tests_math PRIVATE bhs_math) 
-    # Linkar math apenas. Se precisar de gui, adicionar.
     target_include_directories(unit_tests_math PRIVATE ${CMAKE_SOURCE_DIR})
     add_test(NAME MathCoreTest COMMAND unit_tests_math)
+endif()
+
+# Gravity Logic Logic Test (New)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/test_gravity_logic.c")
+    add_executable(test_gravity_logic "${CMAKE_SOURCE_DIR}/tests/unit/test_gravity_logic.c")
+    # No linking needed as it is a standalone logic test with mocks
+    target_include_directories(test_gravity_logic PRIVATE ${CMAKE_SOURCE_DIR})
+    add_test(NAME GravityLogicTest COMMAND test_gravity_logic)
 endif()
 
 # Global Integration Tests

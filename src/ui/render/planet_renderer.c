@@ -429,8 +429,20 @@ void bhs_planet_pass_draw(bhs_planet_pass_t pass, bhs_gpu_cmd_buffer_t cmd,
 		if (render_count >= 128)
 			break;
 		if (assets && assets->isolated_body_index >= 0) {
-			if (i != assets->isolated_body_index &&
-			    i != assets->attractor_index) {
+			/* Show: Self, Attractor, or if I am a moon of Self */
+			bool visible = false;
+			if (i == assets->isolated_body_index) visible = true;
+			if (i == assets->attractor_index) visible = true;
+			
+			if (!visible) {
+				/* Check if I am a moon of the isolated body */
+				int parent = bhs_visual_find_parent(i, bodies, count, NULL);
+				if (parent == assets->isolated_body_index) {
+					visible = true;
+				}
+			}
+
+			if (!visible) {
 				continue;
 			}
 		}

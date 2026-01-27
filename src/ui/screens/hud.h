@@ -26,6 +26,7 @@ typedef struct {
 
 	/* Selection State */
 	int selected_body_index;	     /* -1 = none */
+	bool req_refresh_selected_body; /* [NEW] Sync */
 	struct bhs_body selected_body_cache; /* Para exibir info sem lock */
 	bool isolate_view; /* [NEW] Mostrar apenas o planeta selecionado */
 	int selected_marker_index; /* [NEW] -1 = none, seleciona um marco roxo */
