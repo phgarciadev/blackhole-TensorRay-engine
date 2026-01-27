@@ -255,7 +255,7 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 	/* 2.6. Satellite Orbits (Purple) */
 	/* User: "Fique somente a linha roxa... 3D Real" */
-	if (assets && assets->show_satellite_orbits && n_bodies > 0) {
+	if (assets && n_bodies > 0) {
 		/* If Fixed Mode, we show this. If not fixed, we show this. */
 
 		struct bhs_ui_color purple = { 0.8f, 0.4f, 1.0f, 0.8f };
@@ -280,6 +280,19 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 			if (assets->selected_body_index >= 0 &&
 			    i != assets->selected_body_index)
 				continue;
+
+			/* Check Visibility */
+			bool show_purple = assets->show_satellite_orbits;
+			if (bodies[i].visual_flags & BHS_VISUAL_FLAG_SHOW_VECTORS) {
+				show_purple = true;
+			}
+			
+			bool show_green = assets->show_satellite_orbits;
+			if (bodies[i].visual_flags & BHS_VISUAL_FLAG_SHOW_TRAIL) {
+				show_green = true;
+			}
+
+			if (!show_purple && !show_green) continue;
 
 			/* If Fixed Mode, Show ONLY if it's related to the isolated body?
                Or just show all moons?
@@ -307,23 +320,13 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					mode, &tx, &ty, &tz, &tr);
 
 				/* USE 3D LINE IF AVAILABLE */
-				if (planet_pass && fixed_mode) {
-					/* Submit 3D line */
-					bhs_planet_pass_submit_line(
-						planet_pass, px, py, pz, tx, ty,
-						tz, purple.r, purple.g,
-						purple.b, purple.a);
-				} else {
-					/* Fallback or Standard 2D mode? */
-					/* User said "Essa linha roxa tem que ser 3d real agora".
-                       Does "agora" mean "always" or "when fixed"?
-                       I'll use 3D always if planet_pass exists, consistency is better. */
+				if (show_purple) {
 					if (planet_pass) {
+						/* Submit 3D line */
 						bhs_planet_pass_submit_line(
-							planet_pass, px, py, pz,
-							tx, ty, tz, purple.r,
-							purple.g, purple.b,
-							purple.a);
+							planet_pass, px, py, pz, tx, ty,
+							tz, purple.r, purple.g,
+							purple.b, purple.a);
 					} else {
 						/* 2D Fallback */
 						float sx1, sy1, sx2, sy2;
@@ -343,11 +346,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 					}
 				}
 
-				/* Green Orbit Trail (History) logic... Hidden in Fixed Mode? 
-				   User said "Fique somente a linha roxa".
-				   So Green Lines should disappear in Fixed Mode too.
-				*/
-				if (!fixed_mode) {
+				/* Green Orbit Trail (History) logic */
+				if (show_green) {
 					struct bhs_ui_color green_trail = {
 						0.2f, 1.0f, 0.2f, 0.6f
 					};
@@ -602,8 +602,8 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 	}
 
 	/* 2.6. Orbit Trails (Blue) */
-	/* HIDE IN FIXED MODE */
-	if (assets && n_bodies > 0 && !fixed_mode) {
+	/* Show Trail if global is on OR per-body flag is set */
+	if (assets && n_bodies > 0) {
 		struct bhs_ui_color trail_color = { 0.2f, 0.5f, 1.0f, 0.6f };
 
 		for (int i = 0; i < n_bodies; i++) {
@@ -683,10 +683,9 @@ void bhs_spacetime_renderer_draw(bhs_ui_ctx_t ctx, bhs_scene_t scene,
 
 	/* 2.7. Orbit Completion Markers */
 	if (assets && assets->orbit_markers &&
-	    assets->orbit_markers->marker_count > 0 && !fixed_mode) {
-		/* Hide markers in fixed mode if requested? User said "Fique SOMENTE a linha roxa".
-           So yes, hide markers too? "Fique somente a linha roxa" is strong.
-           I'll hide them.
+	    assets->orbit_markers->marker_count > 0) {
+		/* Show markers if global is on OR per-body flag is set.
+           Note: Fixed mode previously hid these, but user wants local control.
         */
 		struct bhs_ui_color purple = { 0.6f, 0.2f, 0.8f, 1.0f };
 		struct bhs_ui_color purple_outline = { 0.9f, 0.6f, 1.0f, 0.9f };

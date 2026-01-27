@@ -353,11 +353,8 @@ void app_run(struct app_state *app)
 		if (bhs_ui_begin_frame(app->ui) != BHS_UI_OK)
 			continue; /* Frame perdido, vida que segue */
 
-		/* Processar input (APENAS se não estiver em modo Câmera Fixa) */
-		if (!app->hud.fixed_planet_cam ||
-		    app->hud.selected_body_index == -1) {
-			input_process_frame(app, frame_time);
-		}
+		/* Processar input - Sempre processar para garantir comandos de HUD (Save, Toggle, etc) */
+		input_process_frame(app, frame_time);
 
 		/* Inicia gravação de comandos */
 		bhs_ui_cmd_begin(app->ui);

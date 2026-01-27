@@ -76,8 +76,10 @@ static void handle_camera_input(struct app_state *app, double dt)
 		/* Não travamos X/Z para o usuário poder navegar (pan) */
 	}
 
-	/* Delega pro camera_controller existente */
-	bhs_camera_controller_update(&app->camera, app->ui, dt);
+	/* Delega pro camera_controller existente (apenas se não estiver em modo foco) */
+	if (!app->hud.fixed_planet_cam || app->hud.selected_body_index == -1) {
+		bhs_camera_controller_update(&app->camera, app->ui, dt);
+	}
 }
 
 /**
@@ -393,26 +395,41 @@ static void handle_hud_commands(struct app_state *app)
 
 	/* [FIX] Handle Visual Flag Toggle Request */
 	if (app->hud.req_toggle_visual_bit) {
-		int n_bodies = 0;
-		/* Note: We need a mutable pointer to update flags */
-		struct bhs_body *bodies = (struct bhs_body *)bhs_scene_get_bodies(app->scene, &n_bodies);
+		/* Access ECS World directly to update component state */
+		bhs_world_handle world = bhs_scene_get_world(app->scene);
 		
-		for (int i = 0; i < n_bodies; i++) {
-			if (bodies[i].entity_id == app->hud.req_visual_entity) {
-				/* Toggle bit */
-				if (bodies[i].visual_flags & app->hud.req_visual_mask) {
-					bodies[i].visual_flags &= ~app->hud.req_visual_mask;
+		if (world && app->hud.req_visual_entity != BHS_ENTITY_INVALID) {
+			bhs_celestial_component *comp = bhs_ecs_get_component(
+				world, app->hud.req_visual_entity, BHS_COMP_CELESTIAL);
+			
+			if (comp) {
+				/* Toggle bit on the persistent component */
+				if (comp->visual_flags & app->hud.req_visual_mask) {
+					comp->visual_flags &= ~app->hud.req_visual_mask;
 				} else {
-					bodies[i].visual_flags |= app->hud.req_visual_mask;
+					comp->visual_flags |= app->hud.req_visual_mask;
 				}
-				
-				/* If selected, update cache immediately so UI reacts instantly */
-				if (app->hud.selected_body_index == i) {
-					app->hud.selected_body_cache = bodies[i];
-				}
-				break;
+				BHS_LOG_INFO("Visual Flags updated for Entity %d: 0x%X", 
+					app->hud.req_visual_entity, comp->visual_flags);
+			} else {
+				BHS_LOG_WARN("Failed to get Celestial Component for Ent %d", 
+					app->hud.req_visual_entity);
 			}
 		}
+
+		/* Still update transient cache for instant feedback in ONE frame 
+		   (though next frame scene update will re-read from ECS anyway) */
+		if (app->hud.selected_body_index != -1) {
+			if (app->hud.selected_body_cache.entity_id == app->hud.req_visual_entity) {
+				/* Update cache too */
+				if (app->hud.selected_body_cache.visual_flags & app->hud.req_visual_mask) {
+					app->hud.selected_body_cache.visual_flags &= ~app->hud.req_visual_mask;
+				} else {
+					app->hud.selected_body_cache.visual_flags |= app->hud.req_visual_mask;
+				}
+			}
+		}
+		
 		app->hud.req_toggle_visual_bit = false;
 	}
 }
